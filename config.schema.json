@@ -1,15 +1,138 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "YoLink",
   "pluginType": "platform",
+  "headerDisplay": "This plugin is currently experimental and under development.  Please report [bugs](https://github.com/dkerr64/homebridge-yolink/issues)",
+  "footerDisplay": "For help please see the [homepage](https://github.com/dkerr64/homebridge-yolink)",
   "singular": true,
   "schema": {
     "type": "object",
     "properties": {
       "name": {
-        "title": "Name",
+        "title": "name",
         "type": "string",
         "required": true,
-        "default": "Example Dynamic Platform"
+        "default": "YoLink"
+      },
+      "platform": {
+        "title": "platform",
+        "type": "string",
+        "required": true,
+        "default": "YoLink"
+      },
+      "tokenURL": { 
+        "title": "YoLink authentication server URL address",
+        "type": "string",
+        "required": true,
+        "default": "https://api.yosmart.com/open/yolink/token",
+        "format": "url"
+      },
+      "apiURL": {
+        "title": "YoLink API server URL address",
+        "type": "string",
+        "required": true,
+        "default": "https://api.yosmart.com/open/yolink/v2/api",
+        "format": "url"
+      },
+      "mqttPort": {
+        "title": "Port number for MQTT service at YoLink API server",
+        "type": "number",
+        "required": false,
+        "default": 8003,
+        "minimum": 0,
+        "maximum": 65535
+      },
+      "userAccessId": {
+        "title": "User Access ID (replace with your ID YoLink App)",
+        "type": "string",
+        "required": true,
+        "default": ""
+      },
+      "secretKey": {
+        "title": "Secret Key (replace with your secret from YoLink App)",
+        "type": "string",
+        "required": true,
+        "default": "",
+        "description": "Obtain credentials from the YoLink app on your mobile device. Settings->Account->Advanced Settings->User Access Credentials. If none exist use the (+) button to request credentials be generated for you. Copy down the UAID and Secret Key and enter in above fields."
+      },
+      "refreshAfter": {
+        "title": "Refresh time for data from YoLink server",
+        "type": "number",
+        "required": false,
+        "default": 3600,
+        "minimum": 0,
+        "maximum":86400,
+        "description": "When HomeKit requests status, request from YoLink server if our cache has not been updated within the time specified. Zero (not recommended) means always retrieve from the server, maximum value is 86400 (24 hours).  Note that, at the time of writing, MQTT provides updates for each device every 4 hours."
+      },
+      "verboseLog": {
+        "title": "Enable verbose logging",
+        "type": "boolean",
+        "required": false,
+        "default": false,
+        "description": "Sometimes it is helpful to log more detail than info but somewhat less than debug. This is that half-way. If enabled then verbose messages are logged as debug level."
+      },
+      "liteLog": {
+        "title": "Suppress logging of every get status request",
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "description": "Homebridge / HomeKit can make very frequent requests for device status.  This suppresses logging of every request (unless verbose logging is enabled)."
+      },
+      "allDevices": {
+        "title": "Load all devices / accessories by default",
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "description": "This will load all devices whether an entry exists in the config file or not (see devices section below).  If set to false then only devices specifically listed in device section, with hide set to false, will load."
+      },
+      "devices": {
+        "type": "array",
+        "items": {
+          "title": "Device",
+          "type": "object",
+          "properties": {
+            "deviceId": {
+              "title": "Device Identifier",
+              "type": "string",
+              "required": true,
+              "default": "0123456789abcdef",
+              "description":"You can find the Device ID in the Homebridge log or in the Homebridge Config UI by clicking on an accessory's settings and copying the Serial Number field."
+            },
+            "config": {
+              "title": "Device Configuration",
+              "type": "object",
+              "properties": {
+                "hide": {
+                  "title": "Hide device from HomeKit",
+                  "type": "boolean",
+                  "required": false,
+                  "default": false,
+                  "description": "Hide this device from Homebridge / HomeKit. You might want to do this to suppress the 'device not supported' warning message in the log. As there is no accessory type in HomeKit for a hub, you might want to set this to true for the YoLink hub."
+                },
+                "name": {
+                  "title": "Device Name",
+                  "type": "string",
+                  "required": false,
+                  "default": "",
+                  "description":"This will override the device name returned by YoLink for display in the Homebridge accessories page"
+                },
+                "model": {
+                  "title": "Device Model Number",
+                  "type": "string",
+                  "required": false,
+                  "default": ""          
+                },
+                "refreshAfter": {
+                  "title": "Refresh time for data from YoLink server (override global setting)",
+                  "type": "number",
+                  "required": false,
+                  "default": 3600,
+                  "minimum": 0,
+                  "maximum":86400
+                }
+              }   
+            }
+          }
+        }
       }
     }
   }

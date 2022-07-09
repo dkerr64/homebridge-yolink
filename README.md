@@ -5,146 +5,109 @@
 
 </p>
 
+# Homebridge YoLink Plugin
 
-# Homebridge Platform Plugin Template
+*Unofficial* plugin for YoLink.  I wrote this plugin to integrate the YoLink devices that I own, so it is currently quite limited.  This is implemented by building on the Homebridge platform plugin template and the [YoLink API.](http://doc.yosmart.com)
 
-This is a template Homebridge platform plugin and can be used as a base to help you get started developing your own plugin.
+**Warning** this plugin is new and not fully tested.
 
-This template should be used in conjunction with the [developer documentation](https://developers.homebridge.io/). A full list of all supported service types, and their characteristics is available on this site.
+Pull requests and/or other offers of development assistance gratefully received.
 
-## Clone As Template
+## Features
 
-Click the link below to create a new GitHub Repository using this template, or click the *Use This Template* button above.
+Currently supports the following devices:
 
-<span align="center">
+* Leak Sensor
+* Motion Sensor
+* Vibration Sensor (as a motion sensor)
+* Manipulator (as a valve)
 
-### [Create New Repository From Template](https://github.com/homebridge/homebridge-plugin-template/generate)
+The plugin registers as a MQTT client and subscribes to reports published by YoLink for real time alerts and status updates.
 
-</span>
+## Installation
 
-## Setup Development Environment
+**Option 1: Install via Homebridge Config UI X:**
 
-To develop Homebridge plugins you must have Node.js 12 or later installed, and a modern code editor such as [VS Code](https://code.visualstudio.com/). This plugin template uses [TypeScript](https://www.typescriptlang.org/) to make development easier and comes with pre-configured settings for [VS Code](https://code.visualstudio.com/) and ESLint. If you are using VS Code install these extensions:
+Search for "yolink" in [homebridge-config-ui-x](https://github.com/oznu/homebridge-config-ui-x) and install `homebridge-yolink`.
 
-* [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
+**Option 2: Manually Install:**
 
-## Install Development Dependencies
-
-Using a terminal, navigate to the project folder and run this command to install the development dependencies:
-
-```
-npm install
-```
-
-## Update package.json
-
-Open the [`package.json`](./package.json) and change the following attributes:
-
-* `name` - this should be prefixed with `homebridge-` or `@username/homebridge-` and contain no spaces or special characters apart from a dashes
-* `displayName` - this is the "nice" name displayed in the Homebridge UI
-* `repository.url` - Link to your GitHub repo
-* `bugs.url` - Link to your GitHub repo issues page
-
-When you are ready to publish the plugin you should set `private` to false, or remove the attribute entirely.
-
-## Update Plugin Defaults
-
-Open the [`src/settings.ts`](./src/settings.ts) file and change the default values:
-
-* `PLATFORM_NAME` - Set this to be the name of your platform. This is the name of the platform that users will use to register the plugin in the Homebridge `config.json`.
-* `PLUGIN_NAME` - Set this to be the same name you set in the [`package.json`](./package.json) file. 
-
-Open the [`config.schema.json`](./config.schema.json) file and change the following attribute:
-
-* `pluginAlias` - set this to match the `PLATFORM_NAME` you defined in the previous step.
-
-## Build Plugin
-
-TypeScript needs to be compiled into JavaScript before it can run. The following command will compile the contents of your [`src`](./src) directory and put the resulting code into the `dist` folder.
-
-```
-npm run build
+```text
+sudo npm install -g homebridge-yolink
 ```
 
-## Link To Homebridge
+Use of Homebridge [child bridge](https://github.com/homebridge/homebridge/wiki/Child-Bridges) is recommended to ensure best HomeKit peformance.
 
-Run this command so your global install of Homebridge can discover the plugin in your development environment:
+## Configuration
 
-```
-npm link
-```
+### Homebridge Config UI X
 
-You can now start Homebridge, use the `-D` flag so you can see debug log messages in your plugin:
+[Homebridge Config UI X](https://github.com/oznu/homebridge-config-ui-x) is the easiest way to configure this plugin.
 
-```
-homebridge -D
-```
+### Configuration File
 
-## Watch For Changes and Build Automatically
-
-If you want to have your code compile automatically as you make changes, and restart Homebridge automatically between changes you can run:
-
-```
-npm run watch
-```
-
-This will launch an instance of Homebridge in debug mode which will restart every time you make a change to the source code. It will load the config stored in the default location under `~/.homebridge`. You may need to stop other running instances of Homebridge while using this command to prevent conflicts. You can adjust the Homebridge startup command in the [`nodemon.json`](./nodemon.json) file.
-
-## Customise Plugin
-
-You can now start customising the plugin template to suit your requirements.
-
-* [`src/platform.ts`](./src/platform.ts) - this is where your device setup and discovery should go.
-* [`src/platformAccessory.ts`](./src/platformAccessory.ts) - this is where your accessory control logic should go, you can rename or create multiple instances of this file for each accessory type you need to implement as part of your platform plugin. You can refer to the [developer documentation](https://developers.homebridge.io/) to see what characteristics you need to implement for each service type.
-* [`config.schema.json`](./config.schema.json) - update the config schema to match the config you expect from the user. See the [Plugin Config Schema Documentation](https://developers.homebridge.io/#/config-schema).
-
-## Versioning Your Plugin
-
-Given a version number `MAJOR`.`MINOR`.`PATCH`, such as `1.4.3`, increment the:
-
-1. **MAJOR** version when you make breaking changes to your plugin,
-2. **MINOR** version when you add functionality in a backwards compatible manner, and
-3. **PATCH** version when you make backwards compatible bug fixes.
-
-You can use the `npm version` command to help you with this:
-
-```bash
-# major update / breaking changes
-npm version major
-
-# minor update / new features
-npm version update
-
-# patch / bugfixes
-npm version patch
+```json
+"platforms": [
+        {
+            "name": "YoLink",
+            "platform": "YoLink",
+            "tokenURL": "https://api.yosmart.com/open/yolink/token",
+            "apiURL": "https://api.yosmart.com/open/yolink/v2/api",
+            "mqttPort": 8003,
+            "userAccessId": "ua_0123456789abcdef",
+            "secretKey": "sec_v1_0123456789abcdef==",
+            "refreshAfter": 3600,
+            "verboseLog": false,
+            "liteLog": true,
+            "allDevices": true,
+            "devices": [
+                {
+                    "deviceId": "0123456789abcdef",
+                    "config": {
+                        "hide": true,
+                        "name": "YoLink Hub",
+                        "model": "YS1603-UC",
+                        "refreshAfter": 1800
+                    }
+                }
+            ]
+        }
+    ]
 ```
 
-## Publish Package
+* **Platform Properties**
+  * **name** *(required)*: Plaform name, set to 'YoLink'.
+  * **platform** *(required)*: Platform identifier, set to 'YoLink'.
+  * **tokenURL** *(required)*: YoLink's authentication server URL.
+  * **apiURL** *(required)*: YoLink's API server URL.
+  * **mqttPort** *(optional)*: MQTT port at the YoLink API server, defaults to 8003.
+  * **userAccessId** *(required)*: Obtain from the YoLink app on your mobile device...  
+  Settings->Account->Advanced Settings->User Access Credentials.  If none exist use the (+) button to request credentials be generated for you.  Copy down the UAID (user access ID) and Secret Key.
+  * **secretKey** *(required)*: Secret key obtained as descrived above.
+  * **refreshAfter** *(optional)*: The plugin maintains a cache of device status so that it can response very quickly to state requests from HomeKit without having to send a request to the YoLink servers.  This is specified in number of seconds and defaults to 3600 (one hour) which means that if the plugin cache is not updated in the last hour then retrieve status from the YoLink server.  If set to zero than the plugin will always request status from YoLink servers for every HomeKit request (not recommended).  Note that at the time of writing, YoLink sends a report over MQTT for each device every 4 hours.
+  * **verboseLog** *(optional)*: Sometimes it is helpful to log more detail than *info* but somewhat less than *debug*. This is that half-way.  Defaults to false.
+  * **liteLog** *(optional)*: HomeKit makes frequent requests for device status, this suppresses logging of every request (unless verboseLog is true).  Requests that require message be sent to YoLink servers are still logged.  Defaults to true.
+  * **allDevices** *(optional)*: If set to false then only devices listed in the Devices section of the config file are loaded, and then only if the hide property is false. Defaults to true so all devices reported by YoLink are loaded (if hide property is false).
+  * **devices** *(optional)*: Optional array of device settings, see below.
 
-When you are ready to publish your plugin to [npm](https://www.npmjs.com/), make sure you have removed the `private` attribute from the [`package.json`](./package.json) file then run:
+* **Device Properties** are an array of objects that allow settings or overrides on a device-by-device basis.  This array is optional but if provided contains the following fields:
+  * **deviceId** *(required)*: ID to identify specific device.  You can find this from the Homebridge log or in the Homebridge Config UI X by clicking on an accessory settings and copying the Serial Number field.
+  * **config** *(optional)*: Object with settings specific for this device:
+    * **hide** *(optional)*: Hide this device from Homebridge / HomeKit.  You might want to do this to suppress the "device not supported" warning message in the log.  As there is no accessory type in HomeKit for a hub, you might want to set this to true for the YoLink hub.  Defaults to false
+    * **name** *(optional)*: Override the name provided by YoLink for the device, this is what is shown in the Homebridge UI accessories page.
+    * **model** *(optional)*: YoLink does not provide device model number when requesting device information.  If you want to keep a record of that and show it in the Homebridge accessories setting page then you can set it here, for example the original YoLink leak sensor has a model number of "YS7903-UC".  This is a purely cosmetic setting with no functional purpose.
+    * **refreshAfter** *(optional)*: Device specific override of global *refreshAfter*, see above.  Defaults to global setting.
 
-```
-npm publish
-```
+## MQTT
 
-If you are publishing a scoped plugin, i.e. `@username/homebridge-xxx` you will need to add `--access=public` to command the first time you publish.
+The plugin registers with YoLink servers as a MQTT client and subscribes to published reports to receive alerts (e.g. motion sensor detects movement) which are forwarded to homebridge. At the time of writing the resiliency of the MQTT client has not been fully tested, so how well it responds to roaming (change of IP address) or disconnects is not fully known.  Logging is enabled to trace events, please report if the MQTT client stops working.
 
-#### Publishing Beta Versions
+At the time of writing, the MQTT client is receiving updates from YoLink every 4 hours for each device whether an alert is triggered or not. If you are comfortable to rely entirely on these notifications you can set the *refreshAfter* property to something larger than 14400 seconds (4 hours) which will cause the plugin to always report the cached state of a device, unless the MQTT client has not received and update in the prior 4 hours.
 
-You can publish *beta* versions of your plugin for other users to test before you release it to everyone.
+## License
 
-```bash
-# create a new pre-release version (eg. 2.1.0-beta.1)
-npm version prepatch --preid beta
+(c) Copyright 2022 David A. Kerr
 
-# publsh to @beta
-npm publish --tag=beta
-```
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this program except in compliance with the License. You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
-Users can then install the  *beta* version by appending `@beta` to the install command, for example:
-
-```
-sudo npm install -g homebridge-example-plugin@beta
-```
-
-
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.

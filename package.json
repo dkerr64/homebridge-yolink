@@ -1,16 +1,16 @@
 {
   "private": true,
-  "displayName": "Plugin Name",
-  "name": "homebridge-plugin-name",
+  "displayName": "Homebridge YoLink",
+  "name": "homebridge-yolink",
   "version": "1.0.0",
-  "description": "A short description about what your plugin does.",
+  "description": "Connect to YoLink.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git://github.com/USERNAME/GITHUB_PROJECT_NAME.git"
+    "url": "git://github.com/dkerr64/homebridge-yolink.git"
   },
   "bugs": {
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME/issues"
+    "url": "https://github.com/dkerr64/homebridge-yolink/issues"
   },
   "engines": {
     "node": ">=14.18.1",
@@ -24,11 +24,13 @@
     "prepublishOnly": "npm run lint && npm run build"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "yolink",
+    "homebridge-yolink"
   ],
-  "dependencies": {},
   "devDependencies": {
     "@types/node": "^16.10.9",
+    "@types/node-fetch": "^2.6.2",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@typescript-eslint/parser": "^5.0.0",
     "eslint": "^8.0.1",
@@ -37,5 +39,10 @@
     "rimraf": "^3.0.2",
     "ts-node": "^10.3.0",
     "typescript": "^4.4.4"
+  },
+  "dependencies": {
+    "mqtt": "^4.3.7",
+    "node-fetch": "^2.6.6",
+    "semaphore-promise": "^1.4.1"
   }
 }

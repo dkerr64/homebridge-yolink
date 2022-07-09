@@ -1,141 +1,349 @@
-import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
-
-import { ExampleHomebridgePlatform } from './platform';
-
-/**
- * Platform Accessory
- * An instance of this class is created for each accessory your platform registers
- * Each accessory may expose multiple services of different service types.
+/***********************************************************************
+ * YoLink Platform Accessory class
+ *
+ * Copyright (c) 2022 David Kerr
+ *
+ * Based on https://github.com/homebridge/homebridge-plugin-template
+ *
+ * An instance of this class is created for each accessory the platform registers.
+ *
  */
-export class ExamplePlatformAccessory {
-  private service: Service;
 
-  /**
-   * These are just used to create a working example
-   * You should implement your own code to track the state of your accessory
-   */
-  private exampleStates = {
-    On: false,
-    Brightness: 100,
+import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
+import { YoLinkHomebridgePlatform } from './platform';
+import Semaphore from 'semaphore-promise';
+
+export class YoLinkPlatformAccessory {
+  private deviceService!: Service;
+  private infoService!: Service;
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  private config!: {
+    [key: string]: any;
   };
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  private deviceSemaphore;
+  public deviceId;
 
   constructor(
-    private readonly platform: ExampleHomebridgePlatform,
+    private readonly platform: YoLinkHomebridgePlatform,
     private readonly accessory: PlatformAccessory,
   ) {
+    const device = accessory.context.device;
+    this.deviceId = device.deviceId;
+    this.config = platform.config.devices[device.deviceId] ? platform.config.devices[device.deviceId] : {};
+    this.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
+
+    // We need to serialize requests to YoLink API for each device.  Multiple threads
+    // can request state updates for a devices at the same time.  YoLink API doesn't
+    // like this so we need a semaphore to make sure we don't send a 2nd request to
+    // the same device before prior one has completed.
+    this.deviceSemaphore = new Semaphore();
 
     // set accessory information
-    this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Default-Manufacturer')
-      .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
+    this.infoService = this.accessory.getService(platform.Service.AccessoryInformation)!;
+    this.infoService
+      .setCharacteristic(platform.Characteristic.Manufacturer, 'YoLink')
+      .setCharacteristic(platform.Characteristic.Model, (this.config.model) ? this.config.model : 'n/a')
+      .setCharacteristic(platform.Characteristic.SerialNumber, device.deviceId);
 
-    // get the LightBulb service if it exists, otherwise create a new LightBulb service
-    // you can create multiple services for each accessory
-    this.service = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
-
-    // set the service name, this is what is displayed as the default name on the Home app
-    // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.exampleDisplayName);
-
-    // each service must implement at-minimum the "required characteristics" for the given service type
-    // see https://developers.homebridge.io/#/service/Lightbulb
-
-    // register handlers for the On/Off Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setOn.bind(this))                // SET - bind to the `setOn` method below
-      .onGet(this.getOn.bind(this));               // GET - bind to the `getOn` method below
-
-    // register handlers for the Brightness Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.Brightness)
-      .onSet(this.setBrightness.bind(this));       // SET - bind to the 'setBrightness` method below
-
-    /**
-     * Creating multiple services of the same type.
-     *
-     * To avoid "Cannot add a Service with the same UUID another Service without also defining a unique 'subtype' property." error,
-     * when creating multiple services of the same type, you need to use the following syntax to specify a name and subtype id:
-     * this.accessory.getService('NAME') || this.accessory.addService(this.platform.Service.Lightbulb, 'NAME', 'USER_DEFINED_SUBTYPE_ID');
-     *
-     * The USER_DEFINED_SUBTYPE must be unique to the platform accessory (if you platform exposes multiple accessories, each accessory
-     * can use the same sub type id.)
-     */
-
-    // Example: add two "motion sensor" services to the accessory
-    const motionSensorOneService = this.accessory.getService('Motion Sensor One Name') ||
-      this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor One Name', 'YourUniqueIdentifier-1');
-
-    const motionSensorTwoService = this.accessory.getService('Motion Sensor Two Name') ||
-      this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor Two Name', 'YourUniqueIdentifier-2');
-
-    /**
-     * Updating characteristics values asynchronously.
-     *
-     * Example showing how to update the state of a Characteristic asynchronously instead
-     * of using the `on('get')` handlers.
-     * Here we change update the motion sensor trigger states on and off every 10 seconds
-     * the `updateCharacteristic` method.
-     *
-     */
-    let motionDetected = false;
-    setInterval(() => {
-      // EXAMPLE - inverse the trigger
-      motionDetected = !motionDetected;
-
-      // push the new value to HomeKit
-      motionSensorOneService.updateCharacteristic(this.platform.Characteristic.MotionDetected, motionDetected);
-      motionSensorTwoService.updateCharacteristic(this.platform.Characteristic.MotionDetected, !motionDetected);
-
-      this.platform.log.debug('Triggering motionSensorOneService:', motionDetected);
-      this.platform.log.debug('Triggering motionSensorTwoService:', !motionDetected);
-    }, 10000);
+    // Now set up for each device type
+    switch (device.type) {
+      //================================================================
+      case 'LeakSensor':
+        this.deviceService = this.accessory.getService(platform.Service.LeakSensor)
+                          || this.accessory.addService(platform.Service.LeakSensor);
+        this.deviceService.setCharacteristic(platform.Characteristic.Name, device.name);
+        this.deviceService.getCharacteristic(platform.Characteristic.LeakDetected)
+          .onGet(this.handleLeakDetectedGet.bind(this));
+        // Call onGet handler to initialize data fields to current state
+        this.handleLeakDetectedGet();
+        break;
+      //================================================================
+      case 'VibrationSensor':
+        // Homebridge/HomeKit does not have vibration sensor type.
+        // Will use motion sensor type as a substitute.
+        // falls through
+      case 'MotionSensor':
+        this.deviceService = this.accessory.getService(platform.Service.MotionSensor)
+          || this.accessory.addService(platform.Service.MotionSensor);
+        this.deviceService.setCharacteristic(platform.Characteristic.Name, device.name);
+        this.deviceService.getCharacteristic(platform.Characteristic.MotionDetected)
+          .onGet(this.handleMotionDetectedGet.bind(this));
+        // Call onGet handler to initialize data fields to current state
+        this.handleMotionDetectedGet();
+        break;
+      //================================================================
+      case 'Manipulator':
+        this.deviceService = this.accessory.getService(platform.Service.Valve)
+          || this.accessory.addService(platform.Service.Valve);
+        this.deviceService.setCharacteristic(platform.Characteristic.Name, device.name);
+        this.deviceService.getCharacteristic(platform.Characteristic.Active)
+          .onGet(this.handleValveActiveGet.bind(this))
+          .onSet(this.handleValveActiveSet.bind(this));
+        this.deviceService.getCharacteristic(platform.Characteristic.InUse)
+          .onGet(this.handleValveInUseGet.bind(this));
+        this.deviceService.getCharacteristic(platform.Characteristic.ValveType)
+          .onGet(this.handleValveTypeGet.bind(this));
+        // Call onGet handler to initialize data fields to current state
+        this.handleValveActiveGet();
+        break;
+      //================================================================
+      // Add new devices here, before default case.
+      default:
+        platform.log.warn('YoLink device type: \'' + device.type + '\''
+                                + ' is not supported by this plugin (deviceID: ' + device.deviceId + ')\n'
+                                + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
+                                + JSON.stringify(device));
+    }
+    return(this);
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, turning on a Light bulb.
+  /*********************************************************************
+   * _checkDeviceState
+   * Updates device status object, sending a request to the YoLink API if we
+   * have no data yet, or it has been a long time since the data was updated.
    */
-  async setOn(value: CharacteristicValue) {
-    // implement your own code to turn your device on/off
-    this.exampleStates.On = value as boolean;
+  async _checkDeviceState(platform, device) {
+    platform.verboseLog('checkDeviceState for ' + device.name
+                          + ' (refresh after ' + this.config.refreshAfter + ' seconds)');
 
-    this.platform.log.debug('Set Characteristic On ->', value);
+    const timestamp = Math.floor(new Date().getTime() / 1000);
+    if (!device.data
+        || (this.config.refreshAfter === 0)
+        || ((this.config.refreshAfter > 0) && (timestamp > device.updateTime))) {
+      // If we have never retrieved data from the device, or data is older
+      // than period we want to allow, then retireve new data from the device.
+      // Else return with data unchanged.
+      device.data = await platform.yolinkAPI.getDeviceState(platform, device);
+      if (device.data) {
+        device.updateTime = timestamp + this.config.refreshAfter;
+      }
+    }
   }
 
-  /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
+  /*********************************************************************
+   * handleMotionDetectGet
    *
-   * GET requests should return as fast as possbile. A long delay here will result in
-   * HomeKit being unresponsive and a bad user experience in general.
+   */
+  async handleMotionDetectedGet(): Promise<CharacteristicValue> {
+    // serialize access to device data.
+    const releaseSemaphore = await this.deviceSemaphore.acquire();
+    const platform = this.platform;
+
+    const device = this.accessory.context.device;
+    await this._checkDeviceState(platform, device);
+    // some device characteristics may have changed, update it.
+    this.infoService
+      .setCharacteristic(platform.Characteristic.FirmwareRevision, device.data.state.version);
+    this.deviceService
+      .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
+        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+    platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state.state);
+
+    await releaseSemaphore();
+    return (device.data.state.state === 'alert');
+  }
+
+  /*********************************************************************
+   * handleLeakDetectGet
    *
-   * If your device takes time to respond you should update the status of your device
-   * asynchronously instead using the `updateCharacteristic` method instead.
-
-   * @example
-   * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
    */
-  async getOn(): Promise<CharacteristicValue> {
-    // implement your own code to check if the device is on
-    const isOn = this.exampleStates.On;
+  async handleLeakDetectedGet(): Promise<CharacteristicValue> {
+    // serialize access to device data.
+    const releaseSemaphore = await this.deviceSemaphore.acquire();
+    const platform = this.platform;
 
-    this.platform.log.debug('Get Characteristic On ->', isOn);
+    const device = this.accessory.context.device;
+    await this._checkDeviceState(platform, device);
+    // some device characteristics may have changed, update it.
+    this.infoService
+      .setCharacteristic(platform.Characteristic.FirmwareRevision, device.data.state.version);
+    this.deviceService
+      .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
+        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+    platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state.state);
 
-    // if you need to return an error to show the device as "Not Responding" in the Home app:
-    // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
-
-    return isOn;
+    await releaseSemaphore();
+    return ((device.data.state.state === 'alert')
+      ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
+      : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED);
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, changing the Brightness
+  /*********************************************************************
+   * handleValve events
+   *
    */
-  async setBrightness(value: CharacteristicValue) {
-    // implement your own code to set the brightness
-    this.exampleStates.Brightness = value as number;
-
-    this.platform.log.debug('Set Characteristic Brightness -> ', value);
+  async handleValveInUseGet(): Promise<CharacteristicValue> {
+    const device = this.accessory.context.device;
+    // Not sure exactly what "in use" is for.  Should I always return true?
+    this.platform.verboseLog('Valve in use state for ' + device.name + ' (' + device.deviceId + '), calling isActive?');
+    return(await this.handleValveActiveGet());
   }
 
+  async handleValveActiveGet(): Promise<CharacteristicValue> {
+    // serialize access to device data.
+    const releaseSemaphore = await this.deviceSemaphore.acquire();
+    const platform = this.platform;
+
+    const device = this.accessory.context.device;
+    await this._checkDeviceState(platform, device);
+    // some device characteristics may have changed, update it.
+    this.infoService
+      .setCharacteristic(platform.Characteristic.FirmwareRevision, device.data.version);
+    this.deviceService
+      .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.battery <= 1)
+        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+    platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state);
+
+    await releaseSemaphore();
+    return ((device.data.state === 'open')
+      ? platform.api.hap.Characteristic.Active.ACTIVE
+      : platform.api.hap.Characteristic.Active.INACTIVE);
+  }
+
+  async handleValveActiveSet(value: CharacteristicValue) {
+    // serialize access to device data.
+    const releaseSemaphore = await this.deviceSemaphore.acquire();
+    const device = this.accessory.context.device;
+    const platform = this.platform;
+
+    platform.verboseLog('setDeviceState for ' + device.name + ' (' + device.deviceId + ')');
+
+    const newState = (value === platform.api.hap.Characteristic.Active.ACTIVE) ? 'open' : 'close';
+    const data = await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState});
+
+    // Should I now force next call to handle a Get request to request status from YoLink?
+    // Or just set device.data.state to data.state, which should have come back from the
+    // server on this call.
+    device.data.state = (data) ? data.state : '';
+
+    await releaseSemaphore();
+  }
+
+  async handleValveTypeGet(): Promise<CharacteristicValue> {
+    return this.platform.Characteristic.ValveType.GENERIC_VALVE;
+  }
+
+
+  /*********************************************************************
+   * mqtt events
+   *
+   */
+  async mqttMessage(topic, data) {
+    const device = this.accessory.context.device;
+    const platform = this.platform;
+
+    platform.log.info('Received event \'' + data.event + '\' for device: '
+                          + device.name + ' (' + device.deviceId + ')'
+                          + ' State: \'' + data.data.state + '\'');
+    if (!device.data) {
+      platform.log.error('No device.data field to update, ignoring mqtt message');
+      return;
+    }
+
+    const _msgWarn = (data) => {
+      platform.log.warn('Unsupported mqtt event: \'' + data.event + '\'\n'
+                              + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
+                              + JSON.stringify(data));
+    };
+
+    // serialize access to device data.
+    const releaseSemaphore = await this.deviceSemaphore.acquire();
+
+    const event = data.event.split('.');
+    const timestamp = Math.floor(new Date().getTime() / 1000);
+    device.updateTime = timestamp + this.config.refreshAfter;
+
+    switch (event[0]) {
+      //================================================================
+      case 'LeakSensor':
+        switch (event[1]) {
+          case 'Alert':
+            // falls through
+          case 'Report':
+            device.data.state.battery = data.data.battery;
+            device.data.state.state = data.data.state;
+
+            this.deviceService
+              .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+                (data.data.battery <= 1)
+                  ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+                  : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+              .updateCharacteristic(platform.Characteristic.LeakDetected,
+                (data.data.state === 'alert')
+                  ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
+                  : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED);
+            break;
+          default:
+            _msgWarn(data);
+        }
+        break;
+      //================================================================
+      case 'VibrationSensor':
+        // falls through
+      case 'MotionSensor':
+        switch (event[1]) {
+          case 'Alert':
+            // falls through
+          case 'Report':
+            // falls through
+          case 'StatusChange':
+            device.data.state.battery = data.data.battery;
+            device.data.state.state = data.data.state;
+            this.deviceService
+              .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+                (data.data.battery <= 1)
+                  ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+                  : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+              .updateCharacteristic(platform.Characteristic.MotionDetected,
+                (data.data.state === 'alert') ? true : false );
+            break;
+          case 'setOpenRemind':
+            // I don't know what this is intended for.  I have seen it from the YoLink
+            // outdoor motion sensor.  It does not carry either motion state or battery
+            // state fields, so there is nothing we can update.  Sample packet...
+            // {"event":"MotionSensor.setOpenRemind","time":1658089933504,"msgid":"1658089933504",
+            // "data":{"alertInterval":1,"ledAlarm":false,"nomotionDelay":1,"sensitivity":2,
+            // "loraInfo":{"signal":-87,"gatewayId":"<redacted>","gateways":1}},"deviceId":"<redacted>"}
+            break;
+          default:
+            _msgWarn(data);
+        }
+        break;
+      //================================================================
+      case 'Manipulator':
+        switch (event[1]) {
+          case 'Report':
+            // falls through
+          case 'getState':
+            device.data.battery = data.data.battery;
+            this.deviceService
+              .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+                (data.data.battery <= 1)
+                  ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+                  : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+            // falls through
+          case 'setState':
+            device.data.state = data.data.state;
+            this.deviceService
+              .updateCharacteristic(platform.Characteristic.Active,
+                (data.data.state === 'open') ? platform.api.hap.Characteristic.Active.ACTIVE
+                  : platform.api.hap.Characteristic.Active.INACTIVE);
+            break;
+          default:
+            _msgWarn(data);
+        }
+        break;
+      //================================================================
+      // Add new devices here, before default case.
+      default:
+        _msgWarn(data);
+    }
+
+    await releaseSemaphore();
+  }
 }
