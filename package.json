@@ -1,5 +1,4 @@
 {
-  "private": true,
   "displayName": "Homebridge YoLink",
   "name": "homebridge-yolink",
   "version": "1.0.0",
