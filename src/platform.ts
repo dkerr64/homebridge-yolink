@@ -103,9 +103,18 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    */
   async discoverDevices() {
 
-    await this.yolinkAPI.login(this);
+    if (!await this.yolinkAPI.login(this)) {
+      // If login failed an error message will have been displayed in the
+      // Homebridge log. Pointless to continue.
+      return;
+    }
 
     const deviceList = await this.yolinkAPI.getDeviceList(this);
+    if (!deviceList) {
+      // Should never occur if we successfully logged in.
+      this.log.error('failed to retrieve list of devices from server');
+      return;
+    }
 
     // Remove accessories from cache if they are no longer in list of
     // devices retrieved from YoLink.
