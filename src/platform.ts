@@ -20,6 +20,7 @@ import { API,
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 import { YoLinkAPI } from './yolinkAPI';
+import { initDeviceService } from './deviceHandlers';
 
 export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
@@ -143,46 +144,53 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       // see if an accessory with the same uuid has already been registered and restored from
       // the cached devices we stored in the `configureAccessory` method above.
       const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+      const skip = (!this.config.allDevices && !this.config.devices[device.deviceId])
+                    || (this.config.devices[device.deviceId] && this.config.devices[device.deviceId].hide);
 
-      if (existingAccessory) {
-        // the accessory already exists
-        if ( (!this.config.allDevices && !this.config.devices[device.deviceId])
-          || (this.config.devices[device.deviceId] && this.config.devices[device.deviceId].hide)) {
+      if (skip) {
+        if (existingAccessory){
           this.log.info('Remove accessory from cache as config \'hide=true\' for: '
-            + existingAccessory.displayName + ' (' + device.deviceId +')');
+                       + existingAccessory.displayName + ' (' + device.deviceId +')');
           this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
-        } else {
+        }
+      } else {
+        let deviceClass;
+        if (existingAccessory){
           // update existing accessory
           this.verboseLog('Restoring accessory from cache: ' + existingAccessory.displayName + '(' + device.deviceId + ')');
           existingAccessory.context.device = device;
           this.api.updatePlatformAccessories([existingAccessory]);
-          this.yolinkDevices.push(new YoLinkPlatformAccessory(this, existingAccessory));
-        }
-      } else {
-        // the accessory does not yet exist, so we need to create it
-        if ( (!this.config.allDevices && !this.config.devices[device.deviceId])
-          || (this.config.devices[device.deviceId] && this.config.devices[device.deviceId].hide)) {
-          this.log.info('Hide accessory as config \'hide=true\' for: ' + device.name + ' (' + device.deviceId +')');
-        } else{
-          this.log.info('Adding new accessory:', device.name + ' (' + device.deviceId +')');
+          deviceClass = new YoLinkPlatformAccessory(this, existingAccessory);
+        } else {
           // create a new accessory
+          this.log.info('Adding new accessory:', device.name + ' (' + device.deviceId +')');
           const accessory = new this.api.platformAccessory(device.name, uuid);
           accessory.context.device = device;
-          this.yolinkDevices.push(new YoLinkPlatformAccessory(this, accessory));
           this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+          deviceClass = new YoLinkPlatformAccessory(this, accessory);
+        }
+        this.yolinkDevices.push(deviceClass);
+
+        if (initDeviceService[device.type]) {
+          initDeviceService[device.type](deviceClass);
+        } else {
+          this.log.warn('YoLink device type: \'' + device.type + '\''
+                      + ' is not supported by this plugin (deviceID: ' + device.deviceId + ')\n'
+                      + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
+                      + JSON.stringify(device));
         }
       }
     }
 
     // Now connect to YoLink MQTT server and subscribe to messages
-    await this.yolinkAPI.mqtt(this, (topic, message) => {
+    await this.yolinkAPI.mqtt(this, (message) => {
       // This function is called for every message received over MQTT
       const data = JSON.parse(message);
       // Find the device in the yolinkDevices list
       const yolinkDevice = this.yolinkDevices.find(x => x.deviceId === data.deviceId);
       // pass the message on to the appropriate device accessory if it exists.
       if (yolinkDevice) {
-        yolinkDevice.mqttMessage(topic, data);
+        yolinkDevice.mqttMessage(data);
       } else {
         // If a device is hidden (not loaded into homebridge) then we may receive
         // messages for it... which is perfectly okay, but worth logging.
