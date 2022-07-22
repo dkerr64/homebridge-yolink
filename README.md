@@ -21,6 +21,7 @@ Currently supports the following devices:
 * Motion Sensor
 * Vibration Sensor (as a motion sensor)
 * Manipulator (as a valve)
+* Weatherproof Temperature and Humidity Sensor
 
 The plugin registers as a MQTT client and subscribes to reports published by YoLink for real time alerts and status updates.
 
@@ -36,7 +37,7 @@ Search for "yolink" in [homebridge-config-ui-x](https://github.com/oznu/homebrid
 sudo npm install -g homebridge-yolink
 ```
 
-Use of Homebridge [child bridge](https://github.com/homebridge/homebridge/wiki/Child-Bridges) is recommended to ensure best HomeKit peformance.
+YoLink status is retrieved over the internet.  While the plugin maintains a status cache, you may consider use of Homebridge [child bridge](https://github.com/homebridge/homebridge/wiki/Child-Bridges).
 
 ## Configuration
 
@@ -84,7 +85,7 @@ Use of Homebridge [child bridge](https://github.com/homebridge/homebridge/wiki/C
   * **userAccessId** *(required)*: Obtain from the YoLink app on your mobile device...  
   Settings->Account->Advanced Settings->User Access Credentials.  If none exist use the (+) button to request credentials be generated for you.  Copy down the UAID (user access ID) and Secret Key.
   * **secretKey** *(required)*: Secret key obtained as descrived above.
-  * **refreshAfter** *(optional)*: The plugin maintains a cache of device status so that it can response very quickly to state requests from HomeKit without having to send a request to the YoLink servers.  This is specified in number of seconds and defaults to 3600 (one hour) which means that if the plugin cache is not updated in the last hour then retrieve status from the YoLink server.  If set to zero than the plugin will always request status from YoLink servers for every HomeKit request (not recommended).  Note that at the time of writing, YoLink sends a report over MQTT for each device every 4 hours.
+  * **refreshAfter** *(optional)*: The plugin maintains a cache of device status so that it can response very quickly to state requests from HomeKit without having to send a request to the YoLink servers.  This is specified in number of seconds and defaults to 3600 (one hour) which means that if the plugin cache is not updated in the last hour then retrieve status from the YoLink server.  If set to zero than the plugin will always request status from YoLink servers for every HomeKit request (not recommended).
   * **verboseLog** *(optional)*: Sometimes it is helpful to log more detail than *info* but somewhat less than *debug*. This is that half-way.  Defaults to false.
   * **liteLog** *(optional)*: HomeKit makes frequent requests for device status, this suppresses logging of every request (unless verboseLog is true).  Requests that require message be sent to YoLink servers are still logged.  Defaults to true.
   * **allDevices** *(optional)*: If set to false then only devices listed in the Devices section of the config file are loaded, and then only if the hide property is false. Defaults to true so all devices reported by YoLink are loaded (if hide property is false).
@@ -102,7 +103,9 @@ Use of Homebridge [child bridge](https://github.com/homebridge/homebridge/wiki/C
 
 The plugin registers with YoLink servers as a MQTT client and subscribes to published reports to receive alerts (e.g. motion sensor detects movement) which are forwarded to homebridge. At the time of writing the resiliency of the MQTT client has not been fully tested, so how well it responds to roaming (change of IP address) or disconnects is not fully known.  Logging is enabled to trace events, please report if the MQTT client stops working.
 
-At the time of writing, the MQTT client is receiving updates from YoLink every 4 hours for each device whether an alert is triggered or not. If you are comfortable to rely entirely on these notifications you can set the *refreshAfter* property to something larger than 14400 seconds (4 hours) which will cause the plugin to always report the cached state of a device, unless the MQTT client has not received and update in the prior 4 hours.
+MQTT client is receives updates from YoLink devices at different times depending on the device.  An alert event generates a message immediately but regular updates are received when there is no alert. Devices like the leak detector every 4 hours, but tempearture and humidity sensor sends updates based on environmental change rate, or at least every hour.  This is documented in YoLink user guide.
+
+If you are comfortable relying entirely on these notifications you can set the *refreshAfter* property to something larger than 14400 seconds (4 hours) which will cause the plugin to always report the cached state of a device, unless the MQTT client has not received and update in the prior 4 hours.
 
 ## License
 
