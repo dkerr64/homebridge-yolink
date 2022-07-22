@@ -64,6 +64,8 @@ export async function mqttLeakSensor(deviceClass: YoLinkPlatformAccessory, data)
   switch (event[1]) {
     case 'Alert':
       // falls through
+    case 'StatusChange':
+      // falls through
     case 'Report':
       device.data.state.battery = data.data.battery;
       device.data.state.state = data.data.state;
