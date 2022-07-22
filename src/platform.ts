@@ -17,10 +17,16 @@ import { API,
   Characteristic,
 } from 'homebridge';
 
-import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
+import { PLATFORM_NAME,
+  PLUGIN_NAME,
+  YOLINK_MQTT_PORT,
+  YOLINK_API_URL,
+  YOLINK_TOKEN_URL,
+  YOLINK_REFRESH_INTERVAL,
+} from './settings';
+
 import { YoLinkPlatformAccessory } from './platformAccessory';
 import { YoLinkAPI } from './yolinkAPI';
-import { initDeviceService } from './deviceHandlers';
 
 export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
@@ -49,7 +55,10 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.verboseLog ??= false;
     this.config.liteLog ??= true;
     this.config.allDevices ??= true;
-    this.config.mqttPort ??= 8003;
+    this.config.mqttPort ??= YOLINK_MQTT_PORT;
+    this.config.apiURL ??= YOLINK_API_URL;
+    this.config.tokenURL ??= YOLINK_TOKEN_URL;
+    this.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL;
 
     this.log.debug('Loaded configuaration: ' + JSON.stringify(this.config));
 
@@ -145,7 +154,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       // the cached devices we stored in the `configureAccessory` method above.
       const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
       const skip = (!this.config.allDevices && !this.config.devices[device.deviceId])
-                    || (this.config.devices[device.deviceId] && this.config.devices[device.deviceId].hide);
+                 || (this.config.devices[device.deviceId] && this.config.devices[device.deviceId].hide);
 
       if (skip) {
         if (existingAccessory){
@@ -170,15 +179,6 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
           deviceClass = new YoLinkPlatformAccessory(this, accessory);
         }
         this.yolinkDevices.push(deviceClass);
-
-        if (initDeviceService[device.type]) {
-          initDeviceService[device.type](deviceClass);
-        } else {
-          this.log.warn('YoLink device type: \'' + device.type + '\''
-                      + ' is not supported by this plugin (deviceID: ' + device.deviceId + ')\n'
-                      + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-                      + JSON.stringify(device));
-        }
       }
     }
 
