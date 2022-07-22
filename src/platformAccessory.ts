@@ -12,7 +12,7 @@
 import { Service, PlatformAccessory } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import Semaphore from 'semaphore-promise';
-import { mqttHandler } from './deviceHandlers';
+import { initDeviceService, mqttHandler } from './deviceHandlers';
 
 export class YoLinkPlatformAccessory {
   public deviceService!: Service;
@@ -38,18 +38,28 @@ export class YoLinkPlatformAccessory {
     this.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
 
     // We need to serialize requests to YoLink API for each device.  Multiple threads
-    // can request state updates for a devices at the same time.  YoLink API doesn't
-    // like this so we need a semaphore to make sure we don't send a 2nd request to
-    // the same device before prior one has completed.
+    // can request state updates for a devices at the same time.  This would not be good,
+    // so we need a semaphore to make sure we don't send a 2nd request to the same
+    // device before prior one has completed.
     this.deviceSemaphore = new Semaphore();
 
-    // set accessory information
+    // Set accessory information
     this.infoService = this.accessory.getService(platform.Service.AccessoryInformation)!;
     this.infoService
       .setCharacteristic(platform.Characteristic.Manufacturer, 'YoLink')
       .setCharacteristic(platform.Characteristic.Model, (this.config.model) ? this.config.model : 'n/a')
+      // YoLink does not return device serial number in the API, use deviceId instead.
       .setCharacteristic(platform.Characteristic.SerialNumber, device.deviceId);
 
+    // Now initialize each device type, creating the homebridge services as required.
+    if (initDeviceService[device.type]) {
+      initDeviceService[device.type](this);
+    } else {
+      this.log.warn('YoLink device type: \'' + device.type + '\''
+                  + ' is not supported by this plugin (deviceID: ' + device.deviceId + ')\n'
+                  + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
+                  + JSON.stringify(device));
+    }
     return(this);
   }
 
@@ -57,6 +67,9 @@ export class YoLinkPlatformAccessory {
    * checkDeviceState
    * Updates device status object, sending a request to the YoLink API if we
    * have no data yet, or it has been a long time since the data was updated.
+   *
+   * Calls to this function should be serialized with deviceSemaphore to
+   * prevent sending multiple requests for the same data to the server.
    */
   async checkDeviceState(platform, device) {
     platform.verboseLog('checkDeviceState for ' + device.name
@@ -74,26 +87,27 @@ export class YoLinkPlatformAccessory {
         device.updateTime = timestamp + this.config.refreshAfter;
       }
     }
+    return(device.data);
   }
 
   /*********************************************************************
    * mqttMessage
    *
    */
-  async mqttMessage(data): Promise<void> {
+  async mqttMessage(message): Promise<void> {
     const device = this.accessory.context.device;
     const platform = this.platform;
 
-    platform.log.info('Received mqtt message \'' + data.event + '\' for device: '
+    platform.log.info('Received mqtt message \'' + message.event + '\' for device: '
                           + device.name + ' (' + device.deviceId + ')'
-                          + ' State: \'' + data.data.state + '\'');
+                          + ' State: \'' + message.data.state + '\'');
 
     if (device.data && mqttHandler[device.type]) {
-      mqttHandler[device.type](this, data);
+      mqttHandler[device.type](this, message);
     } else {
-      platform.log.warn('Unsupported mqtt event: \'' + data.event + '\'\n'
+      platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
                       + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-                      + ((data)?JSON.stringify(data):''));
+                      + ((message)?JSON.stringify(message):''));
     }
     return;
   }
