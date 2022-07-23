@@ -22,8 +22,9 @@ export async function initLeakSensor(deviceClass: YoLinkPlatformAccessory): Prom
   deviceClass.leakService.setCharacteristic(platform.Characteristic.Name, device.name);
   deviceClass.leakService.getCharacteristic(platform.Characteristic.LeakDetected)
     .onGet(handleGet.bind(deviceClass));
-  // Call get handler to initialize data fields to current state
-  handleGet.bind(deviceClass)();
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  deviceClass.refreshDataTimer(handleGet.bind(deviceClass));
 }
 
 /***********************************************************************
@@ -53,14 +54,22 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   const device = this.accessory.context.device;
   let rc = platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED;
 
-  if (await this.checkDeviceState(platform, device)) {
-    this.leakService.updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
-      ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-      : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+  if (await this.checkDeviceState(platform, device) && device.data.online) {
+    this.leakService
+      .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
+        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+      .updateCharacteristic(platform.Characteristic.StatusActive, true)
+      .updateCharacteristic(platform.Characteristic.StatusFault, false);
     platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state.state);
     if (device.data.state.state === 'alert') {
       rc = platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED;
     }
+  } else {
+    platform.log.error('Device offline or other error for '+ device.name + ' (' + device.deviceId + ')');
+    this.leakService
+      .updateCharacteristic(platform.Characteristic.StatusActive, false)
+      .updateCharacteristic(platform.Characteristic.StatusFault, true);
   }
 
   await releaseSemaphore();
@@ -119,7 +128,9 @@ export async function mqttLeakSensor(deviceClass: YoLinkPlatformAccessory, messa
         .updateCharacteristic(platform.Characteristic.LeakDetected,
           (message.data.state === 'alert')
             ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
-            : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED);
+            : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED)
+        .updateCharacteristic(platform.Characteristic.StatusActive, true)
+        .updateCharacteristic(platform.Characteristic.StatusFault, false);
       break;
     default:
       platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'

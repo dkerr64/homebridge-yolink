@@ -78,7 +78,7 @@ export class YoLinkPlatformAccessory {
     const timestamp = Math.floor(new Date().getTime() / 1000);
     if (!device.data
         || (this.config.refreshAfter === 0)
-        || ((this.config.refreshAfter > 0) && (timestamp > device.updateTime))) {
+        || ((this.config.refreshAfter > 0) && (timestamp >= device.updateTime))) {
       // If we have never retrieved data from the device, or data is older
       // than period we want to allow, then retireve new data from the device.
       // Else return with data unchanged.
@@ -88,6 +88,33 @@ export class YoLinkPlatformAccessory {
       }
     }
     return(device.data);
+  }
+
+  /*********************************************************************
+   * refreshDataTimer
+   * We run a timer for each device to update cached data from the YoLink servers.
+   * Timer is set such that it will fire when the updateTime arrives and (via the
+   * provided callback) will call above checkDeviceState function at just the
+   * right time to force call to yolinkAPI.getDeviceState.  All this to optimize
+   * performance of user experience.
+   */
+  async refreshDataTimer(handleGet) {
+    const platform: YoLinkHomebridgePlatform = this.platform;
+    const device = this.accessory.context.device;
+
+    platform.verboseLog('Data refresh timer for ' + device.name + ' (' + device.deviceId + ') fired');
+
+    await handleGet.bind(this)();
+
+    if (this.config.refreshAfter >= 60) {
+      // We don't allow for regular updates any more frequently than once a minute. And the
+      // timer will wait for at least one second before firing again to avoid runaway loops.
+      const nextUpdateIn = Math.max(1, device.updateTime - Math.floor(new Date().getTime() / 1000));
+      platform.liteLog('Set data refresh timer for ' + device.name + ' (' + device.deviceId + ') to run in ' + nextUpdateIn + ' seconds');
+      setTimeout( () => {
+        this.refreshDataTimer(handleGet);
+      }, nextUpdateIn * 1000);
+    }
   }
 
   /*********************************************************************

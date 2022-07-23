@@ -15,4 +15,4 @@ export const YOLINK_MQTT_PORT = 8003;
 export const YOLINK_API_URL = 'https://api.yosmart.com/open/yolink/v2/api';
 export const YOLINK_TOKEN_URL = 'https://api.yosmart.com/open/yolink/token';
 
-export const YOLINK_REFRESH_INTERVAL = 3600;
+export const YOLINK_REFRESH_INTERVAL = 14500;
