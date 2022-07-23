@@ -58,7 +58,7 @@
         "title": "Refresh time for data from YoLink server",
         "type": "number",
         "required": false,
-        "default": 3600,
+        "default": 14500,
         "minimum": 0,
         "maximum":86400,
         "description": "When HomeKit requests status, request from YoLink server if our cache has not been updated within the time specified. Zero (not recommended) means always retrieve from the server, maximum value is 86400 (24 hours).  Note that, at the time of writing, MQTT provides updates for each device every 4 hours."
@@ -94,7 +94,7 @@
               "title": "Device Identifier",
               "type": "string",
               "required": true,
-              "default": "0123456789abcdef",
+              "default": "",
               "description":"You can find the Device ID in the Homebridge log or in the Homebridge Config UI by clicking on an accessory's settings and copying the Serial Number field."
             },
             "config": {
@@ -125,7 +125,7 @@
                   "title": "Refresh time for data from YoLink server (override global setting)",
                   "type": "number",
                   "required": false,
-                  "default": 3600,
+                  "default": 14500,
                   "minimum": 0,
                   "maximum":86400
                 }
