@@ -73,12 +73,20 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   const device = this.accessory.context.device;
   let rc = false;
 
-  if (await this.checkDeviceState(platform, device)) {
-    this.motionService.updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
-      ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-      : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+  if (await this.checkDeviceState(platform, device) && device.data.online) {
+    this.motionService
+      .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
+        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+      .updateCharacteristic(platform.Characteristic.StatusActive, true)
+      .updateCharacteristic(platform.Characteristic.StatusFault, false);
     platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state.state);
     rc = (device.data.state.state === 'alert');
+  } else {
+    platform.log.error('Device offline or other error for '+ device.name + ' (' + device.deviceId + ')');
+    this.motionService
+      .updateCharacteristic(platform.Characteristic.StatusActive, false)
+      .updateCharacteristic(platform.Characteristic.StatusFault, true);
   }
 
   await releaseSemaphore();
@@ -157,7 +165,9 @@ export async function mqttMotionSensor(deviceClass: YoLinkPlatformAccessory, mes
             ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
             : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
         .updateCharacteristic(platform.Characteristic.MotionDetected,
-          (message.data.state === 'alert') ? true : false );
+          (message.data.state === 'alert') ? true : false )
+        .updateCharacteristic(platform.Characteristic.StatusActive, true)
+        .updateCharacteristic(platform.Characteristic.StatusFault, false);
       break;
     case 'setOpenRemind':
       // I don't know what this is intended for.  I have seen it from the YoLink

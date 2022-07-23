@@ -62,13 +62,23 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   let rc = platform.api.hap.Characteristic.Active.INACTIVE;
 
   if( await this.checkDeviceState(platform, device)) {
-    this.valveService.updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.battery <= 1)
-      ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-      : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+    this.valveService
+      .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.battery <= 1)
+        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+      // YoLink manipulator data does not return a 'online' value.  We will assume that if
+      // we got this far then it is working normally...
+      .updateCharacteristic(platform.Characteristic.StatusActive, true)
+      .updateCharacteristic(platform.Characteristic.StatusFault, false);
     platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state);
     if (device.data.state === 'open') {
       rc = platform.api.hap.Characteristic.Active.ACTIVE;
     }
+  } else {
+    platform.log.error('Device offline or other error for '+ device.name + ' (' + device.deviceId + ')');
+    this.valveService
+      .updateCharacteristic(platform.Characteristic.StatusActive, false)
+      .updateCharacteristic(platform.Characteristic.StatusFault, true);
   }
 
   await releaseSemaphore();
@@ -83,7 +93,7 @@ async function handleInUse(this: YoLinkPlatformAccessory): Promise<Characteristi
   const device = this.accessory.context.device;
   this.platform.liteLog('Valve in use state for ' + device.name + ' (' + device.deviceId + '), calling isActive');
   // Apple HomeKit documentation defines In Use as fluid is flowing through valve.
-  // We will assume that is the valve is open, then fluid is flowing...
+  // We will assume that if the valve is open, then fluid is flowing...
   return(await handleGet.bind(this)());
 }
 
@@ -181,26 +191,26 @@ export async function mqttValveDevice(deviceClass: YoLinkPlatformAccessory, mess
     case 'Report':
     // falls through
     case 'getState':
-      // if we received a message then device must be online
-      device.data.online = true;
-      // Merge received data into existing data object
-      Object.assign(device.data, message.data);
-      deviceClass.valveService
-        .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-          (message.data.battery <= 1)
-            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
       // falls through
     case 'setState':
       // if we received a message then device must be online
       device.data.online = true;
       // Merge received data into existing data object
       Object.assign(device.data, message.data);
+      if (message.data.battery) {
+        deviceClass.valveService
+          .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+            (message.data.battery <= 1)
+              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+      }
       deviceClass.valveService
         .updateCharacteristic(platform.Characteristic.Active,
           (message.data.state === 'open')
             ? platform.api.hap.Characteristic.Active.ACTIVE
-            : platform.api.hap.Characteristic.Active.INACTIVE);
+            : platform.api.hap.Characteristic.Active.INACTIVE)
+        .updateCharacteristic(platform.Characteristic.StatusActive, true)
+        .updateCharacteristic(platform.Characteristic.StatusFault, false);
       break;
     default:
       platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'

@@ -84,16 +84,30 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   const device = this.accessory.context.device;
   let rc = 0;
 
-  if (await this.checkDeviceState(platform, device)) {
-    this.thermoService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
-      ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
-    this.hydroService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
-      ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+  if (await this.checkDeviceState(platform, device) && device.data.online) {
+    this.thermoService
+      .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+        ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
+          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+      .updateCharacteristic(platform.Characteristic.StatusActive, true)
+      .updateCharacteristic(platform.Characteristic.StatusFault, false);
+    this.hydroService
+      .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+        ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
+          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+      .updateCharacteristic(platform.Characteristic.StatusActive, true)
+      .updateCharacteristic(platform.Characteristic.StatusFault, false);
     rc = device.data.state.temperature;
+  } else {
+    platform.log.error('Device offline or other error for '+ device.name + ' (' + device.deviceId + ')');
+    this.thermoService
+      .updateCharacteristic(platform.Characteristic.StatusActive, false)
+      .updateCharacteristic(platform.Characteristic.StatusFault, true);
+    this.hydroService
+      .updateCharacteristic(platform.Characteristic.StatusActive, false)
+      .updateCharacteristic(platform.Characteristic.StatusFault, true);
   }
 
   await releaseSemaphore();
