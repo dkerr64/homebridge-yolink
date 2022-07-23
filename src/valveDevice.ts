@@ -27,8 +27,9 @@ export async function initValveDevice(deviceClass: YoLinkPlatformAccessory): Pro
     .onGet(handleInUse.bind(deviceClass));
   deviceClass.valveService.getCharacteristic(platform.Characteristic.ValveType)
     .onGet(handleType.bind(deviceClass));
-  // Call get handler to initialize data fields to current state
-  handleGet.bind(deviceClass)();
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  deviceClass.refreshDataTimer(handleGet.bind(deviceClass));
 }
 
 /***********************************************************************

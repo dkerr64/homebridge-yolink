@@ -29,9 +29,9 @@ export async function initThermoHydroDevice(deviceClass: YoLinkPlatformAccessory
   deviceClass.hydroService.setCharacteristic(platform.Characteristic.Name, device.name);
   deviceClass.hydroService.getCharacteristic(platform.Characteristic.CurrentRelativeHumidity)
     .onGet(handleHydroGet.bind(deviceClass));
-  // Call get handler to initialize data fields to current state
-  handleThermoGet.bind(deviceClass)();
-  handleHydroGet.bind(deviceClass)();
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  deviceClass.refreshDataTimer(handleThermoGet.bind(deviceClass));
 }
 
 /***********************************************************************

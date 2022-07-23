@@ -22,8 +22,9 @@ export async function initMotionSensor(deviceClass: YoLinkPlatformAccessory): Pr
   deviceClass.motionService.setCharacteristic(platform.Characteristic.Name, device.name);
   deviceClass.motionService.getCharacteristic(platform.Characteristic.MotionDetected)
     .onGet(handleGet.bind(deviceClass));
-  // Call get handler to initialize data fields to current state
-  handleGet.bind(deviceClass)();
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  deviceClass.refreshDataTimer(handleGet.bind(deviceClass));
 }
 
 /***********************************************************************

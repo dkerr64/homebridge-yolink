@@ -123,7 +123,7 @@ export class YoLinkAPI {
     this.yolinkLoggedIn = true;
 
     platform.log.info('Access Token expires in ' + this.yolinkTokens.expires_in + ' seconds. We will refresh on requests after '
-    + Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + ' seconds');
+                                                 + Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + ' seconds');
 
     if (this.accessTokenHeartbeat) {
       // If interval timer already running, kill it so we can start a new one.
@@ -132,7 +132,7 @@ export class YoLinkAPI {
     platform.log.info('Starting heartbeat to force access token refresh every '
       + (this.yolinkTokens.expires_in * this.accesstokenHeartbeatAt) + ' seconds');
     this.accessTokenHeartbeat = setInterval( () => {
-      platform.log.info('Refresh access token timer fired');
+      platform.liteLog('Refresh access token timer fired');
       this.getAccessToken(platform);
     }, this.yolinkTokens.expires_in * 1000 * this.accesstokenHeartbeatAt );
 

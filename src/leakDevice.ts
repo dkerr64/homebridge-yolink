@@ -22,8 +22,9 @@ export async function initLeakSensor(deviceClass: YoLinkPlatformAccessory): Prom
   deviceClass.leakService.setCharacteristic(platform.Characteristic.Name, device.name);
   deviceClass.leakService.getCharacteristic(platform.Characteristic.LeakDetected)
     .onGet(handleGet.bind(deviceClass));
-  // Call get handler to initialize data fields to current state
-  handleGet.bind(deviceClass)();
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  deviceClass.refreshDataTimer(handleGet.bind(deviceClass));
 }
 
 /***********************************************************************
