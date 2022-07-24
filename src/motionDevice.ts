@@ -13,18 +13,18 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
  * initMotionDetector
  *
  */
-export async function initMotionSensor(deviceClass: YoLinkPlatformAccessory): Promise<void> {
-  const platform: YoLinkHomebridgePlatform = deviceClass.platform;
-  const accessory: PlatformAccessory = deviceClass.accessory;
+export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<void> {
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
-  deviceClass.motionService = accessory.getService(platform.Service.MotionSensor) || accessory.addService(platform.Service.MotionSensor);
-  deviceClass.motionService.setCharacteristic(platform.Characteristic.Name, device.name);
-  deviceClass.motionService.getCharacteristic(platform.Characteristic.MotionDetected)
-    .onGet(handleGet.bind(deviceClass));
+  this.motionService = accessory.getService(platform.Service.MotionSensor) || accessory.addService(platform.Service.MotionSensor);
+  this.motionService.setCharacteristic(platform.Characteristic.Name, device.name);
+  this.motionService.getCharacteristic(platform.Characteristic.MotionDetected)
+    .onGet(handleGet.bind(this));
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  deviceClass.refreshDataTimer(handleGet.bind(deviceClass));
+  this.refreshDataTimer(handleGet.bind(this));
 }
 
 /***********************************************************************
@@ -140,13 +140,13 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  *    "deviceId": "abcdef1234567890"
  *  }
  */
-export async function mqttMotionSensor(deviceClass: YoLinkPlatformAccessory, message): Promise<void> {
-  const platform: YoLinkHomebridgePlatform = deviceClass.platform;
+export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): Promise<void> {
+  const platform: YoLinkHomebridgePlatform = this.platform;
 
   // serialize access to device data.
-  const releaseSemaphore = await deviceClass.deviceSemaphore.acquire();
-  const device = deviceClass.accessory.context.device;
-  device.updateTime = Math.floor(new Date().getTime() / 1000) + deviceClass.config.refreshAfter;
+  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const device = this.accessory.context.device;
+  device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
   const event = message.event.split('.');
 
   switch (event[1]) {
@@ -159,7 +159,7 @@ export async function mqttMotionSensor(deviceClass: YoLinkPlatformAccessory, mes
       device.data.online = true;
       // Merge received data into existing data object
       Object.assign(device.data.state, message.data);
-      deviceClass.motionService
+      this.motionService
         .updateCharacteristic(platform.Characteristic.StatusLowBattery,
           (message.data.battery <= 1)
             ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW

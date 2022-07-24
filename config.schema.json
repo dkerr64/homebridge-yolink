@@ -42,7 +42,7 @@
         "maximum": 65535
       },
       "userAccessId": {
-        "title": "User Access ID (replace with your ID YoLink App)",
+        "title": "User Access ID (replace with your ID from YoLink App)",
         "type": "string",
         "required": true,
         "default": ""
@@ -61,14 +61,14 @@
         "default": 14500,
         "minimum": 0,
         "maximum":86400,
-        "description": "When HomeKit requests status, request from YoLink server if our cache has not been updated within the time specified. Zero (not recommended) means always retrieve from the server, maximum value is 86400 (24 hours).  Note that, at the time of writing, MQTT provides updates for each device every 4 hours."
+        "description": "Maximum number of seconds for cache data, after which we request an update from YoLink server. Defaults to just over 4 hours. For example, if you want to update at least once an hour, then set this to 3600. Zero (not recommended) means always retrieve from the server, maximum value is 86400 (24 hours)."
       },
       "verboseLog": {
         "title": "Enable verbose logging",
         "type": "boolean",
         "required": false,
         "default": false,
-        "description": "Sometimes it is helpful to log more detail than info but somewhat less than debug. This is that half-way. If enabled then verbose messages are logged as debug level."
+        "description": "Sometimes it is helpful to log more detail than info but somewhat less than debug. This is that half-way. If enabled then verbose messages are logged as 'info' level, else logged as 'debug'."
       },
       "liteLog": {
         "title": "Suppress logging of every get status request",
@@ -95,7 +95,7 @@
               "type": "string",
               "required": true,
               "default": "",
-              "description":"You can find the Device ID in the Homebridge log or in the Homebridge Config UI by clicking on an accessory's settings and copying the Serial Number field."
+              "description":"You can find the Device ID in the Homebridge log, in the YoLink mobile app (as Device EUI) or in the Homebridge Config UI by clicking on an accessory's settings and copying the Serial Number field."
             },
             "config": {
               "title": "Device Configuration",
@@ -106,7 +106,7 @@
                   "type": "boolean",
                   "required": false,
                   "default": false,
-                  "description": "Hide this device from Homebridge / HomeKit. You might want to do this to suppress the 'device not supported' warning message in the log. As there is no accessory type in HomeKit for a hub, you might want to set this to true for the YoLink hub."
+                  "description": "Hide this device from Homebridge / HomeKit. You might want to do this to suppress the 'device not supported' warning message in the log. As there is no accessory type in HomeKit for a hub, you can set this to true for the YoLink hub."
                 },
                 "name": {
                   "title": "Device Name",
@@ -119,7 +119,8 @@
                   "title": "Device Model Number",
                   "type": "string",
                   "required": false,
-                  "default": ""          
+                  "default": "",
+                  "description": "Model number is not available from the YoLink API so you can optionally add text here for Homebridge / HomeKit"      
                 },
                 "refreshAfter": {
                   "title": "Refresh time for data from YoLink server (override global setting)",

@@ -13,25 +13,25 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
  * initThermoHydroDevice
  * Initialise the temperature and humidity device services.
  */
-export async function initThermoHydroDevice(deviceClass: YoLinkPlatformAccessory): Promise<void> {
-  const platform: YoLinkHomebridgePlatform = deviceClass.platform;
-  const accessory: PlatformAccessory = deviceClass.accessory;
+export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Promise<void> {
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
-  deviceClass.thermoService = accessory.getService(platform.Service.TemperatureSensor)
-                           || accessory.addService(platform.Service.TemperatureSensor);
-  deviceClass.thermoService.setCharacteristic(platform.Characteristic.Name, device.name);
-  deviceClass.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
-    .onGet(handleThermoGet.bind(deviceClass));
+  this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
+                    || accessory.addService(platform.Service.TemperatureSensor);
+  this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name);
+  this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
+    .onGet(handleThermoGet.bind(this));
 
-  deviceClass.hydroService = accessory.getService(platform.Service.HumiditySensor)
-                           || accessory.addService(platform.Service.HumiditySensor);
-  deviceClass.hydroService.setCharacteristic(platform.Characteristic.Name, device.name);
-  deviceClass.hydroService.getCharacteristic(platform.Characteristic.CurrentRelativeHumidity)
-    .onGet(handleHydroGet.bind(deviceClass));
+  this.hydroService = accessory.getService(platform.Service.HumiditySensor)
+                   || accessory.addService(platform.Service.HumiditySensor);
+  this.hydroService.setCharacteristic(platform.Characteristic.Name, device.name);
+  this.hydroService.getCharacteristic(platform.Characteristic.CurrentRelativeHumidity)
+    .onGet(handleHydroGet.bind(this));
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  deviceClass.refreshDataTimer(handleThermoGet.bind(deviceClass));
+  this.refreshDataTimer(handleThermoGet.bind(this));
 }
 
 /***********************************************************************
@@ -185,13 +185,13 @@ async function handleHydroGet(this: YoLinkPlatformAccessory): Promise<Characteri
  *    "deviceId": "abcdef1234567890"
  *  }
  */
-export async function mqttThermoHydroDevice(deviceClass: YoLinkPlatformAccessory, message): Promise<void> {
-  const platform: YoLinkHomebridgePlatform = deviceClass.platform;
+export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
+  const platform: YoLinkHomebridgePlatform = this.platform;
 
   // serialize access to device data.
-  const releaseSemaphore = await deviceClass.deviceSemaphore.acquire();
-  const device = deviceClass.accessory.context.device;
-  device.updateTime = Math.floor(new Date().getTime() / 1000) + deviceClass.config.refreshAfter;
+  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const device = this.accessory.context.device;
+  device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
   const event = message.event.split('.');
 
   switch (event[1]) {
@@ -205,16 +205,16 @@ export async function mqttThermoHydroDevice(deviceClass: YoLinkPlatformAccessory
       device.data.online = true;
       // Merge received data into existing data object
       Object.assign(device.data.state, message.data);
-      deviceClass.thermoService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+      this.thermoService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
         ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
           ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
           : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
-      deviceClass.hydroService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+      this.hydroService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
         ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
           ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
           : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
-      deviceClass.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
-      deviceClass.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
+      this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
+      this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
       break;
     default:
       platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
