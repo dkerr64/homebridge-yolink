@@ -13,23 +13,23 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
  * initValveDevice
  *
  */
-export async function initValveDevice(deviceClass: YoLinkPlatformAccessory): Promise<void> {
-  const platform: YoLinkHomebridgePlatform = deviceClass.platform;
-  const accessory: PlatformAccessory = deviceClass.accessory;
+export async function initValveDevice(this: YoLinkPlatformAccessory): Promise<void> {
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
-  deviceClass.valveService = accessory.getService(platform.Service.Valve) || accessory.addService(platform.Service.Valve);
-  deviceClass.valveService.setCharacteristic(platform.Characteristic.Name, device.name);
-  deviceClass.valveService.getCharacteristic(platform.Characteristic.Active)
-    .onGet(handleGet.bind(deviceClass))
-    .onSet(handleSet.bind(deviceClass));
-  deviceClass.valveService.getCharacteristic(platform.Characteristic.InUse)
-    .onGet(handleInUse.bind(deviceClass));
-  deviceClass.valveService.getCharacteristic(platform.Characteristic.ValveType)
-    .onGet(handleType.bind(deviceClass));
+  this.valveService = accessory.getService(platform.Service.Valve) || accessory.addService(platform.Service.Valve);
+  this.valveService.setCharacteristic(platform.Characteristic.Name, device.name);
+  this.valveService.getCharacteristic(platform.Characteristic.Active)
+    .onGet(handleGet.bind(this))
+    .onSet(handleSet.bind(this));
+  this.valveService.getCharacteristic(platform.Characteristic.InUse)
+    .onGet(handleInUse.bind(this));
+  this.valveService.getCharacteristic(platform.Characteristic.ValveType)
+    .onGet(handleType.bind(this));
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  deviceClass.refreshDataTimer(handleGet.bind(deviceClass));
+  this.refreshDataTimer(handleGet.bind(this));
 }
 
 /***********************************************************************
@@ -178,13 +178,13 @@ async function handleType(this: YoLinkPlatformAccessory): Promise<Characteristic
  *   "deviceId": "abcdef1234567890"
  * }
  */
-export async function mqttValveDevice(deviceClass: YoLinkPlatformAccessory, message): Promise<void> {
-  const platform: YoLinkHomebridgePlatform = deviceClass.platform;
+export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
+  const platform: YoLinkHomebridgePlatform = this.platform;
 
   // serialize access to device data.
-  const releaseSemaphore = await deviceClass.deviceSemaphore.acquire();
-  const device = deviceClass.accessory.context.device;
-  device.updateTime = Math.floor(new Date().getTime() / 1000) + deviceClass.config.refreshAfter;
+  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const device = this.accessory.context.device;
+  device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
   const event = message.event.split('.');
 
   switch (event[1]) {
@@ -198,13 +198,13 @@ export async function mqttValveDevice(deviceClass: YoLinkPlatformAccessory, mess
       // Merge received data into existing data object
       Object.assign(device.data, message.data);
       if (message.data.battery) {
-        deviceClass.valveService
+        this.valveService
           .updateCharacteristic(platform.Characteristic.StatusLowBattery,
             (message.data.battery <= 1)
               ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
               : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
       }
-      deviceClass.valveService
+      this.valveService
         .updateCharacteristic(platform.Characteristic.Active,
           (message.data.state === 'open')
             ? platform.api.hap.Characteristic.Active.ACTIVE

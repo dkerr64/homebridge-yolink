@@ -53,7 +53,7 @@ export class YoLinkPlatformAccessory {
 
     // Now initialize each device type, creating the homebridge services as required.
     if (initDeviceService[device.type]) {
-      initDeviceService[device.type](this);
+      initDeviceService[device.type].bind(this)();
     } else {
       this.log.warn('YoLink device type: \'' + device.type + '\''
                   + ' is not supported by this plugin (deviceID: ' + device.deviceId + ')\n'
@@ -85,6 +85,7 @@ export class YoLinkPlatformAccessory {
       device.data = await platform.yolinkAPI.getDeviceState(platform, device);
       if (device.data) {
         device.updateTime = timestamp + this.config.refreshAfter;
+        platform.log.info('checkDeviceState received data for ' + device.name + ' (' + device.deviceId + ')');
       }
     }
     return(device.data);
@@ -130,11 +131,11 @@ export class YoLinkPlatformAccessory {
                           + ' State: \'' + message.data.state + '\'');
 
     if (device.data && mqttHandler[device.type]) {
-      mqttHandler[device.type](this, message);
+      mqttHandler[device.type].bind(this)(message);
     } else {
       platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
                       + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-                      + ((message)?JSON.stringify(message):''));
+                      + JSON.stringify(message));
     }
     return;
   }
