@@ -81,6 +81,9 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       .updateCharacteristic(platform.Characteristic.StatusActive, true)
       .updateCharacteristic(platform.Characteristic.StatusFault, false);
     platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state.state);
+    if (device.data.state.battery <= 1) {
+      platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+    }
     rc = (device.data.state.state === 'alert');
   } else {
     platform.log.error('Device offline or other error for '+ device.name + ' (' + device.deviceId + ')');
@@ -168,6 +171,9 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
           (message.data.state === 'alert') ? true : false )
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
+      if (message.data.battery <= 1) {
+        platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+      }
       break;
     case 'setOpenRemind':
       // I don't know what this is intended for.  I have seen it from the YoLink

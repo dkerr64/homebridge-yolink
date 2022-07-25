@@ -118,6 +118,9 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
     }
+    if ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery)) {
+      platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+    }
     rc = device.data.state.temperature;
   } else {
     platform.log.error('Device offline or other error for ' + device.name + ' (' + device.deviceId + ')');
@@ -241,6 +244,9 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
             ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
             : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
         this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
+      }
+      if ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery)) {
+        platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
       }
       break;
     default:
