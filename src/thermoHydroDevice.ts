@@ -18,20 +18,35 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
-  this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
-                    || accessory.addService(platform.Service.TemperatureSensor);
-  this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name);
-  this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
-    .onGet(handleThermoGet.bind(this));
+  if (this.config.hide === 'thermo') {
+    platform.log.info('Hide Thermometer service because config.[' + device.deviceId + '].hide is set to "thermo"');
+  } else {
+    // Not trying to hide the thermometer service.
+    this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
+                      || accessory.addService(platform.Service.TemperatureSensor);
+    this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name);
+    this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
+      .onGet(handleThermoGet.bind(this));
+  }
 
-  this.hydroService = accessory.getService(platform.Service.HumiditySensor)
-                   || accessory.addService(platform.Service.HumiditySensor);
-  this.hydroService.setCharacteristic(platform.Characteristic.Name, device.name);
-  this.hydroService.getCharacteristic(platform.Characteristic.CurrentRelativeHumidity)
-    .onGet(handleHydroGet.bind(this));
+  if (this.config.hide === 'hydro') {
+    platform.log.info('Hide Hydrometer service because config.[' + device.deviceId + '].hide is set to "hydro"');
+  } else {
+    // Not trying to hide the hydrometer service.
+    this.hydroService = accessory.getService(platform.Service.HumiditySensor)
+                     || accessory.addService(platform.Service.HumiditySensor);
+    this.hydroService.setCharacteristic(platform.Characteristic.Name, device.name);
+    this.hydroService.getCharacteristic(platform.Characteristic.CurrentRelativeHumidity)
+      .onGet(handleHydroGet.bind(this));
+  }
   // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  this.refreshDataTimer(handleThermoGet.bind(this));
+  // timer to regularly update the data.  We only need to call one of these
+  // as each fetches both data.
+  if (this.config.hide === 'thermo') {
+    this.refreshDataTimer(handleHydroGet.bind(this));
+  } else {
+    this.refreshDataTimer(handleThermoGet.bind(this));
+  }
 }
 
 /***********************************************************************
@@ -85,29 +100,37 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   let rc = 0;
 
   if (await this.checkDeviceState(platform, device) && device.data.online) {
-    this.thermoService
-      .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-        ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
-      .updateCharacteristic(platform.Characteristic.StatusActive, true)
-      .updateCharacteristic(platform.Characteristic.StatusFault, false);
-    this.hydroService
-      .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-        ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
-      .updateCharacteristic(platform.Characteristic.StatusActive, true)
-      .updateCharacteristic(platform.Characteristic.StatusFault, false);
+    if (this.thermoService) {
+      this.thermoService
+        .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+          ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
+            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+        .updateCharacteristic(platform.Characteristic.StatusActive, true)
+        .updateCharacteristic(platform.Characteristic.StatusFault, false);
+    }
+    if (this.hydroService) {
+      this.hydroService
+        .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+          ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
+            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+        .updateCharacteristic(platform.Characteristic.StatusActive, true)
+        .updateCharacteristic(platform.Characteristic.StatusFault, false);
+    }
     rc = device.data.state.temperature;
   } else {
-    platform.log.error('Device offline or other error for '+ device.name + ' (' + device.deviceId + ')');
-    this.thermoService
-      .updateCharacteristic(platform.Characteristic.StatusActive, false)
-      .updateCharacteristic(platform.Characteristic.StatusFault, true);
-    this.hydroService
-      .updateCharacteristic(platform.Characteristic.StatusActive, false)
-      .updateCharacteristic(platform.Characteristic.StatusFault, true);
+    platform.log.error('Device offline or other error for ' + device.name + ' (' + device.deviceId + ')');
+    if (this.thermoService) {
+      this.thermoService
+        .updateCharacteristic(platform.Characteristic.StatusActive, false)
+        .updateCharacteristic(platform.Characteristic.StatusFault, true);
+    }
+    if (this.hydroService) {
+      this.hydroService
+        .updateCharacteristic(platform.Characteristic.StatusActive, false)
+        .updateCharacteristic(platform.Characteristic.StatusFault, true);
+    }
   }
 
   await releaseSemaphore();
@@ -205,16 +228,20 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
       device.data.online = true;
       // Merge received data into existing data object
       Object.assign(device.data.state, message.data);
-      this.thermoService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
-        ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
-      this.hydroService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
-        ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
-      this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
-      this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
+      if (this.thermoService) {
+        this.thermoService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+          ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
+            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+        this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
+      }
+      if (this.hydroService) {
+        this.hydroService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+          ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
+            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+        this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
+      }
       break;
     default:
       platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
