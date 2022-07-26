@@ -80,13 +80,13 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
         : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
       .updateCharacteristic(platform.Characteristic.StatusActive, true)
       .updateCharacteristic(platform.Characteristic.StatusFault, false);
-    platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state.state);
+    platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state.state}`);
     if (device.data.state.battery <= 1) {
-      platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+      platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
     }
     rc = (device.data.state.state === 'alert');
   } else {
-    platform.log.error('Device offline or other error for '+ device.name + ' (' + device.deviceId + ')');
+    platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
     this.motionService
       .updateCharacteristic(platform.Characteristic.StatusActive, false)
       .updateCharacteristic(platform.Characteristic.StatusFault, true);
@@ -172,7 +172,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
       if (message.data.battery <= 1) {
-        platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
       }
       break;
     case 'setOpenRemind':

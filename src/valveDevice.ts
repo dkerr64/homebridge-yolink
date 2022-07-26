@@ -70,15 +70,15 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       // we got this far then it is working normally...
       .updateCharacteristic(platform.Characteristic.StatusActive, true)
       .updateCharacteristic(platform.Characteristic.StatusFault, false);
-    platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state);
+    platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state}`);
     if (device.data.battery <= 1) {
-      platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+      platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
     }
     if (device.data.state === 'open') {
       rc = platform.api.hap.Characteristic.Active.ACTIVE;
     }
   } else {
-    platform.log.error('Device offline or other error for '+ device.name + ' (' + device.deviceId + ')');
+    platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
     this.valveService
       .updateCharacteristic(platform.Characteristic.StatusActive, false)
       .updateCharacteristic(platform.Characteristic.StatusFault, true);
@@ -93,8 +93,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  *
  */
 async function handleInUse(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
-  const device = this.accessory.context.device;
-  this.platform.liteLog('Valve in use state for ' + device.name + ' (' + device.deviceId + '), calling isActive');
+  this.platform.liteLog(`Valve in use state for ${this.deviceMsgName}, calling isActive`);
   // Apple HomeKit documentation defines In Use as fluid is flowing through valve.
   // We will assume that if the valve is open, then fluid is flowing...
   return(await handleGet.bind(this)());
@@ -118,7 +117,7 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
   const device = this.accessory.context.device;
-  platform.log.info('setDeviceState for ' + device.name + ' (' + device.deviceId + ')');
+  platform.log.info(`setDeviceState for ${this.deviceMsgName}`);
   const newState = (value === platform.api.hap.Characteristic.Active.ACTIVE) ? 'open' : 'close';
 
   const data = await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState});
@@ -215,7 +214,7 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
       if (message.data.battery <= 1) {
-        platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
       }
       break;
     default:

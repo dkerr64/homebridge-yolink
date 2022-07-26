@@ -131,7 +131,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     for (const accessory of this.accessories) {
       const device = accessory.context.device;
       if (!deviceList.find(x => x.deviceId === device.deviceId)) {
-        this.log.warn('Removing accessory from cache: ' + accessory.displayName +' (' + device.deviceId +'), device does not exist');
+        this.log.warn(`Removing accessory from cache: ${accessory.displayName} (${device.deviceId}), device does not exist`);
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       }
     }
@@ -161,21 +161,20 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
 
       if (skip) {
         if (existingAccessory){
-          this.log.warn('Remove accessory from cache as config \'hide=true\' for: '
-                       + existingAccessory.displayName + ' (' + device.deviceId +')');
+          this.log.warn(`Remove accessory from cache as config 'hide=true' for: ${existingAccessory.displayName} (${device.deviceId})`);
           this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
         }
       } else {
         let deviceClass;
         if (existingAccessory){
           // update existing accessory
-          this.verboseLog('Restoring accessory from cache: ' + existingAccessory.displayName + '(' + device.deviceId + ')');
+          this.verboseLog(`Restoring accessory from cache: ${existingAccessory.displayName} (${device.deviceId})`);
           existingAccessory.context.device = device;
           this.api.updatePlatformAccessories([existingAccessory]);
           deviceClass = new YoLinkPlatformAccessory(this, existingAccessory);
         } else {
           // create a new accessory
-          this.log.info('Adding new accessory:', device.name + ' (' + device.deviceId +')');
+          this.log.info(`Adding new accessory: ${device.name} (${device.deviceId})`);
           const accessory = new this.api.platformAccessory(device.name, uuid);
           accessory.context.device = device;
           this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
@@ -197,7 +196,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       } else {
         // If a device is hidden (not loaded into homebridge) then we may receive
         // messages for it... which is perfectly okay, but worth logging.
-        this.verboseLog('mqtt received message for unknown device (' + data.deviceId + ')');
+        this.verboseLog(`mqtt received message for unknown device (${data.deviceId})`);
       }
     });
 
