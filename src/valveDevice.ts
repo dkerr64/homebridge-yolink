@@ -71,6 +71,9 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       .updateCharacteristic(platform.Characteristic.StatusActive, true)
       .updateCharacteristic(platform.Characteristic.StatusFault, false);
     platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state);
+    if (device.data.battery <= 1) {
+      platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+    }
     if (device.data.state === 'open') {
       rc = platform.api.hap.Characteristic.Active.ACTIVE;
     }
@@ -211,6 +214,9 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
             : platform.api.hap.Characteristic.Active.INACTIVE)
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
+      if (message.data.battery <= 1) {
+        platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+      }
       break;
     default:
       platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'

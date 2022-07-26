@@ -94,7 +94,7 @@ YoLink status is retrieved over the internet.  While the plugin maintains a stat
 * **Device Properties** are an array of objects that allow settings or overrides on a device-by-device basis.  This array is optional but if provided contains the following fields:
   * **deviceId** *(required)*: ID to identify specific device.  You can find this from the Homebridge log or in the Homebridge Config UI X by clicking on an accessory settings and copying the Serial Number field.
   * **config** *(optional)*: Object with settings specific for this device:
-    * **hide** *(optional)*: Hide this device from Homebridge / HomeKit.  You might want to do this to suppress the "device not supported" warning message in the log.  As there is no accessory type in HomeKit for a hub, you might want to set this to true for the YoLink hub.  Defaults to false
+    * **hide** *(optional)*: See device notes below.  Hide this device from Homebridge / HomeKit.  You might want to do this to suppress the "device not supported" warning message in the log.  As there is no accessory type in HomeKit for a hub, you might want to set this to true for the YoLink hub.  Defaults to false
     * **name** *(optional)*: Override the name provided by YoLink for the device, this is what is shown in the Homebridge UI accessories page.
     * **model** *(optional)*: YoLink does not provide device model number when requesting device information.  If you want to keep a record of that and show it in the Homebridge accessories setting page then you can set it here, for example the original YoLink leak sensor has a model number of "YS7903-UC".  This is a purely cosmetic setting with no functional purpose.
     * **refreshAfter** *(optional)*: Device specific override of global *refreshAfter*, see above.  Defaults to global setting.
@@ -106,6 +106,32 @@ The plugin registers with YoLink servers as a MQTT client and subscribes to publ
 MQTT client is receives updates from YoLink devices at different times depending on the device.  An alert event generates a message immediately but regular updates are received when there is no alert. Devices like the leak detector report every 4 hours, but tempearture and humidity sensor sends updates based on environmental change rate, or at least every hour.  This is documented in YoLink user guide.
 
 If you are comfortable relying entirely on YoLink notifications you can set the *refreshAfter* property to something larger than 14400 seconds (4 hours) which will cause the plugin to always report the cached state of a device, updating the cache whenever YoLink sends a report or when an internal timer runs based on *refreshAfter*.  If this is set to less than 60 seconds then timers will not run, but data will be refreshed on HomeKit requests more than 60 seconds from the previous request.
+
+## Device Notes
+
+Observed behavior of various devices, and specific configuration settings are noted below for supported devices.
+
+### Leak Sensor
+
+Normal status reporting occurs every 4 hours.  Alerts will be reported immediately.  If you want to check on device status more frequently then set *refreshAfter* to desired interval.
+
+### Vibration Sensor
+
+HomeKit does not have a vibration sensor device type so this plugin registers these devices as a Motion Sensor.  Normal status reporting occurs every 4 hours.  Alerts will be reported immediately.  If you want to check on device status more frequently then set *refreshAfter* to desired interval.
+
+### Motion Sensor
+
+Normal status reporting occurs every 4 hours.  Alerts will be reported immediately.  If you want to check on device status more frequently then set *refreshAfter* to desired interval.
+
+### Thermometer / Humidity Sensor
+
+Normal status reporting occurs based on changes in temperature or humidity over time, with a maximum reporting period of one hour.  If you want to check on device status more frequently then set *refreshAfter* to desired interval.  While you can request an Alert in the YoLink app (for example when humidity or temperature exeeds a threshold), HomeKit does not support alerts for this device type so those alerts cannot be passed on to HomeKit.
+
+If you have a Thermometer / Humidity sensor but only want to track one value then you can hide one or the other from HomeKit.  Set the *hide* configuration paramater to "thermo" or "hydro" to hide that from HomeKit. You may want to do this for example with a remote temperature probe monitoring swimming pool water temperature where humidity value is not relevant.
+
+### Water Valve Controller
+
+YoLink water valve controllers report as a "manipulator" device, the plugin registers this as a HomeKit generic valve.  HomeKit has the concept of both open/close and in use where in use means that fluid is actually flowing through the device.  Presumably this allows for a valve to be open, but no fluid to flow.  YoLink only reports open/close and so the plugin uses this state for both valve position and in use (fluid flowing). Normal status reporting occurs every 4 hours.  If you want to check on device status more frequently then set *refreshAfter* to desired interval.
 
 ## License
 

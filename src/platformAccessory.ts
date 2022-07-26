@@ -110,7 +110,8 @@ export class YoLinkPlatformAccessory {
     if (this.config.refreshAfter >= 60) {
       // We don't allow for regular updates any more frequently than once a minute. And the
       // timer will wait for at least one second before firing again to avoid runaway loops.
-      const nextUpdateIn = Math.max(1, device.updateTime - Math.floor(new Date().getTime() / 1000));
+      const nextUpdateIn = (device.updateTime) ? Math.max(1, device.updateTime - Math.floor(new Date().getTime() / 1000)) : 60;
+      // If there was no device.updateTime then error occurred, so default to 60 seconds.
       platform.liteLog('Set data refresh timer for ' + device.name + ' (' + device.deviceId + ') to run in ' + nextUpdateIn + ' seconds');
       setTimeout( () => {
         this.refreshDataTimer(handleGet);

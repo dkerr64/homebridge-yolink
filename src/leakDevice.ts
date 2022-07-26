@@ -62,6 +62,9 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       .updateCharacteristic(platform.Characteristic.StatusActive, true)
       .updateCharacteristic(platform.Characteristic.StatusFault, false);
     platform.liteLog('Device state for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state.state);
+    if (device.data.state.battery <= 1) {
+      platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+    }
     if (device.data.state.state === 'alert') {
       rc = platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED;
     }
@@ -131,6 +134,9 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
             : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED)
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
+      if (message.data.battery <= 1) {
+        platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+      }
       break;
     default:
       platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'

@@ -154,11 +154,14 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       // the cached devices we stored in the `configureAccessory` method above.
       const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
       const skip = (!this.config.allDevices && !this.config.devices[device.deviceId])
-                 || (this.config.devices[device.deviceId] && this.config.devices[device.deviceId].hide);
+                 || (this.config.devices[device.deviceId] && (this.config.devices[device.deviceId].hide === true
+                                                            ||this.config.devices[device.deviceId].hide === 'true'));
+      // If "hide" is not true then we will add the accessory and the individual handler
+      // can decide what to do.
 
       if (skip) {
         if (existingAccessory){
-          this.log.info('Remove accessory from cache as config \'hide=true\' for: '
+          this.log.warn('Remove accessory from cache as config \'hide=true\' for: '
                        + existingAccessory.displayName + ' (' + device.deviceId +')');
           this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
         }
