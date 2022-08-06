@@ -109,11 +109,11 @@ export class YoLinkAPI {
     params.append('grant_type', 'client_credentials');
     params.append('client_id', platform.config.userAccessId);
     params.append('client_secret', platform.config.secretKey);
-    platform.log.debug('SENDING: ' + params);
+    platform.log.debug('SENDING:\n' + params);
     const timestamp = Math.floor(new Date().getTime() / 1000);
     const response = await fetch(platform.config.tokenURL, { method: 'POST', body: params } );
     this.yolinkTokens = await response.json();
-    platform.log.debug('RECEIVED: ' + JSON.stringify(this.yolinkTokens));
+    platform.log.debug('RECEIVED:\n' + JSON.stringify(this.yolinkTokens));
 
     if (this._apiError(platform, 'YoLink Login', response, this.yolinkTokens)) {
       return false;
@@ -160,11 +160,11 @@ export class YoLinkAPI {
       params.append('grant_type', 'refresh_token');
       params.append('client_id', platform.config.userAccessId);
       params.append('refresh_token', this.yolinkTokens.refresh_token);
-      platform.log.debug('SENDING: ' + params);
+      platform.log.debug('SENDING:\n' + params);
       const response = await fetch(platform.config.tokenURL, { method: 'POST', body: params } );
       this.yolinkTokens.state = '';
       this.yolinkTokens = await response.json();
-      platform.log.debug('RECEIVED: ' + JSON.stringify(this.yolinkTokens));
+      platform.log.debug('RECEIVED:\n' + JSON.stringify(this.yolinkTokens));
       // TEST with bad refresh token
       if (this._apiError(platform, 'YoLink Refresh Token', response, this.yolinkTokens)) {
         if (response.ok) {
@@ -195,7 +195,7 @@ export class YoLinkAPI {
       time: timestamp,
       method: 'Home.getDeviceList',
     };
-    platform.log.debug('SENDING: ' + JSON.stringify(bddp));
+    platform.log.debug('SENDING:\n' + JSON.stringify(bddp));
     const response = await fetch(platform.config.apiURL,
       { method: 'POST', body: JSON.stringify(bddp),
         headers: { 'Content-Type': 'application/json',
@@ -203,7 +203,7 @@ export class YoLinkAPI {
         },
       });
     const budp: yolinkBUDP = await response.json();
-    platform.log.debug('RECEIVED: ' + JSON.stringify(budp));
+    platform.log.debug('RECEIVED:\n' + JSON.stringify(budp));
 
     if (this._apiError(platform, bddp.method, response, budp)) {
       return null;
@@ -237,7 +237,7 @@ export class YoLinkAPI {
       time: timestamp,
       method: 'Home.getGeneralInfo',
     };
-    platform.log.debug('SENDING: ' + JSON.stringify(bddp));
+    platform.log.debug('SENDING:\n' + JSON.stringify(bddp));
     const response = await fetch(platform.config.apiURL,
       { method: 'POST', body: JSON.stringify(bddp),
         headers: { 'Content-Type': 'application/json',
@@ -245,7 +245,7 @@ export class YoLinkAPI {
         },
       });
     const budp: yolinkBUDP = await response.json();
-    platform.log.debug('RECEIVED: ' + JSON.stringify(budp));
+    platform.log.debug('RECEIVED:\n' + JSON.stringify(budp));
 
     if (this._apiError(platform, bddp.method, response, budp)) {
       return null;
@@ -275,7 +275,7 @@ export class YoLinkAPI {
       targetDevice: device.deviceId,
       token: device.token,
     };
-    platform.log.debug('SENDING: ' + JSON.stringify(bddp));
+    platform.log.debug('SENDING:\n' + JSON.stringify(bddp));
     const response = await fetch(platform.config.apiURL,
       { method: 'POST', body: JSON.stringify(bddp),
         headers: { 'Content-Type': 'application/json',
@@ -283,7 +283,7 @@ export class YoLinkAPI {
         },
       });
     const budp: yolinkBUDP = await response.json();
-    platform.log.debug('RECEIVED: ' + JSON.stringify(budp));
+    platform.log.debug('RECEIVED:\n' + JSON.stringify(budp));
 
     if (this._apiError(platform, bddp.method, response, budp)) {
       return null;
@@ -311,7 +311,7 @@ export class YoLinkAPI {
       token: device.token,
       params: state,
     };
-    platform.log.debug('SENDING: ' + JSON.stringify(bddp));
+    platform.log.debug('SENDING:\n' + JSON.stringify(bddp));
     const response = await fetch(platform.config.apiURL,
       { method: 'POST', body: JSON.stringify(bddp),
         headers: { 'Content-Type': 'application/json',
@@ -319,7 +319,7 @@ export class YoLinkAPI {
         },
       });
     const budp: yolinkBUDP = await response.json();
-    platform.log.debug('RECEIVED: ' + JSON.stringify(budp));
+    platform.log.debug('RECEIVED:\n' + JSON.stringify(budp));
 
     if (this._apiError(platform, bddp.method, response, budp)) {
       return null;
@@ -392,7 +392,7 @@ export class YoLinkAPI {
     });
 
     this.mqttClient.on('message', (topic, message) => {
-      platform.log.debug('mqtt received: ' + topic + '\n  ' + message.toString());
+      platform.log.debug('mqtt received: ' + topic + '\n' + message.toString());
       msgCallback(message.toString());
     });
 
