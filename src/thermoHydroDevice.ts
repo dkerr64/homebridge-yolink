@@ -19,7 +19,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   const device = accessory.context.device;
 
   if (this.config.hide === 'thermo') {
-    platform.log.info('Hide Thermometer service because config.[' + device.deviceId + '].hide is set to "thermo"');
+    platform.log.info(`Hide Thermometer service because config.[${device.deviceId}].hide is set to "thermo"`);
   } else {
     // Not trying to hide the thermometer service.
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
@@ -30,7 +30,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   }
 
   if (this.config.hide === 'hydro') {
-    platform.log.info('Hide Hydrometer service because config.[' + device.deviceId + '].hide is set to "hydro"');
+    platform.log.info(`Hide Hydrometer service because config.[${device.deviceId}].hide is set to "hydro"`);
   } else {
     // Not trying to hide the hydrometer service.
     this.hydroService = accessory.getService(platform.Service.HumiditySensor)
@@ -119,11 +119,11 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
     }
     if ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery)) {
-      platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+      platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
     }
     rc = device.data.state.temperature;
   } else {
-    platform.log.error('Device offline or other error for ' + device.name + ' (' + device.deviceId + ')');
+    platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
     if (this.thermoService) {
       this.thermoService
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
@@ -146,9 +146,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  */
 async function handleThermoGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   await handleGet.bind(this)();
-  const device = this.accessory.context.device;
-  this.platform.liteLog('Temperature for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state.temperature);
-  return (device.data.state.temperature);
+  this.platform.liteLog(`Temperature for ${this.deviceMsgName} is: ${this.accessory.context.device.data.state.temperature}`);
+  return (this.accessory.context.device.data.state.temperature);
 }
 
 /***********************************************************************
@@ -157,9 +156,8 @@ async function handleThermoGet(this: YoLinkPlatformAccessory): Promise<Character
  */
 async function handleHydroGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   await handleGet.bind(this)();
-  const device = this.accessory.context.device;
-  this.platform.liteLog('Humidity for ' + device.name + ' (' + device.deviceId + ') is: ' + device.data.state.humidity);
-  return (device.data.state.humidity);
+  this.platform.liteLog(`'Humidity for ${this.deviceMsgName} is: ${this.accessory.context.device.data.state.humidity}`);
+  return (this.accessory.context.device.data.state.humidity);
 }
 
 /***********************************************************************
@@ -246,7 +244,7 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
         this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
       }
       if ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery)) {
-        platform.log.warn('Device ' + device.name + ' (' + device.deviceId + ') reports battery < 25%');
+        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
       }
       break;
     default:

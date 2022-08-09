@@ -27,6 +27,7 @@ export class YoLinkPlatformAccessory {
   [key: string]: any;
   public deviceSemaphore;
   public deviceId;
+  public deviceMsgName;
 
   constructor(
     readonly platform: YoLinkHomebridgePlatform,
@@ -34,6 +35,7 @@ export class YoLinkPlatformAccessory {
   ) {
     const device = accessory.context.device;
     this.deviceId = device.deviceId;
+    this.deviceMsgName = `${device.name} (${device.deviceId})`;
     this.config = platform.config.devices[device.deviceId] ? platform.config.devices[device.deviceId] : {};
     this.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
 
@@ -55,7 +57,7 @@ export class YoLinkPlatformAccessory {
     if (initDeviceService[device.type]) {
       initDeviceService[device.type].bind(this)();
     } else {
-      this.log.warn('YoLink device type: \'' + device.type + '\''
+      platform.log.warn('YoLink device type: \'' + device.type + '\''
                   + ' is not supported by this plugin (deviceID: ' + device.deviceId + ')\n'
                   + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
                   + JSON.stringify(device));
@@ -72,8 +74,7 @@ export class YoLinkPlatformAccessory {
    * prevent sending multiple requests for the same data to the server.
    */
   async checkDeviceState(platform, device) {
-    platform.verboseLog('checkDeviceState for ' + device.name
-                          + ' (refresh after ' + this.config.refreshAfter + ' seconds)');
+    platform.verboseLog(`checkDeviceState for ${this.deviceMsgName} (refresh after ${this.config.refreshAfter} seconds)`);
 
     const timestamp = Math.floor(new Date().getTime() / 1000);
     if (!device.data
@@ -85,7 +86,7 @@ export class YoLinkPlatformAccessory {
       device.data = await platform.yolinkAPI.getDeviceState(platform, device);
       if (device.data) {
         device.updateTime = timestamp + this.config.refreshAfter;
-        platform.log.info('checkDeviceState received data for ' + device.name + ' (' + device.deviceId + ')');
+        platform.log.info(`checkDeviceState received data for ${this.deviceMsgName}`);
       }
     }
     return(device.data);
@@ -103,7 +104,7 @@ export class YoLinkPlatformAccessory {
     const platform: YoLinkHomebridgePlatform = this.platform;
     const device = this.accessory.context.device;
 
-    platform.verboseLog('Data refresh timer for ' + device.name + ' (' + device.deviceId + ') fired');
+    platform.verboseLog(`Data refresh timer for ${this.deviceMsgName} fired`);
 
     await handleGet.bind(this)();
 
@@ -112,7 +113,7 @@ export class YoLinkPlatformAccessory {
       // timer will wait for at least one second before firing again to avoid runaway loops.
       const nextUpdateIn = (device.updateTime) ? Math.max(1, device.updateTime - Math.floor(new Date().getTime() / 1000)) : 60;
       // If there was no device.updateTime then error occurred, so default to 60 seconds.
-      platform.liteLog('Set data refresh timer for ' + device.name + ' (' + device.deviceId + ') to run in ' + nextUpdateIn + ' seconds');
+      platform.liteLog(`Set data refresh timer for ${this.deviceMsgName} to run in ${nextUpdateIn} seconds`);
       setTimeout( () => {
         this.refreshDataTimer(handleGet);
       }, nextUpdateIn * 1000);
@@ -127,9 +128,7 @@ export class YoLinkPlatformAccessory {
     const device = this.accessory.context.device;
     const platform = this.platform;
 
-    platform.log.info('Received mqtt message \'' + message.event + '\' for device: '
-                          + device.name + ' (' + device.deviceId + ')'
-                          + ' State: \'' + message.data.state + '\'');
+    platform.log.info(`Received mqtt message '${message.event}' for device: ${this.deviceMsgName} State: '${message.data.state}'`);
 
     if (device.data && mqttHandler[device.type]) {
       mqttHandler[device.type].bind(this)(message);
