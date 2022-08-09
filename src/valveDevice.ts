@@ -195,6 +195,11 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
     case 'getState':
       // falls through
     case 'setState':
+      if (!device.data) {
+        // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+        platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+        break;
+      }
       // if we received a message then device must be online
       device.data.online = true;
       // Merge received data into existing data object
