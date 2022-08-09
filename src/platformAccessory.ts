@@ -57,7 +57,7 @@ export class YoLinkPlatformAccessory {
     if (initDeviceService[device.type]) {
       initDeviceService[device.type].bind(this)();
     } else {
-      this.log.warn('YoLink device type: \'' + device.type + '\''
+      platform.log.warn('YoLink device type: \'' + device.type + '\''
                   + ' is not supported by this plugin (deviceID: ' + device.deviceId + ')\n'
                   + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
                   + JSON.stringify(device));
