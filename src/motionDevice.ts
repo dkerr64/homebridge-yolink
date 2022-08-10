@@ -8,8 +8,8 @@
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const issuesURL = require('../package.json').bugs.url;
+
+Error.stackTraceLimit = 100;
 
 /***********************************************************************
  * initMotionDetector
@@ -34,7 +34,7 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
  *
  * This is an example of JSON object returned.  Two examples here, one
  * from a motion sensor, 2nd one from a vibration sensor.  Parameters
- * we care abour are the same across both.
+ * we care about are the same across both.
  *  {
  *    "online": true,
  *    "state": {
@@ -95,7 +95,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in MotionDevice handleGet\nPlease report at ' + issuesURL + '\n' + msg);
+    platform.log.error('Error in MotionDevice handleGet' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }
@@ -196,12 +196,11 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
       // "loraInfo":{"signal":-87,"gatewayId":"<redacted>","gateways":1}},"deviceId":"<redacted>"}
         break;
       default:
-        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
-        + 'Please report at ' + issuesURL + '\n' + JSON.stringify(message));
+        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in mqttMotionSensor\nPlease report at ' + issuesURL + '\n' + msg);
+    platform.log.error('Error in mqttMotionSensor' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }

@@ -11,6 +11,14 @@ import { initLeakSensor, mqttLeakSensor } from './leakDevice';
 import { initValveDevice, mqttValveDevice } from './valveDevice';
 import { initThermoHydroDevice, mqttThermoHydroDevice } from './thermoHydroDevice';
 
+export const experimentalDevice = {
+  VibrationSensor: false,
+  MotionSensor: false,
+  LeakSensor: false,
+  Manipulator: false,
+  THSensor: false,
+};
+
 export const initDeviceService = {
   VibrationSensor(this: YoLinkPlatformAccessory) { initMotionSensor.bind(this)(); },
   MotionSensor(this: YoLinkPlatformAccessory) { initMotionSensor.bind(this)(); },

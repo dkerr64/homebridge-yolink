@@ -16,6 +16,8 @@ import fetch from 'node-fetch';
 import Semaphore from 'semaphore-promise';
 import mqtt from 'mqtt';
 
+Error.stackTraceLimit = 100;
+
 // YoLink Basic Downlink Data Packet (BDDP) represents data format for
 // API requests sent TO YoLink.
 // See http://doc.yosmart.com/docs/protocol/datapacket

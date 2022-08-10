@@ -8,8 +8,8 @@
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const issuesURL = require('../package.json').bugs.url;
+
+Error.stackTraceLimit = 100;
 
 /***********************************************************************
  * initThermoHydroDevice
@@ -139,7 +139,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in ThermoHydroDevice handleGet\nPlease report at ' + issuesURL + '\n' + msg);
+    platform.log.error('Error in ThermoHydroDevice handleGet' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }
@@ -260,12 +260,11 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
         }
         break;
       default:
-        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
-        + 'Please report at ' + issuesURL + '\n' + JSON.stringify(message));
+        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in mqttThermoHydroDevice\nPlease report at ' + issuesURL + '\n' + msg);
+    platform.log.error('Error in mqttThermoHydroDevice' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }

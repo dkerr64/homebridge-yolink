@@ -30,6 +30,7 @@ import { YoLinkAPI } from './yolinkAPI';
 import { platform } from 'os';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const issuesURL = require('../package.json').bugs.url;
+Error.stackTraceLimit = 100;
 
 export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
@@ -40,6 +41,8 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   private readonly yolinkDevices: YoLinkPlatformAccessory[] = [];
 
   public yolinkAPI: YoLinkAPI;
+
+  public reportError = '\nPlease report all bugs at ' + issuesURL + '\n';
 
   /*********************************************************************
    * constructor
@@ -63,7 +66,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.tokenURL ??= YOLINK_TOKEN_URL;
     this.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL;
 
-    this.log.info('YoLink plugin for HomeBridge (c) 2022 David A. Kerr\nPlease report all bugs at ' + issuesURL);
+    this.log.info('YoLink plugin for HomeBridge (c) 2022 David A. Kerr' + this.reportError);
     this.log.debug('Loaded configuaration: ' + JSON.stringify(this.config));
 
     this.yolinkAPI = new YoLinkAPI(this);

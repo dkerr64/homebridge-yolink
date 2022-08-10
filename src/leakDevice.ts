@@ -8,8 +8,8 @@
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const issuesURL = require('../package.json').bugs.url;
+
+Error.stackTraceLimit = 100;
 
 /***********************************************************************
  * initLeakSensor
@@ -78,7 +78,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in LeakDevice handleGet\nPlease report at ' + issuesURL + '\n' + msg);
+    platform.log.error('Error in LeakDevice handleGet' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }
@@ -151,12 +151,11 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
         }
         break;
       default:
-        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
-        + 'Please report at ' + issuesURL + '\n' + JSON.stringify(message));
+        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in mqttLeakSensor\nPlease report at ' + issuesURL + '\n' + msg);
+    platform.log.error('Error in mqttLeakSensor' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }
