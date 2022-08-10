@@ -8,6 +8,8 @@
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const issuesURL = require('../package.json').bugs.url;
 
 /***********************************************************************
  * initMotionDetector
@@ -70,29 +72,33 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   const platform: YoLinkHomebridgePlatform = this.platform;
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
-  const device = this.accessory.context.device;
   let rc = false;
-
-  if (await this.checkDeviceState(platform, device) && device.data.online) {
-    this.motionService
-      .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
-        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
-      .updateCharacteristic(platform.Characteristic.StatusActive, true)
-      .updateCharacteristic(platform.Characteristic.StatusFault, false);
-    platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state.state}`);
-    if (device.data.state.battery <= 1) {
-      platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+  try {
+    const device = this.accessory.context.device;
+    if (await this.checkDeviceState(platform, device) && device.data.online) {
+      this.motionService
+        .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
+          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+        .updateCharacteristic(platform.Characteristic.StatusActive, true)
+        .updateCharacteristic(platform.Characteristic.StatusFault, false);
+      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state.state}`);
+      if (device.data.state.battery <= 1) {
+        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+      }
+      rc = (device.data.state.state === 'alert');
+    } else {
+      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      this.motionService
+        .updateCharacteristic(platform.Characteristic.StatusActive, false)
+        .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
-    rc = (device.data.state.state === 'alert');
-  } else {
-    platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
-    this.motionService
-      .updateCharacteristic(platform.Characteristic.StatusActive, false)
-      .updateCharacteristic(platform.Characteristic.StatusFault, true);
+  } catch(e) {
+    const msg = (e instanceof Error) ? e.stack : e;
+    platform.log.error('Error in MotionDevice handleGet\nPlease report at ' + issuesURL + '\n' + msg);
+  } finally {
+    await releaseSemaphore();
   }
-
-  await releaseSemaphore();
   return (rc);
 }
 
@@ -148,46 +154,55 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
 
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
-  const device = this.accessory.context.device;
-  device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-  const event = message.event.split('.');
+  try {
+    const device = this.accessory.context.device;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
+    const event = message.event.split('.');
 
-  switch (event[1]) {
-    case 'Alert':
-      // falls through
-    case 'Report':
-      // falls through
-    case 'StatusChange':
-      // if we received a message then device must be online
-      device.data.online = true;
-      // Merge received data into existing data object
-      Object.assign(device.data.state, message.data);
-      this.motionService
-        .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-          (message.data.battery <= 1)
-            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
-        .updateCharacteristic(platform.Characteristic.MotionDetected,
-          (message.data.state === 'alert') ? true : false )
-        .updateCharacteristic(platform.Characteristic.StatusActive, true)
-        .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      if (message.data.battery <= 1) {
-        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-      }
-      break;
-    case 'setOpenRemind':
+    switch (event[1]) {
+      case 'Alert':
+        // falls through
+      case 'Report':
+        // falls through
+      case 'StatusChange':
+        if (!device.data) {
+        // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+          platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          break;
+        }
+        // if we received a message then device must be online
+        device.data.online = true;
+        // Merge received data into existing data object
+        Object.assign(device.data.state, message.data);
+        this.motionService
+          .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+            (message.data.battery <= 1)
+              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+          .updateCharacteristic(platform.Characteristic.MotionDetected,
+            (message.data.state === 'alert') ? true : false )
+          .updateCharacteristic(platform.Characteristic.StatusActive, true)
+          .updateCharacteristic(platform.Characteristic.StatusFault, false);
+        if (message.data.battery <= 1) {
+          platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+        }
+        break;
+      case 'setOpenRemind':
       // I don't know what this is intended for.  I have seen it from the YoLink
       // outdoor motion sensor.  It does not carry either motion state or battery
       // state fields, so there is nothing we can update.  Sample packet...
       // {"event":"MotionSensor.setOpenRemind","time":1658089933504,"msgid":"1658089933504",
       // "data":{"alertInterval":1,"ledAlarm":false,"nomotionDelay":1,"sensitivity":2,
       // "loraInfo":{"signal":-87,"gatewayId":"<redacted>","gateways":1}},"deviceId":"<redacted>"}
-      break;
-    default:
-      platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
-        + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-        + JSON.stringify(message));
+        break;
+      default:
+        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
+        + 'Please report at ' + issuesURL + '\n' + JSON.stringify(message));
+    }
+  } catch(e) {
+    const msg = (e instanceof Error) ? e.stack : e;
+    platform.log.error('Error in mqttMotionSensor\nPlease report at ' + issuesURL + '\n' + msg);
+  } finally {
+    await releaseSemaphore();
   }
-
-  await releaseSemaphore();
 }

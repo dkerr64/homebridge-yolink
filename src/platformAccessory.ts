@@ -13,6 +13,8 @@ import { Service, PlatformAccessory } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import Semaphore from 'semaphore-promise';
 import { initDeviceService, mqttHandler } from './deviceHandlers';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const issuesURL = require('../package.json').bugs.url;
 
 export class YoLinkPlatformAccessory {
   public deviceService!: Service;
@@ -59,8 +61,7 @@ export class YoLinkPlatformAccessory {
     } else {
       platform.log.warn('YoLink device type: \'' + device.type + '\''
                   + ' is not supported by this plugin (deviceID: ' + device.deviceId + ')\n'
-                  + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-                  + JSON.stringify(device));
+                  + 'Please report at ' + issuesURL + '\n' + JSON.stringify(device));
     }
     return(this);
   }
@@ -134,8 +135,7 @@ export class YoLinkPlatformAccessory {
       mqttHandler[device.type].bind(this)(message);
     } else {
       platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
-                      + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-                      + JSON.stringify(message));
+      + 'Please report at ' + issuesURL + '\n' + JSON.stringify(message));
     }
     return;
   }

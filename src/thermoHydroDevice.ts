@@ -8,6 +8,8 @@
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const issuesURL = require('../package.json').bugs.url;
 
 /***********************************************************************
  * initThermoHydroDevice
@@ -96,47 +98,51 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   const platform: YoLinkHomebridgePlatform = this.platform;
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
-  const device = this.accessory.context.device;
   let rc = 0;
-
-  if (await this.checkDeviceState(platform, device) && device.data.online) {
-    if (this.thermoService) {
-      this.thermoService
-        .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-          ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
-        .updateCharacteristic(platform.Characteristic.StatusActive, true)
-        .updateCharacteristic(platform.Characteristic.StatusFault, false);
+  try {
+    const device = this.accessory.context.device;
+    if (await this.checkDeviceState(platform, device) && device.data.online) {
+      if (this.thermoService) {
+        this.thermoService
+          .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+            ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
+              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+          .updateCharacteristic(platform.Characteristic.StatusActive, true)
+          .updateCharacteristic(platform.Characteristic.StatusFault, false);
+      }
+      if (this.hydroService) {
+        this.hydroService
+          .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+            ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
+              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+          .updateCharacteristic(platform.Characteristic.StatusActive, true)
+          .updateCharacteristic(platform.Characteristic.StatusFault, false);
+      }
+      if ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery)) {
+        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+      }
+      rc = device.data.state.temperature;
+    } else {
+      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      if (this.thermoService) {
+        this.thermoService
+          .updateCharacteristic(platform.Characteristic.StatusActive, false)
+          .updateCharacteristic(platform.Characteristic.StatusFault, true);
+      }
+      if (this.hydroService) {
+        this.hydroService
+          .updateCharacteristic(platform.Characteristic.StatusActive, false)
+          .updateCharacteristic(platform.Characteristic.StatusFault, true);
+      }
     }
-    if (this.hydroService) {
-      this.hydroService
-        .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-          ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
-        .updateCharacteristic(platform.Characteristic.StatusActive, true)
-        .updateCharacteristic(platform.Characteristic.StatusFault, false);
-    }
-    if ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery)) {
-      platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-    }
-    rc = device.data.state.temperature;
-  } else {
-    platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
-    if (this.thermoService) {
-      this.thermoService
-        .updateCharacteristic(platform.Characteristic.StatusActive, false)
-        .updateCharacteristic(platform.Characteristic.StatusFault, true);
-    }
-    if (this.hydroService) {
-      this.hydroService
-        .updateCharacteristic(platform.Characteristic.StatusActive, false)
-        .updateCharacteristic(platform.Characteristic.StatusFault, true);
-    }
+  } catch(e) {
+    const msg = (e instanceof Error) ? e.stack : e;
+    platform.log.error('Error in ThermoHydroDevice handleGet\nPlease report at ' + issuesURL + '\n' + msg);
+  } finally {
+    await releaseSemaphore();
   }
-
-  await releaseSemaphore();
   return (rc);
 }
 
@@ -214,44 +220,53 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
 
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
-  const device = this.accessory.context.device;
-  device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-  const event = message.event.split('.');
+  try {
+    const device = this.accessory.context.device;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
+    const event = message.event.split('.');
 
-  switch (event[1]) {
-    case 'Alert':
-      // I can see no way in HomeKit documentation for a thermo/hyrdro sensor
-      // to generate an alert.  I think bounds testing / alerting all has to be
-      // handled within HomeKit.
-      // falls through
-    case 'Report':
-      // if we received a message then device must be online
-      device.data.online = true;
-      // Merge received data into existing data object
-      Object.assign(device.data.state, message.data);
-      if (this.thermoService) {
-        this.thermoService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
-          ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
-        this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
-      }
-      if (this.hydroService) {
-        this.hydroService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
-          ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
-        this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
-      }
-      if ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery)) {
-        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-      }
-      break;
-    default:
-      platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
-        + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-        + JSON.stringify(message));
+    switch (event[1]) {
+      case 'Alert':
+        // I can see no way in HomeKit documentation for a thermo/hyrdro sensor
+        // to generate an alert.  I think bounds testing / alerting all has to be
+        // handled within HomeKit.
+        // falls through
+      case 'Report':
+        if (!device.data) {
+          // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+          platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          break;
+        }
+        // if we received a message then device must be online
+        device.data.online = true;
+        // Merge received data into existing data object
+        Object.assign(device.data.state, message.data);
+        if (this.thermoService) {
+          this.thermoService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+            ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
+              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+          this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
+        }
+        if (this.hydroService) {
+          this.hydroService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+            ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
+              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+          this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
+        }
+        if ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery)) {
+          platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+        }
+        break;
+      default:
+        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
+        + 'Please report at ' + issuesURL + '\n' + JSON.stringify(message));
+    }
+  } catch(e) {
+    const msg = (e instanceof Error) ? e.stack : e;
+    platform.log.error('Error in mqttThermoHydroDevice\nPlease report at ' + issuesURL + '\n' + msg);
+  } finally {
+    await releaseSemaphore();
   }
-
-  await releaseSemaphore();
 }

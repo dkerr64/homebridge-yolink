@@ -8,6 +8,8 @@
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const issuesURL = require('../package.json').bugs.url;
 
 /***********************************************************************
  * initValveDevice
@@ -58,33 +60,37 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   const platform: YoLinkHomebridgePlatform = this.platform;
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
-  const device = this.accessory.context.device;
   let rc = platform.api.hap.Characteristic.Active.INACTIVE;
-
-  if( await this.checkDeviceState(platform, device)) {
-    this.valveService
-      .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.battery <= 1)
-        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+  try {
+    const device = this.accessory.context.device;
+    if( await this.checkDeviceState(platform, device)) {
+      this.valveService
+        .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.battery <= 1)
+          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
       // YoLink manipulator data does not return a 'online' value.  We will assume that if
       // we got this far then it is working normally...
-      .updateCharacteristic(platform.Characteristic.StatusActive, true)
-      .updateCharacteristic(platform.Characteristic.StatusFault, false);
-    platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state}`);
-    if (device.data.battery <= 1) {
-      platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+        .updateCharacteristic(platform.Characteristic.StatusActive, true)
+        .updateCharacteristic(platform.Characteristic.StatusFault, false);
+      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state}`);
+      if (device.data.battery <= 1) {
+        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+      }
+      if (device.data.state === 'open') {
+        rc = platform.api.hap.Characteristic.Active.ACTIVE;
+      }
+    } else {
+      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      this.valveService
+        .updateCharacteristic(platform.Characteristic.StatusActive, false)
+        .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
-    if (device.data.state === 'open') {
-      rc = platform.api.hap.Characteristic.Active.ACTIVE;
-    }
-  } else {
-    platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
-    this.valveService
-      .updateCharacteristic(platform.Characteristic.StatusActive, false)
-      .updateCharacteristic(platform.Characteristic.StatusFault, true);
+  } catch(e) {
+    const msg = (e instanceof Error) ? e.stack : e;
+    platform.log.error('Error in ValveDevice handleGet\nPlease report at ' + issuesURL + '\n' + msg);
+  } finally {
+    await releaseSemaphore();
   }
-
-  await releaseSemaphore();
   return (rc);
 }
 
@@ -116,14 +122,19 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   const platform: YoLinkHomebridgePlatform = this.platform;
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
-  const device = this.accessory.context.device;
-  platform.log.info(`setDeviceState for ${this.deviceMsgName}`);
-  const newState = (value === platform.api.hap.Characteristic.Active.ACTIVE) ? 'open' : 'close';
+  try {
+    const device = this.accessory.context.device;
+    platform.log.info(`setDeviceState for ${this.deviceMsgName}`);
+    const newState = (value === platform.api.hap.Characteristic.Active.ACTIVE) ? 'open' : 'close';
 
-  const data = await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState});
-  device.data.state = (data) ? data.state : '';
-
-  await releaseSemaphore();
+    const data = await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState});
+    device.data.state = (data) ? data.state : '';
+  } catch(e) {
+    const msg = (e instanceof Error) ? e.stack : e;
+    platform.log.error('Error in ValveDevice handleGet\nPlease report at ' + issuesURL + '\n' + msg);
+  } finally {
+    await releaseSemaphore();
+  }
 }
 
 /***********************************************************************
@@ -185,48 +196,52 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
 
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
-  const device = this.accessory.context.device;
-  device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-  const event = message.event.split('.');
+  try {
+    const device = this.accessory.context.device;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
+    const event = message.event.split('.');
 
-  switch (event[1]) {
-    case 'Report':
-    // falls through
-    case 'getState':
-      // falls through
-    case 'setState':
-      if (!device.data) {
+    switch (event[1]) {
+      case 'Report':
+        // falls through
+      case 'getState':
+        // falls through
+      case 'setState':
+        if (!device.data) {
         // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
-        platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
-        break;
-      }
-      // if we received a message then device must be online
-      device.data.online = true;
-      // Merge received data into existing data object
-      Object.assign(device.data, message.data);
-      if (message.data.battery) {
+          platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          break;
+        }
+        // if we received a message then device must be online
+        device.data.online = true;
+        // Merge received data into existing data object
+        Object.assign(device.data, message.data);
+        if (message.data.battery) {
+          this.valveService
+            .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+              (message.data.battery <= 1)
+                ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+                : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+        }
         this.valveService
-          .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-            (message.data.battery <= 1)
-              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
-      }
-      this.valveService
-        .updateCharacteristic(platform.Characteristic.Active,
-          (message.data.state === 'open')
-            ? platform.api.hap.Characteristic.Active.ACTIVE
-            : platform.api.hap.Characteristic.Active.INACTIVE)
-        .updateCharacteristic(platform.Characteristic.StatusActive, true)
-        .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      if (message.data.battery <= 1) {
-        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-      }
-      break;
-    default:
-      platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
-        + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-        + JSON.stringify(message));
+          .updateCharacteristic(platform.Characteristic.Active,
+            (message.data.state === 'open')
+              ? platform.api.hap.Characteristic.Active.ACTIVE
+              : platform.api.hap.Characteristic.Active.INACTIVE)
+          .updateCharacteristic(platform.Characteristic.StatusActive, true)
+          .updateCharacteristic(platform.Characteristic.StatusFault, false);
+        if (message.data.battery <= 1) {
+          platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+        }
+        break;
+      default:
+        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
+        + 'Please report at ' + issuesURL + '\n' + JSON.stringify(message));
+    }
+  } catch(e) {
+    const msg = (e instanceof Error) ? e.stack : e;
+    platform.log.error('Error in YoLink plugin\nPlease report at ' + process.env.npm_package_bugs_url + '\n' + msg);
+  } finally {
+    await releaseSemaphore();
   }
-
-  await releaseSemaphore();
 }
