@@ -9,6 +9,8 @@ import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
+Error.stackTraceLimit = 100;
+
 /***********************************************************************
  * initLeakSensor
  * Initialise the leak sensor device services
@@ -51,31 +53,35 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   const platform: YoLinkHomebridgePlatform = this.platform;
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
-  const device = this.accessory.context.device;
   let rc = platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED;
-
-  if (await this.checkDeviceState(platform, device) && device.data.online) {
-    this.leakService
-      .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
-        ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-        : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
-      .updateCharacteristic(platform.Characteristic.StatusActive, true)
-      .updateCharacteristic(platform.Characteristic.StatusFault, false);
-    platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state.state}`);
-    if (device.data.state.battery <= 1) {
-      platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+  try {
+    const device = this.accessory.context.device;
+    if (await this.checkDeviceState(platform, device) && device.data.online) {
+      this.leakService
+        .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
+          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+        .updateCharacteristic(platform.Characteristic.StatusActive, true)
+        .updateCharacteristic(platform.Characteristic.StatusFault, false);
+      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state.state}`);
+      if (device.data.state.battery <= 1) {
+        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+      }
+      if (device.data.state.state === 'alert') {
+        rc = platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED;
+      }
+    } else {
+      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      this.leakService
+        .updateCharacteristic(platform.Characteristic.StatusActive, false)
+        .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
-    if (device.data.state.state === 'alert') {
-      rc = platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED;
-    }
-  } else {
-    platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
-    this.leakService
-      .updateCharacteristic(platform.Characteristic.StatusActive, false)
-      .updateCharacteristic(platform.Characteristic.StatusFault, true);
+  } catch(e) {
+    const msg = (e instanceof Error) ? e.stack : e;
+    platform.log.error('Error in LeakDevice handleGet' + platform.reportError + msg);
+  } finally {
+    await releaseSemaphore();
   }
-
-  await releaseSemaphore();
   return (rc);
 }
 
@@ -109,40 +115,48 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
 
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
-  const device = this.accessory.context.device;
-  device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-  const event = message.event.split('.');
+  try {
+    const device = this.accessory.context.device;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
+    const event = message.event.split('.');
 
-  switch (event[1]) {
-    case 'Alert':
-      // falls through
-    case 'StatusChange':
-      // falls through
-    case 'Report':
-      // if we received a message then device must be online
-      device.data.online = true;
-      // Merge received data into existing data object
-      Object.assign(device.data.state, message.data);
-      this.leakService
-        .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-          (message.data.battery <= 1)
-            ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-            : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
-        .updateCharacteristic(platform.Characteristic.LeakDetected,
-          (message.data.state === 'alert')
-            ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
-            : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED)
-        .updateCharacteristic(platform.Characteristic.StatusActive, true)
-        .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      if (message.data.battery <= 1) {
-        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-      }
-      break;
-    default:
-      platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
-        + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-        + JSON.stringify(message));
+    switch (event[1]) {
+      case 'Alert':
+        // falls through
+      case 'StatusChange':
+        // falls through
+      case 'Report':
+        if (!device.data) {
+        // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+          platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          break;
+        }
+        // if we received a message then device must be online
+        device.data.online = true;
+        // Merge received data into existing data object
+        Object.assign(device.data.state, message.data);
+        this.leakService
+          .updateCharacteristic(platform.Characteristic.StatusLowBattery,
+            (message.data.battery <= 1)
+              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
+              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
+          .updateCharacteristic(platform.Characteristic.LeakDetected,
+            (message.data.state === 'alert')
+              ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
+              : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED)
+          .updateCharacteristic(platform.Characteristic.StatusActive, true)
+          .updateCharacteristic(platform.Characteristic.StatusFault, false);
+        if (message.data.battery <= 1) {
+          platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+        }
+        break;
+      default:
+        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+    }
+  } catch(e) {
+    const msg = (e instanceof Error) ? e.stack : e;
+    platform.log.error('Error in mqttLeakSensor' + platform.reportError + msg);
+  } finally {
+    await releaseSemaphore();
   }
-
-  await releaseSemaphore();
 }

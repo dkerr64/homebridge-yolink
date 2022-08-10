@@ -1,5 +1,5 @@
 /***********************************************************************
- * YoLink motion and vibration sensor device support.
+ * YoLink door sensor device support.
  *
  * Copyright (c) 2022 David Kerr
  *
@@ -12,17 +12,17 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 Error.stackTraceLimit = 100;
 
 /***********************************************************************
- * initMotionDetector
+ * initContactDetector
  *
  */
-export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<void> {
+export async function initContactSensor(this: YoLinkPlatformAccessory): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
-  this.motionService = accessory.getService(platform.Service.MotionSensor) || accessory.addService(platform.Service.MotionSensor);
-  this.motionService.setCharacteristic(platform.Characteristic.Name, device.name);
-  this.motionService.getCharacteristic(platform.Characteristic.MotionDetected)
+  this.contactService = accessory.getService(platform.Service.ContactSensor) || accessory.addService(platform.Service.ContactSensor);
+  this.contactService.setCharacteristic(platform.Characteristic.Name, device.name);
+  this.contactService.getCharacteristic(platform.Characteristic.ContactSensorState)
     .onGet(handleGet.bind(this));
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
@@ -32,51 +32,18 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
 /***********************************************************************
  * handleGet
  *
- * This is an example of JSON object returned.  Two examples here, one
- * from a motion sensor, 2nd one from a vibration sensor.  Parameters
- * we care about are the same across both.
- *  {
- *    "online": true,
- *    "state": {
- *      "alertInterval": 1,
- *      "battery": 4,
- *      "devTemperature": 21,
- *      "ledAlarm": false,
- *      "nomotionDelay": 1,
- *      "sensitivity": 2,
- *      "state": "normal",
- *      "version": "050c",
- *      "stateChangedAt": 1658492889682,
- *      "batteryType": "Li"
- *    },
- *    "deviceId": "abcdef1234567890",
- *    "reportAt": "2022-07-22T12:28:09.682Z"
- *  }
- * ========
- *  {
- *    "online": true,
- *    "state": {
- *      "alertInterval": 60,
- *      "battery": 4,
- *      "devTemperature": 23,
- *      "noVibrationDelay": 1,
- *      "sensitivity": 5,
- *      "state": "normal",
- *      "version": "0106"
- *    },
- *    "deviceId": "abcdef1234567890",
- *    "reportAt": "2022-07-22T15:23:56.808Z"
- *  }
+ * This is an example of JSON object returned.
+ *
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
-  let rc = false;
+  let rc = platform.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
   try {
     const device = this.accessory.context.device;
-    if (await this.checkDeviceState(platform, device) && device.data.online) {
-      this.motionService
+    if (await this.checkDeviceState(platform, device) && device.data.online && (device.data.state.state !== 'error')) {
+      this.contactService
         .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
           ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
           : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
@@ -86,16 +53,18 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       if (device.data.state.battery <= 1) {
         platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
       }
-      rc = (device.data.state.state === 'alert');
+      if (device.data.state.state === 'closed') {
+        rc = platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED;
+      }
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
-      this.motionService
+      this.contactService
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in MotionDevice handleGet' + platform.reportError + msg);
+    platform.log.error('Error in ContactDevice handleGet' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }
@@ -103,53 +72,29 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
 }
 
 /***********************************************************************
- * mqttMotionSensor
+ * mqttContactSensor
  *
  * Example of message received.
- *  {
- *    "event": "MotionSensor.Report",
- *    "time": 1658507233165,
- *    "msgid": "1658507233164",
- *    "data": {
- *      "state": "normal",
- *      "battery": 4,
- *      "version": "050c",
- *      "ledAlarm": false,
- *      "alertInterval": 1,
- *      "nomotionDelay": 1,
- *      "sensitivity": 2,
- *      "devTemperature": 30,
- *      "batteryType": "Li",
- *      "loraInfo": {
- *        "signal": -88,
- *        "gatewayId": "abcdef1234567890",
- *        "gateways": 1
- *      }
- *    },
- *    "deviceId": "abcdef1234567890"
- *  }
- *===========
- *  {
- *    "event": "VibrationSensor.Alert",
- *    "time": 1658511110122,
- *    "msgid": "1658511110122",
- *    "data": {
- *      "state": "alert",
- *      "battery": 4,
- *      "alertInterval": 60,
- *      "noVibrationDelay": 1,
- *      "sensitivity": 5,
- *      "devTemperature": 22,
- *      "loraInfo": {
- *        "signal": -79,
- *        "gatewayId": "abcdef1234567890",
- *        "gateways": 1
- *       }
- *    },
- *    "deviceId": "abcdef1234567890"
- *  }
+ * {
+ *   "event":"DoorSensor.Alert",
+ *   "time":1660154987072,
+ *   "msgid":"1660154987071",
+ *   "data": {
+ *     "state":"open",
+ *     "alertType":"normal",
+ *     "battery":4,
+ *     "version":"0703",
+ *     "loraInfo": {
+ *       "signal":-77,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     },
+ *     "stateChangedAt":1660154987070
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
  */
-export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): Promise<void> {
+export async function mqttContactSensor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
 
   // serialize access to device data.
@@ -174,13 +119,15 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
-        this.motionService
+        this.contactService
           .updateCharacteristic(platform.Characteristic.StatusLowBattery,
             (message.data.battery <= 1)
               ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
               : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
-          .updateCharacteristic(platform.Characteristic.MotionDetected,
-            (message.data.state === 'alert') ? true : false )
+          .updateCharacteristic(platform.Characteristic.ContactSensorState,
+            (message.data.state === 'closed')
+              ? platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED
+              : platform.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED)
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
         if (message.data.battery <= 1) {
@@ -188,12 +135,9 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
         }
         break;
       case 'setOpenRemind':
-        // I don't know what this is intended for.  I have seen it from the YoLink
-        // outdoor motion sensor.  It does not carry either motion state or battery
-        // state fields, so there is nothing we can update.  Sample packet...
-        // {"event":"MotionSensor.setOpenRemind","time":1658089933504,"msgid":"1658089933504",
-        // "data":{"alertInterval":1,"ledAlarm":false,"nomotionDelay":1,"sensitivity":2,
-        // "loraInfo":{"signal":-87,"gatewayId":"<redacted>","gateways":1}},"deviceId":"<redacted>"}
+        // This is a reminder that contact sensor has remained open for extended period.
+        // Homebridge has no equivalent and it does not carry either contact state or battery
+        // state fields, so there is nothing we can update.
         platform.verboseLog('Received mqtt event: \'' + message.event + '\'' + JSON.stringify(message));
         break;
       default:
@@ -201,7 +145,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in mqttMotionSensor' + platform.reportError + msg);
+    platform.log.error('Error in mqttContactSensor' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }

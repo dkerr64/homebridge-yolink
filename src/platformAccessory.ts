@@ -12,7 +12,9 @@
 import { Service, PlatformAccessory } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import Semaphore from 'semaphore-promise';
-import { initDeviceService, mqttHandler } from './deviceHandlers';
+import { initDeviceService, mqttHandler, experimentalDevice} from './deviceHandlers';
+
+Error.stackTraceLimit = 100;
 
 export class YoLinkPlatformAccessory {
   public deviceService!: Service;
@@ -38,6 +40,7 @@ export class YoLinkPlatformAccessory {
     this.deviceMsgName = `${device.name} (${device.deviceId})`;
     this.config = platform.config.devices[device.deviceId] ? platform.config.devices[device.deviceId] : {};
     this.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
+    this.config.enableExperimental ??= (platform.config.enableExperimental ??= false);
 
     // We need to serialize requests to YoLink API for each device.  Multiple threads
     // can request state updates for a devices at the same time.  This would not be good,
@@ -54,13 +57,11 @@ export class YoLinkPlatformAccessory {
       .setCharacteristic(platform.Characteristic.SerialNumber, device.deviceId);
 
     // Now initialize each device type, creating the homebridge services as required.
-    if (initDeviceService[device.type]) {
+    if (initDeviceService[device.type] && (!experimentalDevice[device.type] || this.config.enableExperimental)) {
       initDeviceService[device.type].bind(this)();
     } else {
-      platform.log.warn('YoLink device type: \'' + device.type + '\''
-                  + ' is not supported by this plugin (deviceID: ' + device.deviceId + ')\n'
-                  + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-                  + JSON.stringify(device));
+      platform.log.warn('YoLink device type: \'' + device.type + '\' is not supported by this plugin (deviceID: ' + device.deviceId + ')'
+      + platform.reportError + JSON.stringify(device));
     }
     return(this);
   }
@@ -127,15 +128,16 @@ export class YoLinkPlatformAccessory {
   async mqttMessage(message): Promise<void> {
     const device = this.accessory.context.device;
     const platform = this.platform;
-
-    platform.log.info(`Received mqtt message '${message.event}' for device: ${this.deviceMsgName} State: '${message.data.state}'`);
-
-    if (device.data && mqttHandler[device.type]) {
-      mqttHandler[device.type].bind(this)(message);
-    } else {
-      platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'\n'
-                      + 'Please report at https://github.com/dkerr64/homebridge-yolink/issues\n'
-                      + JSON.stringify(message));
+    try {
+      platform.log.info(`Received mqtt message '${message.event}' for device: ${this.deviceMsgName} State: '${message.data.state}'`);
+      if (device.data && mqttHandler[device.type]) {
+        mqttHandler[device.type].bind(this)(message);
+      } else {
+        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+      }
+    } catch(e) {
+      const msg = (e instanceof Error) ? e.stack : e;
+      platform.log.error('Error in mqttMessage' + platform.reportError + msg);
     }
     return;
   }
