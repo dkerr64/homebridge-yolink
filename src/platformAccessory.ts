@@ -128,13 +128,16 @@ export class YoLinkPlatformAccessory {
   async mqttMessage(message): Promise<void> {
     const device = this.accessory.context.device;
     const platform = this.platform;
-
-    platform.log.info(`Received mqtt message '${message.event}' for device: ${this.deviceMsgName} State: '${message.data.state}'`);
-
-    if (device.data && mqttHandler[device.type]) {
-      mqttHandler[device.type].bind(this)(message);
-    } else {
-      platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+    try {
+      platform.log.info(`Received mqtt message '${message.event}' for device: ${this.deviceMsgName} State: '${message.data.state}'`);
+      if (device.data && mqttHandler[device.type]) {
+        mqttHandler[device.type].bind(this)(message);
+      } else {
+        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+      }
+    } catch(e) {
+      const msg = (e instanceof Error) ? e.stack : e;
+      platform.log.error('Error in mqttMessage' + platform.reportError + msg);
     }
     return;
   }

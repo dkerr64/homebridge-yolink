@@ -27,7 +27,7 @@ import { PLATFORM_NAME,
 
 import { YoLinkPlatformAccessory } from './platformAccessory';
 import { YoLinkAPI } from './yolinkAPI';
-import { platform } from 'os';
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const issuesURL = require('../package.json').bugs.url;
 Error.stackTraceLimit = 100;
