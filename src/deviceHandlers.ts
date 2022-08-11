@@ -11,6 +11,7 @@ import { initLeakSensor, mqttLeakSensor } from './leakDevice';
 import { initValveDevice, mqttValveDevice } from './valveDevice';
 import { initThermoHydroDevice, mqttThermoHydroDevice } from './thermoHydroDevice';
 import { initContactSensor, mqttContactSensor } from './contactDevice';
+import { initSwitchDevice, mqttSwitchDevice } from './switchDevice';
 
 export const experimentalDevice = {
   VibrationSensor: false,
@@ -19,6 +20,8 @@ export const experimentalDevice = {
   Manipulator: false,
   THSensor: false,
   DoorSensor: true,
+  Siren: true,
+  Switch: true,
 };
 
 export const initDeviceService = {
@@ -28,6 +31,8 @@ export const initDeviceService = {
   Manipulator(this: YoLinkPlatformAccessory) { initValveDevice.bind(this)(); },
   THSensor(this: YoLinkPlatformAccessory) { initThermoHydroDevice.bind(this)(); },
   DoorSensor(this: YoLinkPlatformAccessory) { initContactSensor.bind(this)(); },
+  Siren(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('alert', true, false); },
+  Switch(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('closed', 'close', 'open'); },
 };
 
 export const mqttHandler = {
@@ -37,4 +42,6 @@ export const mqttHandler = {
   Manipulator(this: YoLinkPlatformAccessory, data) { mqttValveDevice.bind(this)(data); },
   THSensor(this: YoLinkPlatformAccessory, data) { mqttThermoHydroDevice.bind(this)(data); },
   DoorSensor(this: YoLinkPlatformAccessory, data) { mqttContactSensor.bind(this)(data); },
+  Siren(this: YoLinkPlatformAccessory, data) { mqttSwitchDevice.bind(this)(data); },
+  Switch(this: YoLinkPlatformAccessory, data) { mqttSwitchDevice.bind(this)(data); },
 };

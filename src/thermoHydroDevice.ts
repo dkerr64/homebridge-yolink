@@ -162,7 +162,7 @@ async function handleThermoGet(this: YoLinkPlatformAccessory): Promise<Character
  */
 async function handleHydroGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   await handleGet.bind(this)();
-  this.platform.liteLog(`'Humidity for ${this.deviceMsgName} is: ${this.accessory.context.device.data.state.humidity}`);
+  this.platform.liteLog(`Humidity for ${this.deviceMsgName} is: ${this.accessory.context.device.data.state.humidity}`);
   return (this.accessory.context.device.data.state.humidity);
 }
 

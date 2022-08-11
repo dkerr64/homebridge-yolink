@@ -12,7 +12,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 Error.stackTraceLimit = 100;
 
 /***********************************************************************
- * initContactDetector
+ * initContactSensor
  *
  */
 export async function initContactSensor(this: YoLinkPlatformAccessory): Promise<void> {
@@ -33,7 +33,24 @@ export async function initContactSensor(this: YoLinkPlatformAccessory): Promise<
  * handleGet
  *
  * This is an example of JSON object returned.
+ * {
+ *   "online":true,
+ *   "state":
+ *   {
+ *     "alertInterval":0,
+ *     "battery":4,
+ *     "delay":0,
+ *     "openRemindDelay":20,
+ *     "state":"closed",
+ *     "version":"0703",
+ *     "stateChangedAt":1657756249212
+ *   },
+ *   "deviceId":"abcdef1234567890",
+ *   "reportAt":"2022-08-10T19:50:17.218Z"
+ *   }
+ * }
  *
+ * state may be "open", "closed", or "error"
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -93,6 +110,27 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  *   },
  *   "deviceId":"abcdef1234567890"
  * }
+ *
+ * state may be "open", "closed", or "error"
+ * alertType may be "normal", or "openRemind"
+ *
+ * Alternate message when OpenRemind time is changed...
+ * {
+ *   "event":"DoorSensor.setOpenRemind",
+ *   "time":1660174192117,
+ *   "msgid":"1660174192116",
+ *   "data": {
+ *     "delay":0,
+ *     "openRemindDelay":20,
+ *     "alertInterval":0,
+ *     "loraInfo": {
+ *       "signal":-65,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
  */
 export async function mqttContactSensor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -113,6 +151,7 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          this.contactService.updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
         }
         // if we received a message then device must be online
@@ -135,8 +174,7 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
         }
         break;
       case 'setOpenRemind':
-        // This is a reminder that contact sensor has remained open for extended period.
-        // Homebridge has no equivalent and it does not carry either contact state or battery
+        // Homebridge has no equivalent and message does not carry either contact state or battery
         // state fields, so there is nothing we can update.
         platform.verboseLog('Received mqtt event: \'' + message.event + '\'' + JSON.stringify(message));
         break;
