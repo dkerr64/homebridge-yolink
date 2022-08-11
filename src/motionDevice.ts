@@ -12,7 +12,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 Error.stackTraceLimit = 100;
 
 /***********************************************************************
- * initMotionDetector
+ * initMotionSensor
  *
  */
 export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<void> {
@@ -168,6 +168,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          this.motionService.updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
         }
         // if we received a message then device must be online

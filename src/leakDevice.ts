@@ -129,6 +129,7 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
         if (!device.data) {
         // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          this.leakService.updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
         }
         // if we received a message then device must be online
