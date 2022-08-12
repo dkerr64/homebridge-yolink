@@ -37,9 +37,28 @@ export async function initSwitchDevice(this: YoLinkPlatformAccessory, onState, s
 /***********************************************************************
  * handleGet
  *
- * This is an example of JSON object returned.
- *  {
- *  }
+ * Example of message received,
+ * {
+ *   "event":"Siren.getState",
+ *   "time":1660266651077,
+ *   "msgid":"1660266651074",
+ *   "data": {
+ *     "state":"normal",
+ *     "soundLevel":3,
+ *     "battery":4,
+ *     "powerSupply":"usb",
+ *     "alarmDuation":30,
+ *     "version":"030a",
+ *     "mute":true,
+ *     "loraInfo":
+ *     {
+ *       "signal":-58,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -69,8 +88,17 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  * handleSet
  *
  * This is an example of JSON object returned.
- *  {
- *  }
+ *
+ * {
+ *   "state":"normal",
+ *   "loraInfo":
+ *   {
+ *     "signal":-59,
+ *     "gatewayId":"abcdef1234567890",
+ *     "gateways":1
+ *   }
+ * }
+ *
  */
 async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -94,7 +122,43 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
  * mqttSwitchDevice
  *
  * Example of message received,
+ * {
+ *   "event":"Siren.getState",
+ *   "time":1660266651077,
+ *   "msgid":"1660266651074",
+ *   "data": {
+ *     "state":"normal",
+ *     "soundLevel":3,
+ *     "battery":4,
+ *     "powerSupply":"usb",
+ *     "alarmDuation":30,
+ *     "version":"030a",
+ *     "mute":true,
+ *     "loraInfo":
+ *     {
+ *       "signal":-58,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
  *
+ * Alternate example
+ * {
+ *   "event":"Siren.setState",
+ *   "time":1660266653096,
+ *   "msgid":"1660266653095",
+ *   "data":{
+ *     "state":"alert",
+ *     "loraInfo":{
+ *       "signal":-59,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
  */
 export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
