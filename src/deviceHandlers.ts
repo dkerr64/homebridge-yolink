@@ -31,7 +31,7 @@ export const initDeviceService = {
   Manipulator(this: YoLinkPlatformAccessory) { initValveDevice.bind(this)(); },
   THSensor(this: YoLinkPlatformAccessory) { initThermoHydroDevice.bind(this)(); },
   DoorSensor(this: YoLinkPlatformAccessory) { initContactSensor.bind(this)(); },
-  Siren(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('alert', true, false); },
+  Siren(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('alert', {'alarm':true}, {'alarm':false}); },
   Switch(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('closed', 'close', 'open'); },
 };
 
