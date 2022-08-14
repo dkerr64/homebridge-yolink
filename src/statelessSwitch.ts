@@ -82,7 +82,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     if( await this.checkDeviceState(platform, device) ) {
       // const reportAtEpoch = new Date(device.data.reportAt).getTime();
       // platform.log.warn(`reportAtEpoch = ${reportAtEpoch}`);
-      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${JSON.stringify(device.data.state)}`);
+      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${JSON.stringify(device.data.state.event)}`);
+      this.updateBatteryInfo.bind(this)();
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
     }
@@ -171,7 +172,6 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
-        this.updateBatteryInfo.bind(this)();
         // loop through all possible buttons...
         for (let i=0, b=message.data.event.keyMask; b; i++, b=b>>>1) {
           // if keyMask is set for this button then process the message...
@@ -202,13 +202,14 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
             }
           }
         }
+        this.updateBatteryInfo.bind(this)();
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in YoLink plugin' + platform.reportError + msg);
+    platform.log.error('Error in mqttStatelessSwitch' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }

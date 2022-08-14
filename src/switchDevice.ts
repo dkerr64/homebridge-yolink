@@ -69,6 +69,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
       platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state}`);
+      this.updateBatteryInfo.bind(this)();
       if (device.data.state === this.onState) {
         rc = true;
       }
@@ -168,6 +169,7 @@ export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): 
   try {
     const device = this.accessory.context.device;
     device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -185,16 +187,18 @@ export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): 
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
+        platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
+        this.updateBatteryInfo.bind(this)();
         this.switchService
           .updateCharacteristic(platform.Characteristic.On,
             (message.data.state === this.onState) ? true : false);
         break;
       default:
-        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in YoLink plugin' + platform.reportError + msg);
+    platform.log.error('Error in mqttSwitchDevice' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }

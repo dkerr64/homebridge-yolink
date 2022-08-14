@@ -61,18 +61,13 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     const device = this.accessory.context.device;
     if (await this.checkDeviceState(platform, device) && device.data.online && (device.data.state.state !== 'error')) {
       this.contactService
-        .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
-          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
       platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state.state}`);
-      if (device.data.state.battery <= 1) {
-        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-      }
       if (device.data.state.state === 'closed') {
         rc = platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED;
       }
+      this.updateBatteryInfo.bind(this)();
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
       this.contactService
@@ -140,6 +135,7 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
   try {
     const device = this.accessory.context.device;
     device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -158,28 +154,23 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
+        platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
+        this.updateBatteryInfo.bind(this)();
         this.contactService
-          .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-            (message.data.battery <= 1)
-              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
           .updateCharacteristic(platform.Characteristic.ContactSensorState,
             (message.data.state === 'closed')
               ? platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED
               : platform.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED)
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
-        if (message.data.battery <= 1) {
-          platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-        }
         break;
       case 'setOpenRemind':
         // Homebridge has no equivalent and message does not carry either contact state or battery
         // state fields, so there is nothing we can update.
-        platform.verboseLog('Received mqtt event: \'' + message.event + '\'' + JSON.stringify(message));
+        platform.verboseLog(mqttMessage + ' ' + JSON.stringify(message));
         break;
       default:
-        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;

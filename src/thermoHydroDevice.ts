@@ -102,26 +102,19 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   try {
     const device = this.accessory.context.device;
     if (await this.checkDeviceState(platform, device) && device.data.online) {
+      this.updateBatteryInfo.bind(this)();
       if (this.thermoService) {
         this.thermoService
-          .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-            ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
       }
       if (this.hydroService) {
         this.hydroService
-          .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-            ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
       }
-      if ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery)) {
-        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+      if (device.data.state.alarm.lowBattery) {
+        platform.log.warn(`Device ${this.deviceMsgName} reports low battery`);
       }
       rc = device.data.state.temperature;
     } else {
@@ -223,6 +216,7 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
   try {
     const device = this.accessory.context.device;
     device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -241,26 +235,20 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
+        platform.log.info(`${mqttMessage} Temperature: ${message.data.temperature}, Humidity: ${message.data.humidity}`);
+        this.updateBatteryInfo.bind(this)();
         if (this.thermoService) {
-          this.thermoService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
-            ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
           this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
         }
         if (this.hydroService) {
-          this.hydroService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
-            ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery))
-              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
           this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
         }
-        if ((device.data.state.battery <= 1) || (device.data.state.alarm.lowBattery)) {
-          platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
+        if (device.data.state.alarm.lowBattery) {
+          platform.log.warn(`Device ${this.deviceMsgName} reports low battery`);
         }
         break;
       default:
-        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;

@@ -65,24 +65,17 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device)) {
       this.valveService
-        .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.battery <= 1)
-          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
-      // YoLink manipulator data does not return a 'online' value.  We will assume that if
-      // we got this far then it is working normally...
-        .updateCharacteristic(platform.Characteristic.StatusActive, true)
+        // YoLink manipulator data does not return a 'online' value.  We will assume that if
+        // we got this far then it is working normally...
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
       platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state}`);
-      if (device.data.battery <= 1) {
-        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-      }
       if (device.data.state === 'open') {
         rc = platform.api.hap.Characteristic.Active.ACTIVE;
       }
+      this.updateBatteryInfo.bind(this)();
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
       this.valveService
-        .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
   } catch(e) {
@@ -131,7 +124,7 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
     device.data.state = (data) ? data.state : '';
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in ValveDevice handleGet' + platform.reportError + msg);
+    platform.log.error('Error in ValveDevice handleSet' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }
@@ -199,6 +192,7 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
   try {
     const device = this.accessory.context.device;
     device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -217,30 +211,21 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
-        if (message.data.battery) {
-          this.valveService
-            .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-              (message.data.battery <= 1)
-                ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-                : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
-        }
+        platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
+        this.updateBatteryInfo.bind(this)();
         this.valveService
           .updateCharacteristic(platform.Characteristic.Active,
             (message.data.state === 'open')
               ? platform.api.hap.Characteristic.Active.ACTIVE
               : platform.api.hap.Characteristic.Active.INACTIVE)
-          .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
-        if (message.data.battery <= 1) {
-          platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-        }
         break;
       default:
-        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in YoLink plugin' + platform.reportError + msg);
+    platform.log.error('Error in mqttValveDevice' + platform.reportError + msg);
   } finally {
     await releaseSemaphore();
   }

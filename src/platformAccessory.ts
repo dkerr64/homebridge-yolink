@@ -189,11 +189,11 @@ export class YoLinkPlatformAccessory {
     const device = this.accessory.context.device;
     const platform = this.platform;
     try {
-      platform.log.info(`Received mqtt message '${message.event}' for device: ${this.deviceMsgName} State: '${message.data.state}'`);
       if (device.data && mqttHandler[device.type]) {
         mqttHandler[device.type].bind(this)(message);
       } else {
-        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(`MQTT: ${message.event} for device ${this.deviceMsgName} not supported.`
+                           + platform.reportError + JSON.stringify(message));
       }
     } catch(e) {
       const msg = (e instanceof Error) ? e.stack : e;

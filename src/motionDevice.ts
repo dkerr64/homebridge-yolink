@@ -77,15 +77,10 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     const device = this.accessory.context.device;
     if (await this.checkDeviceState(platform, device) && device.data.online) {
       this.motionService
-        .updateCharacteristic(platform.Characteristic.StatusLowBattery, (device.data.state.battery <= 1)
-          ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-          : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
       platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state.state}`);
-      if (device.data.state.battery <= 1) {
-        platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-      }
+      this.updateBatteryInfo.bind(this)();
       rc = (device.data.state.state === 'alert');
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
@@ -157,6 +152,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
   try {
     const device = this.accessory.context.device;
     device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -175,18 +171,13 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
+        platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
+        this.updateBatteryInfo.bind(this)();
         this.motionService
-          .updateCharacteristic(platform.Characteristic.StatusLowBattery,
-            (message.data.battery <= 1)
-              ? platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW
-              : platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL)
           .updateCharacteristic(platform.Characteristic.MotionDetected,
             (message.data.state === 'alert') ? true : false )
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
-        if (message.data.battery <= 1) {
-          platform.log.warn(`Device ${this.deviceMsgName} reports battery < 25%`);
-        }
         break;
       case 'setOpenRemind':
         // I don't know what this is intended for.  I have seen it from the YoLink
@@ -195,10 +186,10 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
         // {"event":"MotionSensor.setOpenRemind","time":1658089933504,"msgid":"1658089933504",
         // "data":{"alertInterval":1,"ledAlarm":false,"nomotionDelay":1,"sensitivity":2,
         // "loraInfo":{"signal":-87,"gatewayId":"<redacted>","gateways":1}},"deviceId":"<redacted>"}
-        platform.verboseLog('Received mqtt event: \'' + message.event + '\'' + JSON.stringify(message));
+        platform.verboseLog(mqttMessage + ' ' + JSON.stringify(message));
         break;
       default:
-        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
