@@ -184,6 +184,7 @@ export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): 
         // if we received a message then device must be online
         device.data.online = true;
         // Merge received data into existing data object
+        Object.assign(device.data.state, message.data);
         this.switchService
           .updateCharacteristic(platform.Characteristic.On,
             (message.data.state === this.onState) ? true : false);
