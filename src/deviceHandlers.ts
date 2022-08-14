@@ -12,6 +12,7 @@ import { initValveDevice, mqttValveDevice } from './valveDevice';
 import { initThermoHydroDevice, mqttThermoHydroDevice } from './thermoHydroDevice';
 import { initContactSensor, mqttContactSensor } from './contactDevice';
 import { initSwitchDevice, mqttSwitchDevice } from './switchDevice';
+import { initStatelessSwitch, mqttStatelessSwitch } from './statelessSwitch';
 
 export const experimentalDevice = {
   VibrationSensor: false,
@@ -22,6 +23,7 @@ export const experimentalDevice = {
   DoorSensor: true,
   Siren: true,
   Switch: true,
+  SmartRemoter: true,
 };
 
 export const initDeviceService = {
@@ -33,6 +35,7 @@ export const initDeviceService = {
   DoorSensor(this: YoLinkPlatformAccessory) { initContactSensor.bind(this)(); },
   Siren(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('alert', {'alarm':true}, {'alarm':false}); },
   Switch(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('closed', 'close', 'open'); },
+  SmartRemoter(this: YoLinkPlatformAccessory) { initStatelessSwitch.bind(this)(4); },
 };
 
 export const mqttHandler = {
@@ -44,4 +47,5 @@ export const mqttHandler = {
   DoorSensor(this: YoLinkPlatformAccessory, data) { mqttContactSensor.bind(this)(data); },
   Siren(this: YoLinkPlatformAccessory, data) { mqttSwitchDevice.bind(this)(data); },
   Switch(this: YoLinkPlatformAccessory, data) { mqttSwitchDevice.bind(this)(data); },
+  SmartRemoter(this: YoLinkPlatformAccessory, data) { mqttStatelessSwitch.bind(this)(data); },
 };

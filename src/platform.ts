@@ -98,9 +98,9 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    */
   verboseLog(msg: string) {
     if (this.config.verboseLog) {
-      this.log.info(msg);
+      this.log.info(`[verbose] ${msg}`);
     } else {
-      this.log.debug(msg);
+      this.log.debug(`[verbose] ${msg}`);
     }
   }
 
@@ -109,9 +109,9 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    */
   liteLog(msg: string) {
     if (this.config.liteLog) {
-      this.verboseLog(msg);
+      this.verboseLog(`[lite] ${msg}`);
     } else {
-      this.log.info(msg);
+      this.log.info(`[lite] ${msg}`);
     }
   }
 

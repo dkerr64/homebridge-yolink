@@ -9,7 +9,7 @@
  *
  */
 
-import { Service, PlatformAccessory } from 'homebridge';
+import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import Semaphore from 'semaphore-promise';
 import { initDeviceService, mqttHandler, experimentalDevice} from './deviceHandlers';
@@ -56,6 +56,17 @@ export class YoLinkPlatformAccessory {
       // YoLink does not return device serial number in the API, use deviceId instead.
       .setCharacteristic(platform.Characteristic.SerialNumber, device.deviceId);
 
+    // All (almost all?) YoLink devices are battery powered, so makes sense to include
+    // battery level service.  YoLink reports 0..4, we will convert to 0,25,50,75,100 percent
+    this.batteryService = accessory.getService(platform.Service.Battery)
+                       || accessory.addService(platform.Service.Battery);
+    this.batteryService
+      .setCharacteristic(platform.Characteristic.Name, device.name)
+      .setCharacteristic(platform.Characteristic.ChargingState, platform.api.hap.Characteristic.ChargingState.NOT_CHARGEABLE)
+      .setCharacteristic(platform.Characteristic.BatteryLevel, 100);
+    this.batteryService
+      .getCharacteristic(platform.Characteristic.BatteryLevel).onGet(this.handleBatteryGet.bind(this));
+
     // Now initialize each device type, creating the homebridge services as required.
     if (initDeviceService[device.type] && (!experimentalDevice[device.type] || this.config.enableExperimental)) {
       initDeviceService[device.type].bind(this)();
@@ -75,20 +86,24 @@ export class YoLinkPlatformAccessory {
    * prevent sending multiple requests for the same data to the server.
    */
   async checkDeviceState(platform, device) {
-    platform.verboseLog(`checkDeviceState for ${this.deviceMsgName} (refresh after ${this.config.refreshAfter} seconds)`);
-
-    const timestamp = Math.floor(new Date().getTime() / 1000);
-    if (!device.data
+    try {
+      platform.verboseLog(`checkDeviceState for ${this.deviceMsgName} (refresh after ${this.config.refreshAfter} seconds)`);
+      const timestamp = Math.floor(new Date().getTime() / 1000);
+      if (!device.data
         || (this.config.refreshAfter === 0)
         || ((this.config.refreshAfter > 0) && (timestamp >= device.updateTime))) {
-      // If we have never retrieved data from the device, or data is older
-      // than period we want to allow, then retireve new data from the device.
-      // Else return with data unchanged.
-      device.data = await platform.yolinkAPI.getDeviceState(platform, device);
-      if (device.data) {
-        device.updateTime = timestamp + this.config.refreshAfter;
-        platform.log.info(`checkDeviceState received data for ${this.deviceMsgName}`);
+        // If we have never retrieved data from the device, or data is older
+        // than period we want to allow, then retireve new data from the device.
+        // Else return with data unchanged.
+        device.data = await platform.yolinkAPI.getDeviceState(platform, device);
+        if (device.data) {
+          device.updateTime = timestamp + this.config.refreshAfter;
+          platform.log.info(`checkDeviceState received data for ${this.deviceMsgName}`);
+        }
       }
+    } catch(e) {
+      const msg = (e instanceof Error) ? e.stack : e;
+      platform.log.error('Error in checkDeviceState' + platform.reportError + msg);
     }
     return(device.data);
   }
@@ -121,6 +136,51 @@ export class YoLinkPlatformAccessory {
     }
   }
 
+  /***********************************************************************
+   * updateBatteryInfo
+   *
+   */
+  updateBatteryInfo(this: YoLinkPlatformAccessory) {
+    const platform: YoLinkHomebridgePlatform = this.platform;
+    let batteryLevel = 100;
+    try {
+      // Some devices wrap battery information under a 'state' object.
+      // If nothing defined then assume 100%
+      batteryLevel = ((this.accessory.context.device.data.battery ?? this.accessory.context.device.data.state.battery) ?? 100) * 25;
+      const msg = `Battery level for ${this.deviceMsgName} is: ${batteryLevel-25}..${batteryLevel}%`;
+      if (batteryLevel <= 25) {
+        this.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+          platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
+        this.platform.log.warn(msg);
+      } else {
+        this.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+          platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+        this.platform.verboseLog(msg);
+      }
+    } catch(e) {
+      const msg = (e instanceof Error) ? e.stack : e;
+      platform.log.error('Error in updateBatteryInfo' + platform.reportError + msg);
+    }
+    return(batteryLevel);
+  }
+
+  /*********************************************************************
+   * handleBatteryGet
+   *
+   */
+  async handleBatteryGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
+    const device = this.accessory.context.device;
+    const platform = this.platform;
+    // serialize access to device data.
+    const releaseSemaphore = await this.deviceSemaphore.acquire();
+    let rc = 100;
+    if (await this.checkDeviceState(platform, device)) {
+      rc = this.updateBatteryInfo.bind(this)();
+    }
+    await releaseSemaphore();
+    return (rc);
+  }
+
   /*********************************************************************
    * mqttMessage
    *
@@ -129,11 +189,11 @@ export class YoLinkPlatformAccessory {
     const device = this.accessory.context.device;
     const platform = this.platform;
     try {
-      platform.log.info(`Received mqtt message '${message.event}' for device: ${this.deviceMsgName} State: '${message.data.state}'`);
       if (device.data && mqttHandler[device.type]) {
         mqttHandler[device.type].bind(this)(message);
       } else {
-        platform.log.warn('Unsupported mqtt event: \'' + message.event + '\'' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(`MQTT: ${message.event} for device ${this.deviceMsgName} not supported.`
+                           + platform.reportError + JSON.stringify(message));
       }
     } catch(e) {
       const msg = (e instanceof Error) ? e.stack : e;
