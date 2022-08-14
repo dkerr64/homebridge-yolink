@@ -80,9 +80,9 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   try {
     const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
-      // const reportAtEpoch = new Date(device.data.reportAt).getTime();
-      // platform.log.warn(`reportAtEpoch = ${reportAtEpoch}`);
-      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${JSON.stringify(device.data.state.event)}`);
+      // const reportTime = new Date(device.data.reportAt).getTime();
+      this.logDeviceState(new Date(device.data.reportAt),
+        `${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, DevTemp: ${device.data.state.devTemperature}`);
       this.updateBatteryInfo.bind(this)();
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
@@ -177,7 +177,8 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
           // if keyMask is set for this button then process the message...
           if ((b & 1) && (this.button[i])) {
             const ms = message.time - this.button[i].timestamp;
-            const intervalMsg = (this.button[i].timestamp > 0) ? ` (time since last press = ${ms}ms)` : '.';
+            // print time since last press if less than 5 seconds (to help with double press time setup)
+            const intervalMsg = (ms < 5000) ? ` (time since last press = ${ms}ms)` : '';
             this.button[i].timestamp = message.time;
             if (message.data.event.type === 'Press') {
               if (ms < this.config.doublePress) {

@@ -29,6 +29,9 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
     this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name);
     this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
       .onGet(handleThermoGet.bind(this));
+    // Call get handler to initialize data fields to current state and set
+    // timer to regularly update the data.
+    this.refreshDataTimer(handleThermoGet.bind(this));
   }
 
   if (this.config.hide === 'hydro') {
@@ -40,14 +43,9 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
     this.hydroService.setCharacteristic(platform.Characteristic.Name, device.name);
     this.hydroService.getCharacteristic(platform.Characteristic.CurrentRelativeHumidity)
       .onGet(handleHydroGet.bind(this));
-  }
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.  We only need to call one of these
-  // as each fetches both data.
-  if (this.config.hide === 'thermo') {
+    // Call get handler to initialize data fields to current state and set
+    // timer to regularly update the data.
     this.refreshDataTimer(handleHydroGet.bind(this));
-  } else {
-    this.refreshDataTimer(handleThermoGet.bind(this));
   }
 }
 
@@ -145,8 +143,10 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  */
 async function handleThermoGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   await handleGet.bind(this)();
-  this.platform.liteLog(`Temperature for ${this.deviceMsgName} is: ${this.accessory.context.device.data.state.temperature}`);
-  return (this.accessory.context.device.data.state.temperature);
+  const device = this.accessory.context.device;
+  this.logDeviceState(new Date(device.data.reportAt),
+    `Temperature ${device.data.state.temperature}, Battery: ${device.data.state.battery}`);
+  return (device.data.state.temperature);
 }
 
 /***********************************************************************
@@ -155,8 +155,10 @@ async function handleThermoGet(this: YoLinkPlatformAccessory): Promise<Character
  */
 async function handleHydroGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   await handleGet.bind(this)();
-  this.platform.liteLog(`Humidity for ${this.deviceMsgName} is: ${this.accessory.context.device.data.state.humidity}`);
-  return (this.accessory.context.device.data.state.humidity);
+  const device = this.accessory.context.device;
+  this.logDeviceState(new Date(device.data.reportAt),
+    `Humidity ${device.data.state.humidity}, Battery: ${device.data.state.battery}`);
+  return (device.data.state.humidity);
 }
 
 /***********************************************************************

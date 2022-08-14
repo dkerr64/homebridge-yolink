@@ -60,10 +60,11 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       this.leakService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state.state}`);
       if (device.data.state.state === 'alert') {
         rc = platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED;
       }
+      this.logDeviceState(new Date(device.data.reportAt),
+        `Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, DevTemp: ${device.data.state.devTemperature}`);
       this.updateBatteryInfo.bind(this)();
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);

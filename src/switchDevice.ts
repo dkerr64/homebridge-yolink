@@ -69,6 +69,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
       platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state}`);
+      this.logDeviceState(new Date(device.data.reportAt),
+        `Switch: ${device.data.state}, Battery: ${device.data.battery}`);
       this.updateBatteryInfo.bind(this)();
       if (device.data.state === this.onState) {
         rc = true;

@@ -79,7 +79,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       this.motionService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state.state}`);
+      this.logDeviceState(new Date(device.data.reportAt),
+        `Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, DevTemp: ${device.data.state.devTemperature}`);
       this.updateBatteryInfo.bind(this)();
       rc = (device.data.state.state === 'alert');
     } else {
