@@ -20,10 +20,10 @@ export const experimentalDevice = {
   LeakSensor: false,
   Manipulator: false,
   THSensor: false,
-  DoorSensor: true,
+  DoorSensor: false,
   Siren: true,
   Switch: true,
-  SmartRemoter: true,
+  SmartRemoter: false,
 };
 
 export const initDeviceService = {
