@@ -145,7 +145,7 @@ async function handleThermoGet(this: YoLinkPlatformAccessory): Promise<Character
   await handleGet.bind(this)();
   const device = this.accessory.context.device;
   this.logDeviceState(new Date(device.data.reportAt),
-    `Temperature ${device.data.state.temperature}, Battery: ${device.data.state.battery}`);
+    `Temperature ${device.data.state.temperature}, Humidity ${device.data.state.humidity}, Battery: ${device.data.state.battery}`);
   return (device.data.state.temperature);
 }
 
@@ -157,7 +157,7 @@ async function handleHydroGet(this: YoLinkPlatformAccessory): Promise<Characteri
   await handleGet.bind(this)();
   const device = this.accessory.context.device;
   this.logDeviceState(new Date(device.data.reportAt),
-    `Humidity ${device.data.state.humidity}, Battery: ${device.data.state.battery}`);
+    `Temperature ${device.data.state.temperature}, Humidity ${device.data.state.humidity}, Battery: ${device.data.state.battery}`);
   return (device.data.state.humidity);
 }
 

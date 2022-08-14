@@ -410,7 +410,7 @@ export class YoLinkAPI {
 
     this.mqttClient.on('message', (topic, message) => {
       platform.log.debug('mqtt received: ' + topic + '\n' + message.toString());
-      msgCallback(message.toString());
+      msgCallback(message);
     });
 
     this.mqttClient.on('reconnect', () => {
