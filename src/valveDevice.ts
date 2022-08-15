@@ -72,6 +72,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       if (device.data.state === 'open') {
         rc = platform.api.hap.Characteristic.Active.ACTIVE;
       }
+      this.logDeviceState(new Date(device.data.time),
+        `Valve: ${device.data.state}, Battery: ${device.data.battery}`);
       this.updateBatteryInfo.bind(this)();
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);

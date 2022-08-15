@@ -38,6 +38,7 @@ export class YoLinkPlatformAccessory {
     const device = accessory.context.device;
     this.deviceId = device.deviceId;
     this.deviceMsgName = `${device.name} (${device.deviceId})`;
+    this.reportAtTime = 0;
     this.config = platform.config.devices[device.deviceId] ? platform.config.devices[device.deviceId] : {};
     this.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
     this.config.enableExperimental ??= (platform.config.enableExperimental ??= false);
@@ -98,7 +99,7 @@ export class YoLinkPlatformAccessory {
         device.data = await platform.yolinkAPI.getDeviceState(platform, device);
         if (device.data) {
           device.updateTime = timestamp + this.config.refreshAfter;
-          platform.log.info(`checkDeviceState received data for ${this.deviceMsgName}`);
+          platform.liteLog(`checkDeviceState received data for ${this.deviceMsgName}`);
         }
       }
     } catch(e) {
@@ -106,6 +107,20 @@ export class YoLinkPlatformAccessory {
       platform.log.error('Error in checkDeviceState' + platform.reportError + msg);
     }
     return(device.data);
+  }
+
+  /***********************************************************************
+   * logDeviceState
+   *
+   */
+  logDeviceState(this: YoLinkPlatformAccessory, reportTime: Date, msg: string) {
+    this.platform.log.debug(`logDeviceState saved time ${this.reportAtTime}, new report time ${reportTime.getTime()}`);
+    if (this.reportAtTime !== reportTime.getTime()) {
+      this.reportAtTime = reportTime.getTime();
+      this.platform.log.info(`Device state for ${this.deviceMsgName} is: ${msg} at ${reportTime.toLocaleString()}`);
+    } else {
+      this.platform.liteLog(`Device state for ${this.deviceMsgName} is: ${msg} at ${reportTime.toLocaleString()}`);
+    }
   }
 
   /*********************************************************************
@@ -189,6 +204,8 @@ export class YoLinkPlatformAccessory {
     const device = this.accessory.context.device;
     const platform = this.platform;
     try {
+      // msgid is a timestamp for when the data was updated by the device.
+      this.reportAtTime = message.msgid;
       if (device.data && mqttHandler[device.type]) {
         mqttHandler[device.type].bind(this)(message);
       } else {

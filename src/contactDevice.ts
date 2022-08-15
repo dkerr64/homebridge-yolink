@@ -63,10 +63,11 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       this.contactService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state.state}`);
       if (device.data.state.state === 'closed') {
         rc = platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED;
       }
+      this.logDeviceState(new Date(device.data.reportAt),
+        `Contact: ${device.data.state.state}, Battery: ${device.data.state.battery}`);
       this.updateBatteryInfo.bind(this)();
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
