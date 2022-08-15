@@ -84,6 +84,15 @@
         "default": true,
         "description": "This will load all devices whether an entry exists in the config file or not (see devices section below).  If set to false then only devices specifically listed in device section, with hide set to false, will load."
       },
+      "doublePress": {
+        "title": "Time in milliseconds between button presses to consider as a double-press",
+        "type": "number",
+        "required": false,
+        "default": 800,
+        "minimum": 0,
+        "maximum":5000,
+        "description": "Time in milliseconds between button presses to consider as a double-press. Defaults to 800ms, zero disables double-press events, maximum accepted in user interface is 5000ms (5 seconds)."
+      },
       "devices": {
         "type": "array",
         "items": {
@@ -135,6 +144,14 @@
                   "default": 14500,
                   "minimum": 0,
                   "maximum":86400
+                },
+                "doublePress": {
+                  "title": "Time in milliseconds between button presses to consider as a double-press",
+                  "type": "number",
+                  "required": false,
+                  "default": 800,
+                  "minimum": 0,
+                  "maximum":5000
                 }
               }   
             }

@@ -9,7 +9,9 @@
 
 *Unofficial* plugin for YoLink.  I wrote this plugin to integrate the YoLink devices that I own, so it is currently quite limited.  This is implemented by building on the Homebridge platform plugin template and the [YoLink API.](http://doc.yosmart.com)
 
-**Warning** this plugin is new and not fully tested.
+**Warning** this plugin is new and not fully tested for all devices.
+
+**Warning** this plugin is not intended to serve safety or security services.  For critical applications use YoLink's own services and in particular consider their device-to-device capability. For example, do not rely on homebridge/homekit to turn off a main water supply in a leak detection -- use YoLink device-to-device.
 
 Pull requests and/or other offers of development assistance gratefully received.
 
@@ -22,6 +24,9 @@ Currently supports the following devices:
 * Vibration Sensor (as a motion sensor)
 * Manipulator (as a valve)
 * Weatherproof Temperature and Humidity Sensor
+* Door Sensor (as a contact sensor)
+* Key fob remote (as stateless programmable switch)
+* Siren / Switch (experimental)
 
 The plugin registers as a MQTT client and subscribes to reports published by YoLink for real time alerts and status updates.
 
@@ -61,6 +66,8 @@ YoLink status is retrieved over the internet.  While the plugin maintains a stat
             "verboseLog": false,
             "liteLog": true,
             "allDevices": true,
+            "enableExperimental": true,
+            "doublePress": 800,
             "devices": [
                 {
                     "deviceId": "0123456789abcdef",
@@ -68,7 +75,8 @@ YoLink status is retrieved over the internet.  While the plugin maintains a stat
                         "hide": true,
                         "name": "YoLink Hub",
                         "model": "YS1603-UC",
-                        "refreshAfter": 14500
+                        "refreshAfter": 14500,
+                        "doublePress": 800,
                     }
                 }
             ]
@@ -89,6 +97,8 @@ YoLink status is retrieved over the internet.  While the plugin maintains a stat
   * **verboseLog** *(optional)*: Sometimes it is helpful to log more detail than *info* but somewhat less than *debug*. This is that half-way.  Defaults to false.
   * **liteLog** *(optional)*: HomeKit makes frequent requests for device status, this suppresses logging of every request (unless verboseLog is true).  Requests that require message be sent to YoLink servers are still logged.  Defaults to true.
   * **allDevices** *(optional)*: If set to false then only devices listed in the Devices section of the config file are loaded, and then only if the hide property is false. Defaults to true so all devices reported by YoLink are loaded (if hide property is false).
+  * **enableExperimental** *(optional)*: If set to true, enables support for devices still considered experimental, see notes below.
+  * **doublePress** *(optional)*: Duration in milliseconds to trigger a double-press event on two button presses on a stateless device.  Defaults to 800ms and a value of zero disables double-press feature.  See notes below for YoLink FlexFob remote.
   * **devices** *(optional)*: Optional array of device settings, see below.
 
 * **Device Properties** are an array of objects that allow settings or overrides on a device-by-device basis.  This array is optional but if provided contains the following fields:
@@ -98,6 +108,7 @@ YoLink status is retrieved over the internet.  While the plugin maintains a stat
     * **name** *(optional)*: Override the name provided by YoLink for the device, this is what is shown in the Homebridge UI accessories page.
     * **model** *(optional)*: YoLink does not provide device model number when requesting device information.  If you want to keep a record of that and show it in the Homebridge accessories setting page then you can set it here, for example the original YoLink leak sensor has a model number of "YS7903-UC".  This is a purely cosmetic setting with no functional purpose.
     * **refreshAfter** *(optional)*: Device specific override of global *refreshAfter*, see above.  Defaults to global setting.
+    * **doublePress** *(optional)*: Device specific override of global *doublePress*, see above.  Defaults to global setting.
 
 ## MQTT
 
@@ -109,7 +120,11 @@ If you are comfortable relying entirely on YoLink notifications you can set the 
 
 ## Device Notes
 
-Observed behavior of various devices, and specific configuration settings are noted below for supported devices.
+Observed behavior of various devices, and specific configuration settings are noted below for supported devices.  Note the YoLink does not query a device on request for status in real-time. Requesting status usually returns the last known status either from a earlier alert, or from the last normal status report from a device.
+
+Most, if not all, YoLink devices are battery powered and report battery level.  This plugin creates a battery service for each which shows in Homebridge as its own tile but in Apple Home is merged within the accessory settings.  YoLink reports battery level of 0..4 which converts to 0, 25, 50, 75 and 100% in HomeKit.
+
+**Experimental** devices are work-in-progress and may not function as expected.  They are included to allow further testing and must be enabled by adding the setting *"enableExperimental": true* to the plugin configuration.  Feedback and bug reports welcomed.
 
 ### Leak Sensor
 
@@ -133,6 +148,26 @@ If you have a Thermometer / Humidity sensor but only want to track one value the
 
 YoLink water valve controllers report as a "manipulator" device, the plugin registers this as a HomeKit generic valve.  HomeKit has the concept of both open/close and in use where in use means that fluid is actually flowing through the device.  Presumably this allows for a valve to be open, but no fluid to flow.  YoLink only reports open/close and so the plugin uses this state for both valve position and in use (fluid flowing). Normal status reporting occurs every 4 hours.  If you want to check on device status more frequently then set *refreshAfter* to desired interval.
 
+### Door Sensor
+
+The YoLink door sensor is implemented as a HomeKit contact sensor which can then be used to trigger an action on contact open or contact closed.
+
+### FlexFob Remote
+
+The YoLink FlexFob four-button smart remote is setup as a HomeKit stateless programmable switch.  In Homebridge it is represented with multiple service tiles that all combine into the one accessory on Apple Home.  Each button can be programmed to trigger up to three actions in HomeKit beased on a single press, a double press or a long press.
+
+Double press is not supported directly by the YoLink FlexFob but is generated when two button presses are received within a set timeout.  This can be set in the plugin configuration with the *doublePress* setting which should be a value in milliseconds.  The default is 800ms.  You can experiment to find the ideal setting for yourself by looking at the Homebridge logs as you press the button... the time between each press is logged.  If set to zero then the plugin will never generate a double-press event but will send two single-press events instead.
+
+Simultaneously pressing more than one button will generate a long press signal for each button pressed
+
+### Siren (experimental)
+
+A YoLink siren has been implemented as a switch which can be turned on or off in Homebridge/HomeKit
+
+### Switch (experimental)
+
+A Switch device is implemented to support adding YoLink siren.  It has not been tested with any YoLink switch hardware.
+
 ## License
 
 (c) Copyright 2022 David A. Kerr
@@ -140,3 +175,7 @@ YoLink water valve controllers report as a "manipulator" device, the plugin regi
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this program except in compliance with the License. You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+### Trademarks
+
+Apple@reg;, HomeKit@reg; are registered trademarks of Apple Inc.
