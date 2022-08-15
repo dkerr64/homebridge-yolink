@@ -11,7 +11,7 @@
 
 **Warning** this plugin is new and not fully tested for all devices.
 
-**Warning** this plugin is not intended to serve safety or security services.  For critical applications use YoLink's own services and in particular consider their device-to-device capability. For example, do not rely on homebridge/homekit to turn off a main water supply in a leak detection -- use YoLink device-to-device.
+**Warning** this plugin is not intended to provide safety or security services.  For critical applications use YoLink's own services and in particular consider their device-to-device capability. For example, do not rely on homebridge or homekit to turn off a main water supply in a leak detection -- use YoLink device-to-device.
 
 Pull requests and/or other offers of development assistance gratefully received.
 
@@ -66,7 +66,7 @@ YoLink status is retrieved over the internet.  While the plugin maintains a stat
             "verboseLog": false,
             "liteLog": true,
             "allDevices": true,
-            "enableExperimental": true,
+            "enableExperimental": false,
             "doublePress": 800,
             "devices": [
                 {
@@ -97,7 +97,7 @@ YoLink status is retrieved over the internet.  While the plugin maintains a stat
   * **verboseLog** *(optional)*: Sometimes it is helpful to log more detail than *info* but somewhat less than *debug*. This is that half-way.  Defaults to false.
   * **liteLog** *(optional)*: HomeKit makes frequent requests for device status, this suppresses logging of every request (unless verboseLog is true).  Requests that require message be sent to YoLink servers are still logged.  Defaults to true.
   * **allDevices** *(optional)*: If set to false then only devices listed in the Devices section of the config file are loaded, and then only if the hide property is false. Defaults to true so all devices reported by YoLink are loaded (if hide property is false).
-  * **enableExperimental** *(optional)*: If set to true, enables support for devices still considered experimental, see notes below.
+  * **enableExperimental** *(optional)*: If set to true, enables support for devices still considered experimental, see Device Notes below.
   * **doublePress** *(optional)*: Duration in milliseconds to trigger a double-press event on two button presses on a stateless device.  Defaults to 800ms and a value of zero disables double-press feature.  See notes below for YoLink FlexFob remote.
   * **devices** *(optional)*: Optional array of device settings, see below.
 
@@ -162,7 +162,7 @@ Simultaneously pressing more than one button will generate a long press signal f
 
 ### Siren (experimental)
 
-A YoLink siren has been implemented as a switch which can be turned on or off in Homebridge/HomeKit
+A YoLink siren has been implemented as a switch which can be turned on or off in Homebridge/HomeKit.
 
 ### Switch (experimental)
 
@@ -178,4 +178,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 
 ### Trademarks
 
-Apple@reg;, HomeKit@reg; are registered trademarks of Apple Inc.
+Apple and HomeKit are registered trademarks of Apple Inc.
+
+YoLink and YoSmart are trademarks of YoSmart Inc.
