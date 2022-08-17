@@ -67,7 +67,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL;
 
     this.log.info('YoLink plugin for HomeBridge (c) 2022 David A. Kerr' + this.reportError);
-    this.log.debug('Loaded configuaration:\n' + JSON.stringify(this.config));
+    this.verboseLog('Loaded configuaration:\n' + JSON.stringify(this.config));
 
     this.yolinkAPI = new YoLinkAPI(this);
 
@@ -87,7 +87,6 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    */
   configureAccessory(accessory: PlatformAccessory) {
     this.verboseLog('Loading accessory from cache:' + accessory.displayName);
-
     // add the restored accessory to the accessories cache so we can track if it has already been registered
     this.accessories.push(accessory);
   }
@@ -119,20 +118,20 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    * discoverDevices
    */
   async discoverDevices() {
-
-    if (!await this.yolinkAPI.login(this)) {
-      // If login failed an error message will have been displayed in the
-      // Homebridge log. Pointless to continue.
-      return;
+    try {
+      await this.yolinkAPI.login(this);
+      await this.registerDevices(await this.yolinkAPI.getDeviceList(this));
+      await this.registerMqtt();
+    } catch(e) {
+      const msg = (e instanceof Error) ? e.stack : e;
+      this.log.error('Fatal error during YoLink plugin initialization:\n' + msg);
     }
+  }
 
-    const deviceList = await this.yolinkAPI.getDeviceList(this);
-    if (!deviceList) {
-      // Should never occur if we successfully logged in.
-      this.log.error('failed to retrieve list of devices from server');
-      return;
-    }
-
+  /*********************************************************************
+   * registerDevices
+   */
+  async registerDevices(deviceList) {
     // Remove accessories from cache if they are no longer in list of
     // devices retrieved from YoLink.
     for (const accessory of this.accessories) {
@@ -145,7 +144,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
 
     // loop over the discovered devices and register each one if it has not already been registered
     for (const device of deviceList) {
-      this.log.debug(JSON.stringify(device));
+      this.verboseLog(JSON.stringify(device));
       // generate a unique id for the accessory this should be generated from
       // something globally unique, but constant, for example, the device serial
       // number or MAC address.
@@ -161,8 +160,8 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       // the cached devices we stored in the `configureAccessory` method above.
       const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
       const skip = (!this.config.allDevices && !this.config.devices[device.deviceId])
-                 || (this.config.devices[device.deviceId] && (this.config.devices[device.deviceId].hide === true
-                                                            ||this.config.devices[device.deviceId].hide === 'true'));
+             || (this.config.devices[device.deviceId] && (this.config.devices[device.deviceId].hide === true
+                                                        ||this.config.devices[device.deviceId].hide === 'true'));
       // If "hide" is not true then we will add the accessory and the individual handler
       // can decide what to do.
 
@@ -190,7 +189,12 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
         this.yolinkDevices.push(deviceClass);
       }
     }
+  }
 
+  /*********************************************************************
+   * registerMqtt
+   */
+  async registerMqtt() {
     // Now connect to YoLink MQTT server and subscribe to messages
     await this.yolinkAPI.mqtt(this, (message) => {
       // This function is called for every message received over MQTT
@@ -206,6 +210,6 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
         this.verboseLog(`mqtt received message for unknown device (${data.deviceId})`);
       }
     });
-
   }
+
 }
