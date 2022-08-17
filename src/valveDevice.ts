@@ -68,7 +68,6 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
         // YoLink manipulator data does not return a 'online' value.  We will assume that if
         // we got this far then it is working normally...
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state}`);
       if (device.data.state === 'open') {
         rc = platform.api.hap.Characteristic.Active.ACTIVE;
       }
@@ -86,7 +85,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   } finally {
     await releaseSemaphore();
   }
-  return (rc);
+  return rc;
 }
 
 /***********************************************************************
@@ -97,7 +96,7 @@ async function handleInUse(this: YoLinkPlatformAccessory): Promise<Characteristi
   // this.platform.liteLog(`Valve in use state for ${this.deviceMsgName}, calling isActive`);
   // Apple HomeKit documentation defines In Use as fluid is flowing through valve.
   // We will assume that if the valve is open, then fluid is flowing...
-  return(await handleGet.bind(this)());
+  return await handleGet.bind(this)();
 }
 
 /***********************************************************************
