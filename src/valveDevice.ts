@@ -94,7 +94,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  *
  */
 async function handleInUse(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
-  this.platform.liteLog(`Valve in use state for ${this.deviceMsgName}, calling isActive`);
+  // this.platform.liteLog(`Valve in use state for ${this.deviceMsgName}, calling isActive`);
   // Apple HomeKit documentation defines In Use as fluid is flowing through valve.
   // We will assume that if the valve is open, then fluid is flowing...
   return(await handleGet.bind(this)());

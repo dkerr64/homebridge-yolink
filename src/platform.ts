@@ -108,9 +108,13 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    */
   liteLog(msg: string) {
     if (this.config.liteLog) {
-      this.verboseLog(`[lite] ${msg}`);
+      if (this.config.verboseLog) {
+        this.log.info(`${msg} [lite]`);
+      } else {
+        this.log.debug(`${msg} [lite]`);
+      }
     } else {
-      this.log.info(`[lite] ${msg}`);
+      this.log.info(`${msg} [lite]`);
     }
   }
 

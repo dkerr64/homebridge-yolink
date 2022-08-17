@@ -99,7 +99,8 @@ export class YoLinkPlatformAccessory {
         device.data = await platform.yolinkAPI.getDeviceState(platform, device);
         if (device.data) {
           device.updateTime = timestamp + this.config.refreshAfter;
-          platform.liteLog(`checkDeviceState received data for ${this.deviceMsgName}`);
+        } else {
+          platform.log.error(`checkDeviceState received no data for ${this.deviceMsgName}`);
         }
       }
     } catch(e) {
@@ -114,12 +115,11 @@ export class YoLinkPlatformAccessory {
    *
    */
   logDeviceState(this: YoLinkPlatformAccessory, reportTime: Date, msg: string) {
-    this.platform.verboseLog(`logDeviceState saved time ${this.reportAtTime}, new report time ${reportTime.getTime()}`);
     if (this.reportAtTime !== reportTime.getTime()) {
       this.reportAtTime = reportTime.getTime();
-      this.platform.log.info(`Device state for ${this.deviceMsgName} is: ${msg} at ${reportTime.toLocaleString()}`);
+      this.platform.log.info(`At ${reportTime.toLocaleString()}: Device state for ${this.deviceMsgName} is: ${msg}`);
     } else {
-      this.platform.liteLog(`Device state for ${this.deviceMsgName} is: ${msg} at ${reportTime.toLocaleString()}`);
+      this.platform.liteLog(`At ${reportTime.toLocaleString()}: Device state for ${this.deviceMsgName} is: ${msg}`);
     }
   }
 
@@ -144,7 +144,7 @@ export class YoLinkPlatformAccessory {
       // timer will wait for at least one second before firing again to avoid runaway loops.
       const nextUpdateIn = (device.updateTime) ? Math.max(1, device.updateTime - Math.floor(new Date().getTime() / 1000)) : 60;
       // If there was no device.updateTime then error occurred, so default to 60 seconds.
-      platform.liteLog(`Set data refresh timer for ${this.deviceMsgName} to run in ${nextUpdateIn} seconds`);
+      platform.verboseLog(`Set data refresh timer for ${this.deviceMsgName} to run in ${nextUpdateIn} seconds`);
       setTimeout( () => {
         this.refreshDataTimer(handleGet);
       }, nextUpdateIn * 1000);
