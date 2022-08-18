@@ -189,6 +189,9 @@ export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): 
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
+        // mqtt data does not include a report time, so merging the objects leaves current
+        // unchanged. As we use this to control when to log new data, update the time string.
+        device.data.reportAt = new Date(parseInt(message.msgid)).toISOString();
         platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
         this.updateBatteryInfo.bind(this)();
         this.switchService

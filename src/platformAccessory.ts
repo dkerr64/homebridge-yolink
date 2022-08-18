@@ -115,7 +115,7 @@ export class YoLinkPlatformAccessory {
    *
    */
   logDeviceState(this: YoLinkPlatformAccessory, reportTime: Date, msg: string) {
-    if (this.reportAtTime !== reportTime.getTime()) {
+    if (this.reportAtTime < reportTime.getTime()) {
       this.reportAtTime = reportTime.getTime();
       this.platform.log.info(`At ${reportTime.toLocaleString()}: Device state for ${this.deviceMsgName} is: ${msg}`);
     } else {

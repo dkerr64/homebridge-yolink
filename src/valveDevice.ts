@@ -31,7 +31,7 @@ export async function initValveDevice(this: YoLinkPlatformAccessory): Promise<vo
     .onGet(handleType.bind(this));
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this));
+  this.refreshDataTimer(handleGet.bind(this, 'both'));
 }
 
 /***********************************************************************
@@ -56,7 +56,7 @@ export async function initValveDevice(this: YoLinkPlatformAccessory): Promise<vo
  *    }
  *  }
  */
-async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
+async function handleGet(this: YoLinkPlatformAccessory, request = 'Active'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
@@ -72,7 +72,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
         rc = platform.api.hap.Characteristic.Active.ACTIVE;
       }
       this.logDeviceState(new Date(device.data.time),
-        `Valve: ${device.data.state}, Battery: ${device.data.battery}`);
+        `Valve (${request}): ${device.data.state}, Battery: ${device.data.battery}`);
       this.updateBatteryInfo.bind(this)();
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
@@ -96,7 +96,7 @@ async function handleInUse(this: YoLinkPlatformAccessory): Promise<Characteristi
   // this.platform.liteLog(`Valve in use state for ${this.deviceMsgName}, calling isActive`);
   // Apple HomeKit documentation defines In Use as fluid is flowing through valve.
   // We will assume that if the valve is open, then fluid is flowing...
-  return await handleGet.bind(this)();
+  return await handleGet.bind(this)('InUse');
 }
 
 /***********************************************************************
@@ -212,6 +212,9 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
+        // mqtt data does not include a report time, so merging the objects leaves current
+        // unchanged. As we use this to control when to log new data, update the time string.
+        device.data.reportAt = new Date(parseInt(message.msgid)).toISOString();
         platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
         this.updateBatteryInfo.bind(this)();
         this.valveService

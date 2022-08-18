@@ -172,6 +172,9 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
+        // mqtt data does not include a report time, so merging the objects leaves current
+        // unchanged. As we use this to control when to log new data, update the time string.
+        device.data.reportAt = new Date(parseInt(message.msgid)).toISOString();
         // loop through all possible buttons...
         for (let i=0, b=message.data.event.keyMask; b; i++, b=b>>>1) {
           // if keyMask is set for this button then process the message...
