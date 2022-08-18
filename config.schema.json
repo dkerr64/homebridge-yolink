@@ -77,6 +77,12 @@
         "default": true,
         "description": "Homebridge / HomeKit can make very frequent requests for device status.  This suppresses logging of every request (unless verbose logging is enabled)."
       },
+      "enableExperimental": {
+        "title": "Enable support for devices under development.  USE ONLY IF REQUESTED to assist development",
+        "type": "boolean",
+        "required": false,
+        "default": false
+      },
       "allDevices": {
         "title": "Load all devices / accessories by default",
         "type": "boolean",
