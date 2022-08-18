@@ -14,16 +14,17 @@ import { initContactSensor, mqttContactSensor } from './contactDevice';
 import { initSwitchDevice, mqttSwitchDevice } from './switchDevice';
 import { initStatelessSwitch, mqttStatelessSwitch } from './statelessSwitch';
 
-export const experimentalDevice = {
-  VibrationSensor: false,
-  MotionSensor: false,
-  LeakSensor: false,
-  Manipulator: false,
-  THSensor: false,
-  DoorSensor: false,
-  Siren: true,
-  Switch: true,
-  SmartRemoter: false,
+export const deviceFeatures = {
+  VibrationSensor: { experimental: false, hasBattery: true },
+  MotionSensor: { experimental: false, hasBattery: true },
+  LeakSensor: { experimental: false, hasBattery: true },
+  Manipulator: { experimental: false, hasBattery: true },
+  THSensor: { experimental: false, hasBattery: true },
+  DoorSensor: { experimental: false, hasBattery: true },
+  Siren: { experimental: true, hasBattery: true },
+  Switch: { experimental: true, hasBattery: true },
+  Outlet: { experimental: true, hasBattery: false },
+  SmartRemoter: { experimental: false, hasBattery: true },
 };
 
 export const initDeviceService = {
@@ -35,6 +36,7 @@ export const initDeviceService = {
   DoorSensor(this: YoLinkPlatformAccessory) { initContactSensor.bind(this)(); },
   Siren(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('alert', {'alarm':true}, {'alarm':false}); },
   Switch(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('closed', 'close', 'open'); },
+  Outlet(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('closed', 'close', 'open'); },
   SmartRemoter(this: YoLinkPlatformAccessory) { initStatelessSwitch.bind(this)(4); },
 };
 
@@ -47,5 +49,6 @@ export const mqttHandler = {
   DoorSensor(this: YoLinkPlatformAccessory, data) { mqttContactSensor.bind(this)(data); },
   Siren(this: YoLinkPlatformAccessory, data) { mqttSwitchDevice.bind(this)(data); },
   Switch(this: YoLinkPlatformAccessory, data) { mqttSwitchDevice.bind(this)(data); },
+  Outlet(this: YoLinkPlatformAccessory, data) { mqttSwitchDevice.bind(this)(data); },
   SmartRemoter(this: YoLinkPlatformAccessory, data) { mqttStatelessSwitch.bind(this)(data); },
 };

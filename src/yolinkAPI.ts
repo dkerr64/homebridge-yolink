@@ -68,7 +68,7 @@ function retryFn(platform, fn, retriesLeft = 5, interval = 1000, intervalInc = 1
           return;
         }
         const msg = (e instanceof Error) ? e.message : e;
-        platform.log.error(`Retry ${fn.name} due to error: ${msg}, try again in ${interval/1000} seconds`);
+        platform.log.error(`Retry ${fn.name} due to error:\n${msg}\ntry again in ${interval/1000} seconds`);
         setTimeout(() => {
           retryFn(platform, fn, (retriesLeft) ? retriesLeft - 1 : 0, Math.min(interval+intervalInc, intervalMax), intervalInc, intervalMax)
             .then(resolve, reject);
@@ -250,8 +250,8 @@ export class YoLinkAPI {
       }
     } catch(e) {
       // If error occurred that we probably need to login again.  Propogate the error up.
-      const msg = (e instanceof Error) ? e.stack : e;
-      platform.log.error(`Error retrieving access token: ${msg}`);
+      const msg = (e instanceof Error) ? e.message : e;
+      platform.log.error(`Error retrieving access token:\n${msg}`);
       this.yolinkLoggedIn = false;
       throw(e);
     } finally {
@@ -317,8 +317,8 @@ export class YoLinkAPI {
       checkBudpStatus(budp);
       return budp.data;
     } catch(e) {
-      const msg = (e instanceof Error) ? e.stack : e;
-      platform.log.error(`error in getDeviceState may be recoverable: ${msg}`);
+      const msg = (e instanceof Error) ? e.message : e;
+      platform.log.error(`Error in getDeviceState may be recoverable:\n${msg}`);
     }
   }
 
@@ -352,8 +352,8 @@ export class YoLinkAPI {
       checkBudpStatus(budp);
       return budp.data;
     } catch(e) {
-      const msg = (e instanceof Error) ? e.stack : e;
-      platform.log.error(`error in getDeviceState may be recoverable: ${msg}`);
+      const msg = (e instanceof Error) ? e.message : e;
+      platform.log.error(`Error in setDeviceState may be recoverable:\n${msg}`);
     }
   }
 

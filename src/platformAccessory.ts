@@ -12,7 +12,7 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import Semaphore from 'semaphore-promise';
-import { initDeviceService, mqttHandler, experimentalDevice} from './deviceHandlers';
+import { initDeviceService, mqttHandler, deviceFeatures} from './deviceHandlers';
 
 Error.stackTraceLimit = 100;
 
@@ -42,6 +42,7 @@ export class YoLinkPlatformAccessory {
     this.config = platform.config.devices[device.deviceId] ? platform.config.devices[device.deviceId] : {};
     this.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
     this.config.enableExperimental ??= (platform.config.enableExperimental ??= false);
+    this.hasBattery = deviceFeatures[device.type].hasBattery;
 
     // We need to serialize requests to YoLink API for each device.  Multiple threads
     // can request state updates for a devices at the same time.  This would not be good,
@@ -59,17 +60,18 @@ export class YoLinkPlatformAccessory {
 
     // All (almost all?) YoLink devices are battery powered, so makes sense to include
     // battery level service.  YoLink reports 0..4, we will convert to 0,25,50,75,100 percent
-    this.batteryService = accessory.getService(platform.Service.Battery)
+    if (this.hasBattery) {
+      this.batteryService = accessory.getService(platform.Service.Battery)
                        || accessory.addService(platform.Service.Battery);
-    this.batteryService
-      .setCharacteristic(platform.Characteristic.Name, device.name)
-      .setCharacteristic(platform.Characteristic.ChargingState, platform.api.hap.Characteristic.ChargingState.NOT_CHARGEABLE)
-      .setCharacteristic(platform.Characteristic.BatteryLevel, 100);
-    this.batteryService
-      .getCharacteristic(platform.Characteristic.BatteryLevel).onGet(this.handleBatteryGet.bind(this));
-
+      this.batteryService
+        .setCharacteristic(platform.Characteristic.Name, device.name)
+        .setCharacteristic(platform.Characteristic.ChargingState, platform.api.hap.Characteristic.ChargingState.NOT_CHARGEABLE)
+        .setCharacteristic(platform.Characteristic.BatteryLevel, 100);
+      this.batteryService
+        .getCharacteristic(platform.Characteristic.BatteryLevel).onGet(this.handleBatteryGet.bind(this));
+    }
     // Now initialize each device type, creating the homebridge services as required.
-    if (initDeviceService[device.type] && (!experimentalDevice[device.type] || this.config.enableExperimental)) {
+    if (initDeviceService[device.type] && (!deviceFeatures[device.type].experimental || this.config.enableExperimental)) {
       initDeviceService[device.type].bind(this)();
     } else {
       platform.log.warn('YoLink device type: \'' + device.type + '\' is not supported by this plugin (deviceID: ' + device.deviceId + ')'
@@ -99,7 +101,8 @@ export class YoLinkPlatformAccessory {
         device.data = await platform.yolinkAPI.getDeviceState(platform, device);
         if (device.data) {
           device.updateTime = timestamp + this.config.refreshAfter;
-          platform.liteLog(`checkDeviceState received data for ${this.deviceMsgName}`);
+        } else {
+          platform.log.error(`checkDeviceState received no data for ${this.deviceMsgName}`);
         }
       }
     } catch(e) {
@@ -114,12 +117,11 @@ export class YoLinkPlatformAccessory {
    *
    */
   logDeviceState(this: YoLinkPlatformAccessory, reportTime: Date, msg: string) {
-    this.platform.verboseLog(`logDeviceState saved time ${this.reportAtTime}, new report time ${reportTime.getTime()}`);
-    if (this.reportAtTime !== reportTime.getTime()) {
+    if (this.reportAtTime < reportTime.getTime()) {
       this.reportAtTime = reportTime.getTime();
-      this.platform.log.info(`Device state for ${this.deviceMsgName} is: ${msg} at ${reportTime.toLocaleString()}`);
+      this.platform.log.info(`At ${reportTime.toLocaleString()}: Device state for ${this.deviceMsgName} is: ${msg}`);
     } else {
-      this.platform.liteLog(`Device state for ${this.deviceMsgName} is: ${msg} at ${reportTime.toLocaleString()}`);
+      this.platform.liteLog(`At ${reportTime.toLocaleString()}: Device state for ${this.deviceMsgName} is: ${msg}`);
     }
   }
 
@@ -144,7 +146,7 @@ export class YoLinkPlatformAccessory {
       // timer will wait for at least one second before firing again to avoid runaway loops.
       const nextUpdateIn = (device.updateTime) ? Math.max(1, device.updateTime - Math.floor(new Date().getTime() / 1000)) : 60;
       // If there was no device.updateTime then error occurred, so default to 60 seconds.
-      platform.liteLog(`Set data refresh timer for ${this.deviceMsgName} to run in ${nextUpdateIn} seconds`);
+      platform.verboseLog(`Set data refresh timer for ${this.deviceMsgName} to run in ${nextUpdateIn} seconds`);
       setTimeout( () => {
         this.refreshDataTimer(handleGet);
       }, nextUpdateIn * 1000);
@@ -158,19 +160,22 @@ export class YoLinkPlatformAccessory {
   updateBatteryInfo(this: YoLinkPlatformAccessory) {
     const platform: YoLinkHomebridgePlatform = this.platform;
     let batteryLevel = 100;
+
     try {
-      // Some devices wrap battery information under a 'state' object.
-      // If nothing defined then assume 100%
-      batteryLevel = ((this.accessory.context.device.data.battery ?? this.accessory.context.device.data.state.battery) ?? 100) * 25;
-      const msg = `Battery level for ${this.deviceMsgName} is: ${batteryLevel-25}..${batteryLevel}%`;
-      if (batteryLevel <= 25) {
-        this.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
-          platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
-        this.platform.log.warn(msg);
-      } else {
-        this.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
-          platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
-        this.platform.verboseLog(msg);
+      if (this.hasBattery) {
+        // Some devices wrap battery information under a 'state' object.
+        // If nothing defined then assume 100%
+        batteryLevel = ((this.accessory.context.device.data.battery ?? this.accessory.context.device.data.state.battery) ?? 100) * 25;
+        const msg = `Battery level for ${this.deviceMsgName} is: ${batteryLevel-25}..${batteryLevel}%`;
+        if (batteryLevel <= 25) {
+          this.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+            platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
+          this.platform.log.warn(msg);
+        } else {
+          this.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+            platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
+          this.platform.verboseLog(msg);
+        }
       }
     } catch(e) {
       const msg = (e instanceof Error) ? e.stack : e;
