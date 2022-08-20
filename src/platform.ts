@@ -68,8 +68,8 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL;
     this.config.version ??= packageJSON.version;
 
-    this.log.info('YoLink plugin for HomeBridge (c) 2022 David A. Kerr' + this.reportError);
-    this.verboseLog('Loaded configuaration:\n' + JSON.stringify(this.config));
+    this.log.info(`YoLink plugin for HomeBridge version ${packageJSON.version} (c) 2022 David A. Kerr${this.reportError}`);
+    this.verboseLog(`Loaded configuaration:\n${JSON.stringify(this.config)}`);
 
     this.yolinkAPI = new YoLinkAPI(this);
 

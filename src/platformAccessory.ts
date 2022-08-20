@@ -82,6 +82,8 @@ export class YoLinkPlatformAccessory {
         }
         // And finally call the device specific initialization...
         initDeviceService[device.type].bind(this)();
+      } else {
+        platform.log.warn(`Experimental device ${this.deviceMsgName} skipped. Enable experimental devices in config.`);
       }
     } else {
       // We do not have support for this device yet.
