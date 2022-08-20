@@ -27,7 +27,8 @@ Currently supports the following devices:
 * Weatherproof Temperature and Humidity Sensor
 * Door Sensor (as a contact sensor)
 * Key fob remote (as stateless programmable switch)
-* Siren / Switch (experimental)
+* Siren (as a switch)
+* Switch
 * Outlet (single)
 
 The plugin registers as a MQTT client and subscribes to reports published by YoLink for real time alerts and status updates.
@@ -44,7 +45,7 @@ Search for "yolink" in [homebridge-config-ui-x](https://github.com/oznu/homebrid
 sudo npm install -g homebridge-yolink
 ```
 
-YoLink status is retrieved over the internet. While the plugin maintains a status cache, you may consider use of Homebridge [child bridge](https://github.com/homebridge/homebridge/wiki/Child-Bridges).
+YoLink status is retrieved over the internet. While the plugin maintains a status cache, **use of Homebridge [child bridge](https://github.com/homebridge/homebridge/wiki/Child-Bridges)** is strongly encouraged.  As noted below in the *network resiliency* section, this plugin will make multiple attempts to fulfill a request if necessary, which can take time.
 
 ## Configuration
 
@@ -169,11 +170,11 @@ Simultaneously pressing more than one button will generate a long press signal f
 
 Some latency has been observed between pressing a button and it being reported by YoLink. Additional latency is incurred by waiting for a double-press event. If you never use double-press then a small reduction in latency can be achieved by setting the *doublePress* setting to zero.
 
-### Siren (experimental)
+### Siren
 
 A YoLink siren has been implemented as a switch which can be turned on or off in Homebridge/HomeKit.
 
-### Switch (experimental)
+### Switch
 
 A Switch device is implemented to support adding YoLink siren. This is untested, if you have a YoLink switch please report back.
 
@@ -195,7 +196,7 @@ Various strategies are employed in an attempt to handle an unstable network. If 
 
 For login and retrieving access tokens the plugin will retry indefinitely with 5 second initial delay, increasing by 5 seconds for each repeated attempt to a maximum of 60 seconds between retries. If the network goes down, then this should ensure that the connection to YoLink is reestablished within 60 seconds of network recoverd.
 
-For getting or setting device information the plugin will retry a maximum of 5 times before giving up. The initial retry delay is 2 seconds, incrementing by 2 seconds each time with a maximum interval of 10 seconds.
+For getting or setting device information the plugin will retry a maximum of 10 times before giving up. The initial retry delay is 2 seconds, incrementing by 2 seconds each time with a maximum interval of 10 seconds.  After all attempts it will fail with a message to log, but this will not terminate the plugin.
 
 The MQTT callback will attempt to reconnect, if necessary with login / access token retrieval that follow the above procedure.
 

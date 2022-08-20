@@ -69,7 +69,7 @@ function retryFn(platform, fn, retriesLeft = 5, interval = 2000, intervalInc = 2
           return;
         }
         const msg = (e instanceof Error) ? e.message : e;
-        platform.log.warn(`Retry ${fn.name} due to error, try again in ${Math.floor(interval/1000)} second(s): ${msg}`);
+        platform.liteLog(`Retry ${fn.name} due to error, try again in ${Math.floor(interval/1000)} second(s): ${msg}`);
         setTimeout(() => {
           retryFn(platform, fn, (retriesLeft) ? retriesLeft - 1 : 0, Math.min(interval+intervalInc, intervalMax), intervalInc, intervalMax)
             .then(resolve, reject);
@@ -299,9 +299,9 @@ export class YoLinkAPI {
    *
    */
   async getDeviceState(platform: YoLinkHomebridgePlatform, device): Promise<yolinkBUDP> {
-    // Retry 5 times. On failure retry after 1 seconds.  Add 1 seconds for
-    // each failure with maximum of 5 seconds between each retry.
-    return await retryFn(platform, this.tryGetDeviceState.bind(this, platform, device), 5, 1000, 1000, 5000) as yolinkBUDP;
+    // Retry 10 times. On failure retry after 2 seconds.  Add 2 seconds for
+    // each failure with maximum of 10 seconds between each retry.
+    return await retryFn(platform, this.tryGetDeviceState.bind(this, platform, device), 10, 2000, 2000, 10000) as yolinkBUDP;
   }
 
   async tryGetDeviceState(platform: YoLinkHomebridgePlatform, device) {
@@ -333,9 +333,9 @@ export class YoLinkAPI {
    *
    */
   async setDeviceState(platform: YoLinkHomebridgePlatform, device, state): Promise<yolinkBUDP> {
-    // Retry 5 times. On failure retry after 1 seconds.  Add 1 seconds for
+    // Retry 10 times. On failure retry after 2 seconds.  Add 2 seconds for
     // each failure with maximum of 5 seconds between each retry.
-    return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state), 5, 1000, 1000, 5000) as yolinkBUDP;
+    return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state), 10, 2000, 2000, 10000) as yolinkBUDP;
   }
 
   async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state) {
