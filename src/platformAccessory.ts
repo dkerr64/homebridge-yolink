@@ -128,7 +128,7 @@ export class YoLinkPlatformAccessory {
       }
     } catch(e) {
       const msg = (e instanceof Error) ? e.stack : e;
-      platform.log.error('Error in checkDeviceState' + platform.reportError + msg);
+      platform.log.info('Error in checkDeviceState' + platform.reportError + msg);
     }
     return(device.data);
   }

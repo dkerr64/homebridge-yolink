@@ -25,8 +25,8 @@ export const deviceFeatures = {
   Manipulator: { experimental: false, hasBattery: true },
   THSensor: { experimental: false, hasBattery: true },
   DoorSensor: { experimental: false, hasBattery: true },
-  Siren: { experimental: true, hasBattery: true },
-  Switch: { experimental: true, hasBattery: false },
+  Siren: { experimental: false, hasBattery: true },
+  Switch: { experimental: false, hasBattery: false },
   Outlet: { experimental: false, hasBattery: false },
   SmartRemoter: { experimental: false, hasBattery: true },
 };

@@ -23,9 +23,6 @@ export async function initUnknownDevice(this: YoLinkPlatformAccessory): Promise<
   platform.log.warn(`YoLink device type: '${device.type}' is not supported (${this.deviceMsgName}) (initialize)`
     + platform.reportError + JSON.stringify(device));
 
-  // As this is an unknown device, don't attempt to get data any more
-  // frequently than once an hour.
-  this.config.refreshAfter = Math.max(3600, this.config.refreshAfter);
   this.refreshDataTimer(handleGet.bind(this));
 }
 
