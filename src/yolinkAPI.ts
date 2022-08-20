@@ -16,8 +16,6 @@ import fetch from 'node-fetch';
 import Semaphore from 'semaphore-promise';
 import mqtt from 'mqtt';
 
-Error.stackTraceLimit = 100;
-
 // YoLink Basic Downlink Data Packet (BDDP) represents data format for
 // API requests sent TO YoLink.
 // See http://doc.yosmart.com/docs/protocol/datapacket
@@ -40,6 +38,9 @@ type yolinkBUDP = {
   msgid: string;
   code: string;
   desc: string;
+  data: {
+    [key: string]: any;
+  };
   [key: string]: any;
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -58,7 +59,7 @@ type yolinkAccessTokens = {
  * retryFn
  *
  */
-function retryFn(platform, fn, retriesLeft = 5, interval = 1000, intervalInc = 1000, intervalMax = 10000) {
+function retryFn(platform, fn, retriesLeft = 5, interval = 2000, intervalInc = 2000, intervalMax = 10000) {
   return new Promise((resolve, reject) => {
     fn()
       .then(resolve)
@@ -68,7 +69,7 @@ function retryFn(platform, fn, retriesLeft = 5, interval = 1000, intervalInc = 1
           return;
         }
         const msg = (e instanceof Error) ? e.message : e;
-        platform.log.error(`Retry ${fn.name} due to error:\n${msg}\ntry again in ${interval/1000} seconds`);
+        platform.log.warn(`Retry ${fn.name} due to error, try again in ${Math.floor(interval/1000)} second(s): ${msg}`);
         setTimeout(() => {
           retryFn(platform, fn, (retriesLeft) ? retriesLeft - 1 : 0, Math.min(interval+intervalInc, intervalMax), intervalInc, intervalMax)
             .then(resolve, reject);
@@ -92,7 +93,7 @@ function checkBudpStatus(budp) {
     throw(new Error(`YoLink API error: ${budp.msg}`));
   }
   if (budp.code && budp.code !== '000000') {
-    throw(new Error(`YoLink API error code: ${budp.code} ${budp.desc}`));
+    throw(new Error(`YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`));
   }
   return true;
 }
@@ -134,6 +135,7 @@ export class YoLinkAPI {
 
   constructor( private readonly platform: YoLinkHomebridgePlatform) {
     platform.verboseLog('YoLinkAPI.constructor');
+    Error.stackTraceLimit = 100;
 
     this.yolinkLoggedIn = false;
     this.yolinkHomeId = '';
@@ -165,7 +167,7 @@ export class YoLinkAPI {
     platform.log.info('Login to YoLink API with credentials from config');
 
     // Login to retrieve YoLink tokens
-    let timestamp = Math.floor(new Date().getTime() / 1000);
+    const timestamp = new Date().getTime();
     const params = new URLSearchParams();
     params.append('grant_type', 'client_credentials');
     params.append('client_id', platform.config.userAccessId);
@@ -176,13 +178,12 @@ export class YoLinkAPI {
     this.yolinkTokens = await response.json();
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(this.yolinkTokens));
     checkBudpStatus(this.yolinkTokens);
-    this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + timestamp;
+    this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp/1000);
     this.yolinkLoggedIn = true;
 
     // Now retrieve YoLink Home ID
-    timestamp = Math.floor(new Date().getTime() / 1000);
     const bddp: yolinkBDDP = {
-      time: timestamp,
+      time: new Date().getTime(),
       method: 'Home.getGeneralInfo',
     };
     platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
@@ -205,7 +206,7 @@ export class YoLinkAPI {
     platform.log.info('Starting interval timer to refresh accessToken every '
                         + Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + ' seconds');
     this.accessTokenHeartbeat = setInterval( () => {
-      platform.liteLog('Refresh access token timer fired');
+      platform.verboseLog('Refresh access token timer fired');
       this.getAccessToken(platform);
     }, this.yolinkTokens.expires_in * 1000 * this.accesstokenHeartbeatAt );
   }
@@ -217,10 +218,10 @@ export class YoLinkAPI {
   async getAccessToken(platform: YoLinkHomebridgePlatform):Promise<string> {
     // Infinitely retry. On failure retry after 5 seconds.  Add 5 seconds for
     // each failure with maximum of 60 seconds between each retry.
-    return String(await retryFn(platform, this.tryAccessToken.bind(this, platform), 0, 5000, 5000, 60000));
+    return String(await retryFn(platform, this.tryGetAccessToken.bind(this, platform), 0, 5000, 5000, 60000));
   }
 
-  async tryAccessToken(platform: YoLinkHomebridgePlatform): Promise<string> {
+  async tryGetAccessToken(platform: YoLinkHomebridgePlatform): Promise<string> {
     // need to serialize this
     const releaseSemaphore = await this.accessSemaphore.acquire();
     try {
@@ -231,8 +232,8 @@ export class YoLinkAPI {
         await this.login(platform);
       }
 
-      const timestamp = Math.floor(new Date().getTime() / 1000);
-      if (this.accessTokenExpireTime < timestamp) {
+      const timestamp = new Date().getTime();
+      if (this.accessTokenExpireTime < Math.floor(timestamp/1000)) {
       // We need to get a new access token, current one has or is about to expire
         platform.log.info('Current access token expired, or close to expiry, request new one');
         const params = new URLSearchParams();
@@ -246,12 +247,12 @@ export class YoLinkAPI {
         this.yolinkTokens = await response.json();
         platform.verboseLog('RECEIVED:\n' + JSON.stringify(this.yolinkTokens));
         checkBudpStatus(this.yolinkTokens);
-        this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + timestamp;
+        this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp/1000);
       }
     } catch(e) {
       // If error occurred that we probably need to login again.  Propogate the error up.
-      const msg = (e instanceof Error) ? e.message : e;
-      platform.log.error(`Error retrieving access token:\n${msg}`);
+      //const msg = (e instanceof Error) ? e.message : e;
+      //platform.log.error(`Error retrieving access token: ${msg}`);
       this.yolinkLoggedIn = false;
       throw(e);
     } finally {
@@ -265,12 +266,17 @@ export class YoLinkAPI {
    *
    */
   async getDeviceList(platform: YoLinkHomebridgePlatform) {
+    // Infinitely retry. On failure retry after 5 seconds.  Add 5 seconds for
+    // each failure with maximum of 60 seconds between each retry.
+    return await retryFn(platform, this.tryGetDeviceList.bind(this, platform), 0, 5000, 5000, 60000);
+  }
+
+  async tryGetDeviceList(platform: YoLinkHomebridgePlatform) {
     platform.verboseLog('YoLinkAPI.getDeviceList');
     const accessToken = await this.getAccessToken(platform);
 
-    const timestamp = Math.floor(new Date().getTime() / 1000);
     const bddp: yolinkBDDP = {
-      time: timestamp,
+      time: new Date().getTime(),
       method: 'Home.getDeviceList',
     };
     platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
@@ -284,7 +290,7 @@ export class YoLinkAPI {
     const budp: yolinkBUDP = await response.json();
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
     checkBudpStatus(budp);
-
+    platform.log.info(`YoLinkAPI.getDeviceList found ${budp.data.devices.length} devices`);
     return budp.data.devices;
   }
 
@@ -292,69 +298,69 @@ export class YoLinkAPI {
    * getDeviceState
    *
    */
-  async getDeviceState(platform: YoLinkHomebridgePlatform, device) {
-    platform.log.info('YoLinkAPI.getDeviceState for \'' + device.name +'\' (' + device.deviceId + ')');
+  async getDeviceState(platform: YoLinkHomebridgePlatform, device): Promise<yolinkBUDP> {
+    // Retry 5 times. On failure retry after 1 seconds.  Add 1 seconds for
+    // each failure with maximum of 5 seconds between each retry.
+    return await retryFn(platform, this.tryGetDeviceState.bind(this, platform, device), 5, 1000, 1000, 5000) as yolinkBUDP;
+  }
+
+  async tryGetDeviceState(platform: YoLinkHomebridgePlatform, device) {
+    platform.log.info(`YoLinkAPI.getDeviceState for ${device.name} (${device.deviceId})`);
     let budp: yolinkBUDP = undefined!;
-    try {
-      const accessToken = await this.getAccessToken(platform);
-      const timestamp = Math.floor(new Date().getTime() / 1000);
-      const bddp: yolinkBDDP = {
-        time: timestamp,
-        method: device.type + '.getState',
-        targetDevice: device.deviceId,
-        token: device.token,
-      };
-      platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
-      const response = await fetch(platform.config.apiURL,
-        { method: 'POST', body: JSON.stringify(bddp),
-          headers: { 'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + accessToken,
-          },
-        });
-      checkHttpStatus(response);
-      budp = await response.json();
-      platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
-      checkBudpStatus(budp);
-      return budp.data;
-    } catch(e) {
-      const msg = (e instanceof Error) ? e.message : e;
-      platform.log.error(`Error in getDeviceState may be recoverable:\n${msg}`);
-    }
+    const accessToken = await this.getAccessToken(platform);
+    const bddp: yolinkBDDP = {
+      time: new Date().getTime(),
+      method: device.type + '.getState',
+      targetDevice: device.deviceId,
+      token: device.token,
+    };
+    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
+    const response = await fetch(platform.config.apiURL,
+      { method: 'POST', body: JSON.stringify(bddp),
+        headers: { 'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + accessToken,
+        },
+      });
+    checkHttpStatus(response);
+    budp = await response.json();
+    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
+    checkBudpStatus(budp);
+    return budp;
   }
 
   /*********************************************************************
    * setDeviceState
    *
    */
-  async setDeviceState(platform: YoLinkHomebridgePlatform, device, state) {
-    platform.log.info('YoLinkAPI.setDeviceState for \'' + device.name +'\' (' + device.deviceId + ')');
+  async setDeviceState(platform: YoLinkHomebridgePlatform, device, state): Promise<yolinkBUDP> {
+    // Retry 5 times. On failure retry after 1 seconds.  Add 1 seconds for
+    // each failure with maximum of 5 seconds between each retry.
+    return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state), 5, 1000, 1000, 5000) as yolinkBUDP;
+  }
+
+  async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state) {
+    platform.log.info(`YoLinkAPI.setDeviceState for ${device.name} (${device.deviceId}): ${JSON.stringify(state)}`);
     let budp: yolinkBUDP = undefined!;
-    try {
-      const accessToken = await this.getAccessToken(platform);
-      const timestamp = Math.floor(new Date().getTime() / 1000);
-      const bddp: yolinkBDDP = {
-        time: timestamp,
-        method: device.type + '.setState',
-        targetDevice: device.deviceId,
-        token: device.token,
-        params: state,
-      };
-      platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
-      const response = await fetch(platform.config.apiURL,
-        { method: 'POST', body: JSON.stringify(bddp),
-          headers: { 'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + accessToken,
-          },
-        });
-      checkHttpStatus(response);
-      budp = await response.json();
-      platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
-      checkBudpStatus(budp);
-      return budp.data;
-    } catch(e) {
-      const msg = (e instanceof Error) ? e.message : e;
-      platform.log.error(`Error in setDeviceState may be recoverable:\n${msg}`);
-    }
+    const accessToken = await this.getAccessToken(platform);
+    const bddp: yolinkBDDP = {
+      time: new Date().getTime(),
+      method: device.type + '.setState',
+      targetDevice: device.deviceId,
+      token: device.token,
+      params: state,
+    };
+    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
+    const response = await fetch(platform.config.apiURL,
+      { method: 'POST', body: JSON.stringify(bddp),
+        headers: { 'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + accessToken,
+        },
+      });
+    checkHttpStatus(response);
+    budp = await response.json();
+    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
+    checkBudpStatus(budp);
+    return budp;
   }
 
   /*********************************************************************
@@ -403,8 +409,7 @@ export class YoLinkAPI {
 
     this.mqttClient.on('reconnect', () => {
       platform.log.info('mqtt reconnect, Connected: ' + this.mqttClient.connected);
-      const timestamp = Math.floor(new Date().getTime() / 1000);
-      if (timestamp < this.mqttTokenExpireTime) {
+      if (Math.floor(new Date().getTime()/1000) < this.mqttTokenExpireTime) {
         return;
       }
       // The access token we used to setup mqtt connection has or is about to expire.

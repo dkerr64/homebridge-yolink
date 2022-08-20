@@ -9,13 +9,11 @@ import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
-Error.stackTraceLimit = 100;
-
 /***********************************************************************
  * initOutletDevice
  *
  */
-export async function initOutletDevice(this: YoLinkPlatformAccessory, onState, setOn, setOff): Promise<void> {
+export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: string, setOn: string, setOff:string): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
@@ -39,6 +37,25 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState, s
  *
  * Example of message received.
  *
+ * {
+ *   "state":"open",
+ *   "delay":{
+ *     "ch":1,
+ *     "on":0,
+ *     "off":0
+ *   },
+ *   "power":0,
+ *   "watt":0,
+ *   "version":"040c",
+ *   "time":"2022-08-19T13:41:00.000Z",
+ *   "tz":-4,
+ *   "loraInfo":{
+ *     "signal":-64,
+ *     "gatewayId":"abcdef1234567890",
+ *     "gateways":1
+ *   }
+ * }
+ *
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -48,10 +65,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   try {
     const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
-      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state}`);
-      this.logDeviceState(new Date(device.data.reportAt),
-        `Outlet: ${device.data.state}, Battery: ${device.data.battery}`);
-      this.updateBatteryInfo.bind(this)();
+      this.logDeviceState(`Outlet: ${device.data.state}`);
       if (device.data.state === this.onState) {
         rc = true;
       }
@@ -72,6 +86,15 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  *
  * This is an example of JSON object returned.
  *
+ * {
+ *   "state":"open",
+ *   "loraInfo":{
+ *     "signal":-65,
+ *     "gatewayId":"abcdef1234567890",
+ *     "gateways":1
+ *   }
+ * }
+ *
  */
 async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -79,9 +102,8 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   const releaseSemaphore = await this.deviceSemaphore.acquire();
   try {
     const device = this.accessory.context.device;
-    platform.log.info(`setDeviceState for ${this.deviceMsgName}`);
     const newState = (value === true) ? this.setOn : this.setOff;
-    const data = await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState});
+    const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
     device.data.state = (data) ? data.state : false;
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -94,7 +116,75 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
 /***********************************************************************
  * mqttOutletDevice
  *
- * Example of message received.
+ * Examples of message received.
+ *
+ * {
+ *   "event":"Outlet.Report",
+ *   "time":1660957701877,
+ *   "msgid":"1660957701876",
+ *   "data":{
+ *     "state":"closed",
+ *     "delay":{
+ *       "ch":1,
+ *       "on":0,
+ *       "off":0
+ *     },
+ *     "power":0,
+ *     "watt":0,
+ *     "version":"040c",
+ *     "time":"2022-08-19T13:08:21.000Z",
+ *     "tz":-4,
+ *     "alertType":{
+ *       "overload":false,
+ *       "lowLoad":false,
+ *       "remind":false
+ *     },
+ *     "loraInfo":{
+ *       "signal":-52,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
+ *
+ * ============================
+ * {
+ *   "event":"Outlet.StatusChange",
+ *   "time":1660959181109,
+ *   "msgid":"1660959181108",
+ *   "data":{
+ *     "state":"open",
+ *     "alertType":{
+ *       "overload":false,
+ *       "lowLoad":false,
+ *       "remind":false
+ *     },
+ *     "loraInfo":{
+ *       "signal":-59,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
+ *
+ * ============================
+ * {
+ *   "event":"Outlet.setSchedules",
+ *   "time":1660958939611,
+ *   "msgid":"1660958939611",
+ *   "data":{
+ *     "0":{
+ *       "isValid":true,
+ *       "week":127,
+ *       "index":0,
+ *       "on":"20:0",
+ *       "off":"21:0"
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
  *
  */
 export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
@@ -114,6 +204,8 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
       case 'getState':
         // falls through
       case 'setState':
+        // falls through
+      case 'StatusChange':
         if (!device.data) {
         // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
@@ -122,15 +214,22 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
         // if we received a message then device must be online
         device.data.online = true;
         // Merge received data into existing data object
-        Object.assign(device.data.state, message.data);
-        // mqtt data does not include a report time, so merging the objects leaves current
-        // unchanged. As we use this to control when to log new data, update the time string.
-        device.data.reportAt = new Date(parseInt(message.msgid)).toISOString();
-        platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
-        this.updateBatteryInfo.bind(this)();
+        Object.assign(device.data, message.data);
+        this.logDeviceState(`Outlet: ${device.data.state} (MQTT: ${message.event})`);
         this.outletService
-          .updateCharacteristic(platform.Characteristic.On,
-            (message.data.state === this.onState) ? true : false);
+          .updateCharacteristic(platform.Characteristic.On, (message.data.state === this.onState) ? true : false);
+        break;
+      case 'setDelay':
+        // falls through
+      case 'getSchedules':
+        // falls through
+      case 'setSchedules':
+        // falls through
+      case 'setInitState':
+        // falls through
+      case 'setTimeZone':
+        // nothing to update in HomeKit
+        this.logDeviceState(`Unsupported message (MQTT: ${message.event})`);
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
