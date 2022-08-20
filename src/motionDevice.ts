@@ -9,8 +9,6 @@ import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
-Error.stackTraceLimit = 100;
-
 /***********************************************************************
  * initMotionSensor
  *
@@ -79,9 +77,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       this.motionService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      this.logDeviceState(new Date(device.data.reportAt),
-        `Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, DevTemp: ${device.data.state.devTemperature}`);
-      this.updateBatteryInfo.bind(this)();
+      this.logDeviceState(`Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
+                          `DevTemp: ${device.data.state.devTemperature}`);
       rc = (device.data.state.state === 'alert');
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
@@ -172,11 +169,13 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
-        // mqtt data does not include a report time, so merging the objects leaves current
-        // unchanged. As we use this to control when to log new data, update the time string.
-        device.data.reportAt = new Date(parseInt(message.msgid)).toISOString();
-        platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
-        this.updateBatteryInfo.bind(this)();
+        if (!message.data.reportAt) {
+          // mqtt data does not include a report time, so merging the objects leaves current
+          // unchanged, update the time string.
+          device.data.reportAt = this.reportAtTime.toISOString();
+        }
+        this.logDeviceState(`Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
+                            `DevTemp: ${device.data.state.devTemperature} (MQTT: ${message.event})`);
         this.motionService
           .updateCharacteristic(platform.Characteristic.MotionDetected,
             (message.data.state === 'alert') ? true : false )

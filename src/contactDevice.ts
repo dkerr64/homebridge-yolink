@@ -9,8 +9,6 @@ import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
-Error.stackTraceLimit = 100;
-
 /***********************************************************************
  * initContactSensor
  *
@@ -66,9 +64,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       if (device.data.state.state === 'closed') {
         rc = platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED;
       }
-      this.logDeviceState(new Date(device.data.reportAt),
-        `Contact: ${device.data.state.state}, Battery: ${device.data.state.battery}`);
-      this.updateBatteryInfo.bind(this)();
+      this.logDeviceState(`Contact: ${device.data.state.state}, Battery: ${device.data.state.battery}`);
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
       this.contactService
@@ -155,11 +151,12 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
-        // mqtt data does not include a report time, so merging the objects leaves current
-        // unchanged. As we use this to control when to log new data, update the time string.
-        device.data.reportAt = new Date(parseInt(message.msgid)).toISOString();
-        platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
-        this.updateBatteryInfo.bind(this)();
+        if (!message.data.reportAt) {
+          // mqtt data does not include a report time, so merging the objects leaves current
+          // unchanged, update the time string.
+          device.data.reportAt = this.reportAtTime.toISOString();
+        }
+        this.logDeviceState(`Contact: ${device.data.state.state}, Battery: ${device.data.state.battery} (MQTT: ${message.event})`);
         this.contactService
           .updateCharacteristic(platform.Characteristic.ContactSensorState,
             (message.data.state === 'closed')

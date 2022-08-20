@@ -9,8 +9,6 @@ import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
-Error.stackTraceLimit = 100;
-
 /***********************************************************************
  * initThermoHydroDevice
  * Initialise the temperature and humidity device services.
@@ -97,10 +95,8 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Prom
   try {
     const device = this.accessory.context.device;
     if (await this.checkDeviceState(platform, device) && device.data.online) {
-      this.logDeviceState(new Date(device.data.reportAt),
-        `Temperature ${device.data.state.temperature}, Humidity ${device.data.state.humidity}, ` +
-        `Battery: ${device.data.state.battery} (Requested: ${sensor})`);
-      this.updateBatteryInfo.bind(this)();
+      this.logDeviceState(`Temperature ${device.data.state.temperature}, Humidity ${device.data.state.humidity}, ` +
+                          `Battery: ${device.data.state.battery} (Requested: ${sensor})`);
       if (this.thermoService) {
         this.thermoService
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
@@ -213,12 +209,13 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
-        // mqtt data does not include a report time, so merging the objects leaves current
-        // unchanged. As we use this to control when to log new data, update the time string.
-        device.data.reportAt = new Date(parseInt(message.msgid)).toISOString();
-        platform.log.info(`${mqttMessage} Temperature: ${message.data.temperature}, Humidity: ${message.data.humidity}, ` +
-                          `Battery: ${message.data.battery}`);
-        this.updateBatteryInfo.bind(this)();
+        if (!message.data.reportAt) {
+          // mqtt data does not include a report time, so merging the objects leaves current
+          // unchanged, update the time string.
+          device.data.reportAt = this.reportAtTime.toISOString();
+        }
+        this.logDeviceState(`Temperature ${device.data.state.temperature}, Humidity ${device.data.state.humidity}, ` +
+                            `Battery: ${device.data.state.battery} (MQTT: ${message.event})`);
         if (this.thermoService) {
           this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
         }

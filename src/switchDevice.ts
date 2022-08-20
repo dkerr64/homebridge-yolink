@@ -9,8 +9,6 @@ import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
-Error.stackTraceLimit = 100;
-
 /***********************************************************************
  * initSwitchDevice
  *
@@ -68,10 +66,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   try {
     const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
-      platform.liteLog(`Device state for ${this.deviceMsgName} is: ${device.data.state}`);
-      this.logDeviceState(new Date(device.data.reportAt),
-        `Switch: ${device.data.state}, Battery: ${device.data.battery}`);
-      this.updateBatteryInfo.bind(this)();
+      const batteryMsg = (this.hasBattery) ? `, Battery: ${device.data.battery}`: '';
+      this.logDeviceState(`Switch: ${device.data.state}${batteryMsg}`);
       if (device.data.state === this.onState) {
         rc = true;
       }
@@ -109,9 +105,8 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   const releaseSemaphore = await this.deviceSemaphore.acquire();
   try {
     const device = this.accessory.context.device;
-    platform.log.info(`setDeviceState for ${this.deviceMsgName}`);
     const newState = (value === true) ? this.setOn : this.setOff;
-    const data = await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState});
+    const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
     device.data.state = (data) ? data.state : false;
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -173,6 +168,7 @@ export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): 
     device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
     const event = message.event.split('.');
+    const batteryMsg = (this.hasBattery) ? `, Battery: ${message.data.battery}`: '';
 
     switch (event[1]) {
       case 'Report':
@@ -180,6 +176,8 @@ export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): 
       case 'getState':
         // falls through
       case 'setState':
+        // falls through
+      case 'StatusChange':
         if (!device.data) {
         // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
@@ -188,15 +186,23 @@ export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): 
         // if we received a message then device must be online
         device.data.online = true;
         // Merge received data into existing data object
-        Object.assign(device.data.state, message.data);
-        // mqtt data does not include a report time, so merging the objects leaves current
-        // unchanged. As we use this to control when to log new data, update the time string.
-        device.data.reportAt = new Date(parseInt(message.msgid)).toISOString();
-        platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
-        this.updateBatteryInfo.bind(this)();
+        Object.assign(device.data, message.data);
+        this.logDeviceState(`Switch: ${device.data.state}${batteryMsg} (MQTT: ${message.event})`);
         this.switchService
           .updateCharacteristic(platform.Characteristic.On,
             (message.data.state === this.onState) ? true : false);
+        break;
+      case 'setDelay':
+        // falls through
+      case 'getSchedules':
+        // falls through
+      case 'setSchedules':
+        // falls through
+      case 'setInitState':
+        // falls through
+      case 'setTimeZone':
+        // nothing to update in HomeKit
+        this.logDeviceState(`Unsupported message (MQTT: ${message.event})`);
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));

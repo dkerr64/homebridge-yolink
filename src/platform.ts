@@ -29,8 +29,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 import { YoLinkAPI } from './yolinkAPI';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const issuesURL = require('../package.json').bugs.url;
-Error.stackTraceLimit = 100;
+const packageJSON = require('../package.json');
 
 export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
@@ -42,7 +41,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
 
   public yolinkAPI: YoLinkAPI;
 
-  public reportError = '\nPlease report all bugs at ' + issuesURL + '\n';
+  public reportError = '\nPlease report all bugs at ' + packageJSON.bugs.url + '\n';
 
   /*********************************************************************
    * constructor
@@ -52,6 +51,8 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     public readonly log: Logger,
     public readonly config: PlatformConfig,
     public readonly api: API) {
+
+    Error.stackTraceLimit = 100;
     // transforms array of devices into object that can be referrenced by deviceId...
     const devices = {};
     if (this.config.devices) {
@@ -65,6 +66,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.apiURL ??= YOLINK_API_URL;
     this.config.tokenURL ??= YOLINK_TOKEN_URL;
     this.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL;
+    this.config.version ??= packageJSON.version;
 
     this.log.info('YoLink plugin for HomeBridge (c) 2022 David A. Kerr' + this.reportError);
     this.verboseLog('Loaded configuaration:\n' + JSON.stringify(this.config));
@@ -76,7 +78,6 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     // in order to ensure they weren't added to homebridge already. This event can also be used
     // to start discovery of new accessories.
     this.api.on('didFinishLaunching', () => {
-      this.verboseLog('Executing didFinishLaunching callback');
       this.discoverDevices();
     });
   }

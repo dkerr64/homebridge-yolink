@@ -9,8 +9,6 @@ import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
-Error.stackTraceLimit = 100;
-
 /***********************************************************************
  * initStatelessSwitch
  *
@@ -32,7 +30,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
     .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet( () => {
       return(this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
     });
-  platform.log.info(`Initialize stateless programmable switch with ${nButtons} button${(nButtons>1)?'s':''}`);
+  platform.verboseLog(`Initialize stateless programmable switch with ${nButtons} button${(nButtons>1)?'s':''}`);
   for (let i = 0; i < nButtons; i++) {
     this.button.push({});
     this.button[i].timestamp = 0;
@@ -81,9 +79,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
       // const reportTime = new Date(device.data.reportAt).getTime();
-      this.logDeviceState(new Date(device.data.reportAt),
-        `${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, DevTemp: ${device.data.state.devTemperature}`);
-      this.updateBatteryInfo.bind(this)();
+      this.logDeviceState(`${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
+                          `DevTemp: ${device.data.state.devTemperature}`);
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
     }
@@ -172,9 +169,13 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
-        // mqtt data does not include a report time, so merging the objects leaves current
-        // unchanged. As we use this to control when to log new data, update the time string.
-        device.data.reportAt = new Date(parseInt(message.msgid)).toISOString();
+        if (!message.data.reportAt) {
+          // mqtt data does not include a report time, so merging the objects leaves current
+          // unchanged, update the time string.
+          device.data.reportAt = this.reportAtTime.toISOString();
+        }
+        this.logDeviceState(`${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
+                            `DevTemp: ${device.data.state.devTemperature} (MQTT: ${message.event})`);
         // loop through all possible buttons...
         for (let i=0, b=message.data.event.keyMask; b; i++, b=b>>>1) {
           // if keyMask is set for this button then process the message...
@@ -206,7 +207,6 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
             }
           }
         }
-        this.updateBatteryInfo.bind(this)();
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));

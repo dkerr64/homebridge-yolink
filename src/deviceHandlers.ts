@@ -6,6 +6,7 @@
  *
  */
 import { YoLinkPlatformAccessory } from './platformAccessory';
+import { initHubDevice, mqttHubDevice } from './hubDevice';
 import { initMotionSensor, mqttMotionSensor } from './motionDevice';
 import { initLeakSensor, mqttLeakSensor } from './leakDevice';
 import { initValveDevice, mqttValveDevice } from './valveDevice';
@@ -16,6 +17,8 @@ import { initOutletDevice, mqttOutletDevice } from './outletDevice';
 import { initStatelessSwitch, mqttStatelessSwitch } from './statelessSwitch';
 
 export const deviceFeatures = {
+  Hub: { experimental: false, hasBattery: false },
+  SpeakerHub: { experimental: false, hasBattery: false },
   VibrationSensor: { experimental: false, hasBattery: true },
   MotionSensor: { experimental: false, hasBattery: true },
   LeakSensor: { experimental: false, hasBattery: true },
@@ -29,6 +32,8 @@ export const deviceFeatures = {
 };
 
 export const initDeviceService = {
+  Hub(this: YoLinkPlatformAccessory) { initHubDevice.bind(this)(); },
+  SpeakerHub(this: YoLinkPlatformAccessory) { initHubDevice.bind(this)(); },
   VibrationSensor(this: YoLinkPlatformAccessory) { initMotionSensor.bind(this)(); },
   MotionSensor(this: YoLinkPlatformAccessory) { initMotionSensor.bind(this)(); },
   LeakSensor(this: YoLinkPlatformAccessory) { initLeakSensor.bind(this)(); },
@@ -36,12 +41,14 @@ export const initDeviceService = {
   THSensor(this: YoLinkPlatformAccessory) { initThermoHydroDevice.bind(this)(); },
   DoorSensor(this: YoLinkPlatformAccessory) { initContactSensor.bind(this)(); },
   Siren(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('alert', {'alarm':true}, {'alarm':false}); },
-  Switch(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('closed', 'close', 'open'); },
-  Outlet(this: YoLinkPlatformAccessory) { initOutletDevice.bind(this)('closed', 'close', 'open'); },
+  Switch(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('open', 'open', 'close'); },
+  Outlet(this: YoLinkPlatformAccessory) { initOutletDevice.bind(this)('open', 'open', 'close'); },
   SmartRemoter(this: YoLinkPlatformAccessory) { initStatelessSwitch.bind(this)(4); },
 };
 
 export const mqttHandler = {
+  Hub(this: YoLinkPlatformAccessory, data) { mqttHubDevice.bind(this)(data); },
+  SpeakerHub(this: YoLinkPlatformAccessory, data) { mqttHubDevice.bind(this)(data); },
   VibrationSensor(this: YoLinkPlatformAccessory, data) { mqttMotionSensor.bind(this)(data); },
   MotionSensor(this: YoLinkPlatformAccessory, data) { mqttMotionSensor.bind(this)(data); },
   LeakSensor(this: YoLinkPlatformAccessory, data) { mqttLeakSensor.bind(this)(data); },

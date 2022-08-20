@@ -9,8 +9,6 @@ import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
-Error.stackTraceLimit = 100;
-
 /***********************************************************************
  * initValveDevice
  *
@@ -71,9 +69,7 @@ async function handleGet(this: YoLinkPlatformAccessory, request = 'Active'): Pro
       if (device.data.state === 'open') {
         rc = platform.api.hap.Characteristic.Active.ACTIVE;
       }
-      this.logDeviceState(new Date(device.data.time),
-        `Valve (${request}): ${device.data.state}, Battery: ${device.data.battery}`);
-      this.updateBatteryInfo.bind(this)();
+      this.logDeviceState(`Valve (${request}): ${device.data.state}, Battery: ${device.data.battery}`);
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
       this.valveService
@@ -93,7 +89,6 @@ async function handleGet(this: YoLinkPlatformAccessory, request = 'Active'): Pro
  *
  */
 async function handleInUse(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
-  // this.platform.liteLog(`Valve in use state for ${this.deviceMsgName}, calling isActive`);
   // Apple HomeKit documentation defines In Use as fluid is flowing through valve.
   // We will assume that if the valve is open, then fluid is flowing...
   return await handleGet.bind(this)('InUse');
@@ -118,10 +113,8 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   const releaseSemaphore = await this.deviceSemaphore.acquire();
   try {
     const device = this.accessory.context.device;
-    platform.log.info(`setDeviceState for ${this.deviceMsgName}`);
     const newState = (value === platform.api.hap.Characteristic.Active.ACTIVE) ? 'open' : 'close';
-
-    const data = await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState});
+    const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
     device.data.state = (data) ? data.state : '';
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -212,11 +205,7 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
-        // mqtt data does not include a report time, so merging the objects leaves current
-        // unchanged. As we use this to control when to log new data, update the time string.
-        device.data.reportAt = new Date(parseInt(message.msgid)).toISOString();
-        platform.log.info(`${mqttMessage} State: '${message.data.state}'`);
-        this.updateBatteryInfo.bind(this)();
+        this.logDeviceState(`Valve: ${device.data.state}, Battery: ${device.data.battery} (MQTT: ${message.event})`);
         this.valveService
           .updateCharacteristic(platform.Characteristic.Active,
             (message.data.state === 'open')
