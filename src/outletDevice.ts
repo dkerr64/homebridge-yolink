@@ -228,6 +228,8 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
       case 'setInitState':
         // falls through
       case 'setTimeZone':
+        // falls through
+      case 'powerReport':
         // nothing to update in HomeKit
         this.logDeviceState(`Unsupported message (MQTT: ${message.event})`);
         break;
