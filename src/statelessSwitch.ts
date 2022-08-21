@@ -33,7 +33,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   platform.verboseLog(`Initialize stateless programmable switch with ${nButtons} button${(nButtons>1)?'s':''}`);
   for (let i = 0; i < nButtons; i++) {
     this.button.push({});
-    this.button[i].timestamp = 0;
+    this.button[i].timestamp = 0; // used to detect double press
     this.button[i].statelessService = accessory.getService(`Button ${i+1}`)
                                    || accessory.addService(platform.Service.StatelessProgrammableSwitch, `Button ${i+1}`, `button${i+1}`);
     this.button[i].statelessService
