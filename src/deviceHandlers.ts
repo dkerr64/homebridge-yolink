@@ -29,6 +29,7 @@ export const deviceFeatures = {
   Switch: { experimental: false, hasBattery: false },
   Outlet: { experimental: false, hasBattery: false },
   SmartRemoter: { experimental: false, hasBattery: true },
+  MultiOutlet: { experimental: true, hasBattery: false },
 };
 
 export const initDeviceService = {
@@ -42,8 +43,9 @@ export const initDeviceService = {
   DoorSensor(this: YoLinkPlatformAccessory) { initContactSensor.bind(this)(); },
   Siren(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('alert', {'alarm':true}, {'alarm':false}); },
   Switch(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('open', 'open', 'close'); },
-  Outlet(this: YoLinkPlatformAccessory) { initOutletDevice.bind(this)('open', 'open', 'close'); },
+  Outlet(this: YoLinkPlatformAccessory) { initOutletDevice.bind(this)(1, 'open', 'open', 'close'); },
   SmartRemoter(this: YoLinkPlatformAccessory) { initStatelessSwitch.bind(this)(4); },
+  MultiOutlet(this: YoLinkPlatformAccessory) { initOutletDevice.bind(this)(4, 'open', 'open', 'close'); },
 };
 
 export const mqttHandler = {
@@ -59,4 +61,5 @@ export const mqttHandler = {
   Switch(this: YoLinkPlatformAccessory, data) { mqttSwitchDevice.bind(this)(data); },
   Outlet(this: YoLinkPlatformAccessory, data) { mqttOutletDevice.bind(this)(data); },
   SmartRemoter(this: YoLinkPlatformAccessory, data) { mqttStatelessSwitch.bind(this)(data); },
+  MultiOutlet(this: YoLinkPlatformAccessory, data) { mqttOutletDevice.bind(this)(data); },
 };

@@ -1,5 +1,5 @@
 /***********************************************************************
- * YoLink outlet device support
+ * YoLink outlet and multi-outlet device support
  *
  * Copyright (c) 2022 David Kerr
  *
@@ -13,23 +13,66 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
  * initOutletDevice
  *
  */
-export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: string, setOn: string, setOff:string): Promise<void> {
+export async function initOutletDevice(this: YoLinkPlatformAccessory,
+  nOutlets = 1, onState: string, setOn: string, setOff:string): Promise<void> {
+
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
+  this.nOutlets = nOutlets;
   this.onState = onState;
   this.setOn = setOn;
   this.setOff = setOff;
+  this.outlet = [];
 
-  this.outletService = accessory.getService(platform.Service.Outlet) || accessory.addService(platform.Service.Outlet);
-  this.outletService.setCharacteristic(platform.Characteristic.Name, device.name);
-  this.outletService.getCharacteristic(platform.Characteristic.On)
-    .onGet(handleGet.bind(this))
-    .onSet(handleSet.bind(this));
+  if (nOutlets === 1) {
+    this.outlet.push({});
+    this.outlet[0].outletService = accessory.getService(platform.Service.Outlet)
+                                || accessory.addService(platform.Service.Outlet);
+    this.outlet[0].outletService
+      .setCharacteristic(platform.Characteristic.Name, device.name);
+    this.outlet[0].outletService
+      .getCharacteristic(platform.Characteristic.On)
+      .onGet(handleGet.bind(this, 0))
+      .onSet(handleSet.bind(this, 0));
+  } else {
+    // For multiple outlet devices the first "outlet" is a master switch
+    this.switchService = accessory.getService(platform.Service.Switch)
+                      || accessory.addService(platform.Service.Switch);
+    this.switchService
+      .setCharacteristic(platform.Characteristic.Name, device.name);
+    this.switchService
+      .getCharacteristic(platform.Characteristic.On)
+      .onGet(handleGet.bind(this, 0))
+      .onSet(handleSet.bind(this, 0));
+    // And as we are adding multiple services of the same type, we need
+    // a ServiceLabel service.
+    this.serviceLabel = accessory.getService(platform.Service.ServiceLabel)
+                     || accessory.addService(platform.Service.ServiceLabel);
+    this.serviceLabel
+      .setCharacteristic(platform.Characteristic.Name, device.name);
+    this.serviceLabel
+      .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet( () => {
+        return(this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
+      });
+    // Now add each of the outlets
+    for (let i = 0; i < this.nOutlets; i++) {
+      this.outlet.push({});
+      this.outlet[i].outletService = accessory.getService(`Outlet ${i+1}`)
+                                  || accessory.addService(platform.Service.Outlet, `Outlet ${i+1}`, `outlet${i+1}`);
+      this.outlet[i].outletService
+        .setCharacteristic(platform.Characteristic.Name, device.name + ` Outlet ${i+1}`)
+        .setCharacteristic(platform.Characteristic.ServiceLabelIndex, i+1);
+      this.outlet[i].outletService
+        .getCharacteristic(platform.Characteristic.On)
+        .onGet(handleGet.bind(this, i+1))
+        .onSet(handleSet.bind(this, i+1));
+    }
+  }
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this));
+  this.refreshDataTimer(handleGet.bind(this, 0));
 }
 
 /***********************************************************************
@@ -56,8 +99,29 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
  *   }
  * }
  *
+ * For MultiOutlet device...
+ * {
+ *   "state":["open","open","open","open","open","closed","closed","closed"],
+ *   "delays":[{
+ *     "ch":1,"on":0,"off":0
+ *   },{
+ *     "ch":2,"on":0,"off":0
+ *   },{
+ *     "ch":3,"on":0,"off":0
+ *   },{
+ *     "ch":4,"on":0,"off":0
+ *   }],
+ *   "version":"0108",
+ *   "tz":-4,
+ *   "loraInfo":{
+ *     "signal":-9,
+ *     "gatewayId":"abcdef1234567890",
+ *     "gateways":1
+ *   }
+ * }
+
  */
-async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
+async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
@@ -65,9 +129,17 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   try {
     const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
-      this.logDeviceState(`Outlet: ${device.data.state}`);
-      if (device.data.state === this.onState) {
-        rc = true;
+      if (this.nOutlets === 1) {
+        this.logDeviceState(`Outlet: ${device.data.state}`);
+        if (device.data.state === this.onState) {
+          rc = true;
+        }
+      } else {
+        // MultiOutlet device returns state as an array with index 0 the master switch
+        this.logDeviceState(`Outlet ${(outlet===0)?'master':outlet}: ${device.data.state[outlet]}`);
+        if (device.data.state[outlet] === this.onState) {
+          rc = true;
+        }
       }
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
@@ -96,15 +168,22 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  * }
  *
  */
-async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
+async function handleSet(this: YoLinkPlatformAccessory, outlet: number, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   // serialize access to device data.
   const releaseSemaphore = await this.deviceSemaphore.acquire();
   try {
     const device = this.accessory.context.device;
     const newState = (value === true) ? this.setOn : this.setOff;
-    const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
-    device.data.state = (data) ? data.state : false;
+    if (this.nOutlets === 1) {
+      const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
+      device.data.state = (data) ? data.state : false;
+    } else {
+      // MultiOutlet device
+      platform.log.info(`Set for outlet ${outlet} to value ${newState}`);
+      const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'chs':(1<<outlet), 'state':newState}))?.data;
+      device.data.state[outlet] = (data) ? data.state : false;
+    }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in OutletDevice handleGet' + platform.reportError + msg);
@@ -216,8 +295,17 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
         this.logDeviceState(`Outlet: ${device.data.state} (MQTT: ${message.event})`);
-        this.outletService
-          .updateCharacteristic(platform.Characteristic.On, (message.data.state === this.onState) ? true : false);
+        if (this.nOutlets === 1) {
+          this.outlet[0].outletService
+            .updateCharacteristic(platform.Characteristic.On, (message.data.state === this.onState) ? true : false);
+        } else {
+          this.switchService
+            .updateCharacteristic(platform.Characteristic.On, (message.data.state[0] === this.onState) ? true : false);
+          for (let i = 0; i < this.nOutlets; i++) {
+            this.outlet[i].outletService
+              .updateCharacteristic(platform.Characteristic.On, (message.data.state[i+1] === this.onState) ? true : false);
+          }
+        }
         break;
       case 'setDelay':
         // falls through
