@@ -22,14 +22,17 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   this.config.doublePress ??= (platform.config.doublePress ??= 800);
   this.button = [];
 
-  this.serviceLabel = accessory.getService(platform.Service.ServiceLabel)
+  if (nButtons > 1) {
+    // serviceLabel required when multiple services of same type on one accessory
+    this.serviceLabel = accessory.getService(platform.Service.ServiceLabel)
                    || accessory.addService(platform.Service.ServiceLabel);
-  this.serviceLabel
-    .setCharacteristic(platform.Characteristic.Name, device.name);
-  this.serviceLabel
-    .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet( () => {
-      return(this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
-    });
+    this.serviceLabel
+      .setCharacteristic(platform.Characteristic.Name, device.name);
+    this.serviceLabel
+      .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet( () => {
+        return(this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
+      });
+  }
   platform.verboseLog(`Initialize stateless programmable switch with ${nButtons} button${(nButtons>1)?'s':''}`);
   for (let i = 0; i < nButtons; i++) {
     this.button.push({});
@@ -37,8 +40,11 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
     this.button[i].statelessService = accessory.getService(`Button ${i+1}`)
                                    || accessory.addService(platform.Service.StatelessProgrammableSwitch, `Button ${i+1}`, `button${i+1}`);
     this.button[i].statelessService
-      .setCharacteristic(platform.Characteristic.Name, device.name + ` Button ${i+1}`)
-      .setCharacteristic(platform.Characteristic.ServiceLabelIndex, i+1);
+      .setCharacteristic(platform.Characteristic.Name, device.name + (nButtons>1)?` Button ${i+1}`:'');
+    if (nButtons > 1) {
+      this.button[i].statelessService
+        .setCharacteristic(platform.Characteristic.ServiceLabelIndex, i+1);
+    }
     this.button[i].statelessService
       .getCharacteristic(platform.Characteristic.ProgrammableSwitchEvent)
       .onGet(handleGet.bind(this));
@@ -51,7 +57,6 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
  * handleGet
  *
  * Example of message received,
- *
  * {
  *   "online":true,
  *   "state":{
@@ -66,7 +71,6 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
  *   "deviceId":"abcdef1234567890",
  *   "reportAt":"2022-08-12T20:05:48.990Z"
  * }
- *
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;

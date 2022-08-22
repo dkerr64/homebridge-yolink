@@ -28,25 +28,16 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory,
 
   if (nOutlets === 1) {
     this.outlet.push({});
-    this.outlet[0].outletService = accessory.getService(platform.Service.Outlet)
-                                || accessory.addService(platform.Service.Outlet);
-    this.outlet[0].outletService
+    this.outlet[0].service = accessory.getService(platform.Service.Outlet)
+                          || accessory.addService(platform.Service.Outlet);
+    this.outlet[0].service
       .setCharacteristic(platform.Characteristic.Name, device.name);
-    this.outlet[0].outletService
+    this.outlet[0].service
       .getCharacteristic(platform.Characteristic.On)
       .onGet(handleGet.bind(this, 0))
       .onSet(handleSet.bind(this, 0));
   } else {
-    // For multiple outlet devices the first "outlet" is a master switch
-    this.switchService = accessory.getService(platform.Service.Switch)
-                      || accessory.addService(platform.Service.Switch);
-    this.switchService
-      .setCharacteristic(platform.Characteristic.Name, device.name);
-    this.switchService
-      .getCharacteristic(platform.Characteristic.On)
-      .onGet(handleGet.bind(this, 0))
-      .onSet(handleSet.bind(this, 0));
-    // And as we are adding multiple services of the same type, we need
+    // As we are adding multiple services of the same type, we need
     // a ServiceLabel service.
     this.serviceLabel = accessory.getService(platform.Service.ServiceLabel)
                      || accessory.addService(platform.Service.ServiceLabel);
@@ -56,18 +47,28 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory,
       .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet( () => {
         return(this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
       });
+    // For multiple outlet devices the first "outlet" is a switch for USB ports
+    this.outlet.push({});
+    this.outlet[0].service = accessory.getService(platform.Service.Switch)
+                          || accessory.addService(platform.Service.Switch);
+    this.outlet[0].service
+      .setCharacteristic(platform.Characteristic.Name, device.name + ' USB');
+    this.outlet[0].service
+      .getCharacteristic(platform.Characteristic.On)
+      .onGet(handleGet.bind(this, 0))
+      .onSet(handleSet.bind(this, 0));
     // Now add each of the outlets
-    for (let i = 0; i < this.nOutlets; i++) {
+    for (let i = 1; i <= this.nOutlets; i++) {
       this.outlet.push({});
-      this.outlet[i].outletService = accessory.getService(`Outlet ${i+1}`)
-                                  || accessory.addService(platform.Service.Outlet, `Outlet ${i+1}`, `outlet${i+1}`);
-      this.outlet[i].outletService
-        .setCharacteristic(platform.Characteristic.Name, device.name + ` Outlet ${i+1}`)
-        .setCharacteristic(platform.Characteristic.ServiceLabelIndex, i+1);
-      this.outlet[i].outletService
+      this.outlet[i].service = accessory.getService(`Outlet ${i}`)
+                            || accessory.addService(platform.Service.Outlet, `Outlet ${i}`, `outlet${i}`);
+      this.outlet[i].service
+        .setCharacteristic(platform.Characteristic.Name, device.name + ` Outlet ${i}`)
+        .setCharacteristic(platform.Characteristic.ServiceLabelIndex, i);
+      this.outlet[i].service
         .getCharacteristic(platform.Characteristic.On)
-        .onGet(handleGet.bind(this, i+1))
-        .onSet(handleSet.bind(this, i+1));
+        .onGet(handleGet.bind(this, i))
+        .onSet(handleSet.bind(this, i));
     }
   }
   // Call get handler to initialize data fields to current state and set
@@ -129,14 +130,13 @@ async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise
   try {
     const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
+      this.logDeviceState(`Outlet ${outlet}: ${device.data.state}`);
       if (this.nOutlets === 1) {
-        this.logDeviceState(`Outlet: ${device.data.state}`);
         if (device.data.state === this.onState) {
           rc = true;
         }
       } else {
         // MultiOutlet device returns state as an array with index 0 the master switch
-        this.logDeviceState(`Outlet ${(outlet===0)?'master':outlet}: ${device.data.state[outlet]}`);
         if (device.data.state[outlet] === this.onState) {
           rc = true;
         }
@@ -167,6 +167,23 @@ async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise
  *   }
  * }
  *
+ * And for a MultOutlet device...
+ * {
+ *   "code":"000000",
+ *   "time":1661131613258,
+ *   "msgid":1661131613258,
+ *   "method":"MultiOutlet.setState",
+ *   "desc":"Success",
+ *   "data":{
+ *     "state":["open","open","open","closed","closed","closed","closed","closed"],
+ *     "loraInfo":{
+ *       "signal":-7,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   }
+ * }
+ *
  */
 async function handleSet(this: YoLinkPlatformAccessory, outlet: number, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -176,13 +193,21 @@ async function handleSet(this: YoLinkPlatformAccessory, outlet: number, value: C
     const device = this.accessory.context.device;
     const newState = (value === true) ? this.setOn : this.setOff;
     if (this.nOutlets === 1) {
+      // Single outlet device
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
-      device.data.state = (data) ? data.state : false;
+      if (data) {
+        device.data.state = data.state;
+        this.outlet[0].service
+          .updateCharacteristic(platform.Characteristic.On, (data.state === this.onState) ? true : false);
+      }
     } else {
       // MultiOutlet device
-      platform.log.info(`Set for outlet ${outlet} to value ${newState}`);
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'chs':(1<<outlet), 'state':newState}))?.data;
-      device.data.state[outlet] = (data) ? data.state : false;
+      if (data) {
+        device.data.state[outlet] = data.state[outlet];
+        this.outlet[outlet].service
+          .updateCharacteristic(platform.Characteristic.On, (data.state[outlet] === this.onState) ? true : false);
+      }
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -296,14 +321,12 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
         Object.assign(device.data, message.data);
         this.logDeviceState(`Outlet: ${device.data.state} (MQTT: ${message.event})`);
         if (this.nOutlets === 1) {
-          this.outlet[0].outletService
+          this.outlet[0].service
             .updateCharacteristic(platform.Characteristic.On, (message.data.state === this.onState) ? true : false);
         } else {
-          this.switchService
-            .updateCharacteristic(platform.Characteristic.On, (message.data.state[0] === this.onState) ? true : false);
-          for (let i = 0; i < this.nOutlets; i++) {
-            this.outlet[i].outletService
-              .updateCharacteristic(platform.Characteristic.On, (message.data.state[i+1] === this.onState) ? true : false);
+          for (let i = 0; i <= this.nOutlets; i++) {
+            this.outlet[i].service
+              .updateCharacteristic(platform.Characteristic.On, (message.data.state[i] === this.onState) ? true : false);
           }
         }
         break;
