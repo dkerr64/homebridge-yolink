@@ -43,9 +43,9 @@ export const initDeviceService = {
   DoorSensor(this: YoLinkPlatformAccessory) { initContactSensor.bind(this)(); },
   Siren(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('alert', {'alarm':true}, {'alarm':false}); },
   Switch(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('open', 'open', 'close'); },
-  Outlet(this: YoLinkPlatformAccessory) { initOutletDevice.bind(this)(1, 'open', 'open', 'close'); },
-  SmartRemoter(this: YoLinkPlatformAccessory) { initStatelessSwitch.bind(this)(4); },
-  MultiOutlet(this: YoLinkPlatformAccessory) { initOutletDevice.bind(this)(4, 'open', 'open', 'close'); },
+  Outlet(this: YoLinkPlatformAccessory) { initOutletDevice.bind(this, 1)('open', 'open', 'close'); },
+  SmartRemoter(this: YoLinkPlatformAccessory) { initStatelessSwitch.bind(this, 4)(); },
+  MultiOutlet(this: YoLinkPlatformAccessory) { initOutletDevice.bind(this)(5, 'open', 'open', 'close'); },
 };
 
 export const mqttHandler = {
