@@ -84,7 +84,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     if( await this.checkDeviceState(platform, device) ) {
       // const reportTime = new Date(device.data.reportAt).getTime();
       this.logDeviceState(`${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
-                          `DevTemp: ${device.data.state.devTemperature}`);
+                          `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
+                          `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
     }
@@ -179,7 +180,8 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
           device.data.reportAt = this.reportAtTime.toISOString();
         }
         this.logDeviceState(`${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
-                            `DevTemp: ${device.data.state.devTemperature} (MQTT: ${message.event})`);
+                            `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
+                            `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F) (MQTT: ${message.event})`);
         // loop through all possible buttons...
         for (let i=0, b=message.data.event.keyMask; b; i++, b=b>>>1) {
           // if keyMask is set for this button then process the message...

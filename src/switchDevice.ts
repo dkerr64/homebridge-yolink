@@ -1,5 +1,5 @@
 /***********************************************************************
- * YoLink siren/switch device support (as a HomeKit switch)
+ * YoLink siren/switch/garage door/finger device support (as a HomeKit switch)
  *
  * Copyright (c) 2022 David Kerr
  *
@@ -18,10 +18,14 @@ export async function initSwitchDevice(this: YoLinkPlatformAccessory, onState, s
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
+  this.setMethod = 'setState';
   this.onState = onState;
   this.setOn = setOn;
   this.setOff = setOff;
 
+  if ((device.type === 'Finger') || (device.type === 'GarageDoor')) {
+    this.setMethod = 'toggle';
+  }
   this.switchService = accessory.getService(platform.Service.Switch) || accessory.addService(platform.Service.Switch);
   this.switchService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.switchService.getCharacteristic(platform.Characteristic.On)
@@ -57,6 +61,26 @@ export async function initSwitchDevice(this: YoLinkPlatformAccessory, onState, s
  *   },
  *   "deviceId":"abcdef1234567890"
  * }
+ *
+ * Example of Garage Door toggle...
+ *
+ * {
+ *   "code":"000000",
+ *   "time":1661296553000,
+ *   "msgid":1661296553000,
+ *   "method":"GarageDoor.getState",
+ *   "desc":"Success",
+ *   "data":{
+ *     "version":"060a",
+ *     "time":"2022-07-23T15:16:09.000Z",
+ *     "loraInfo":{
+ *       "signal":-67,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   }
+ * }
+ *
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -74,6 +98,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
     }
+
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in SwitchDevice handleGet' + platform.reportError + msg);
@@ -98,6 +123,24 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  *   }
  * }
  *
+ * Garage Door example...
+ *
+ * {
+ *   "code":"000000",
+ *   "time":1661293272749,
+ *   "msgid":1661293272749,
+ *   "method":"GarageDoor.toggle",
+ *   "desc":"Success",
+ *   "data":{
+ *     "stateChangedAt":1661293272748,
+ *     "loraInfo":{
+ *       "signal":-70,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   }
+ * }
+ *
  */
 async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -106,8 +149,22 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   try {
     const device = this.accessory.context.device;
     const newState = (value === true) ? this.setOn : this.setOff;
-    const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
-    device.data.state = (data) ? data.state : false;
+    if (this.onState === 'toggle') {
+      device.data.state = 'toggle';
+      this.switchService.updateCharacteristic(platform.Characteristic.On, true);
+    }
+    const data = (await platform.yolinkAPI.setDeviceState(platform, device, (newState)?{'state':newState}:undefined, this.setMethod))?.data;
+    // error will have been thrown in yolinkAPI if data not valid
+    device.data.state = data.state;
+    if (this.onState === 'toggle') {
+      // Set state to off after 1 second
+      setTimeout(() => {
+        device.data.state = undefined;
+        this.switchService.updateCharacteristic(platform.Characteristic.On, false);
+      }, 1000);
+    }
+    this.switchService
+      .updateCharacteristic(platform.Characteristic.On, (data.state === this.onState) ? true : false);
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in SwitchDevice handleGet' + platform.reportError + msg);

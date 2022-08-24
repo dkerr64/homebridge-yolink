@@ -115,7 +115,11 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
     const device = this.accessory.context.device;
     const newState = (value === platform.api.hap.Characteristic.Active.ACTIVE) ? 'open' : 'close';
     const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
-    device.data.state = (data) ? data.state : '';
+    // error will have been thrown in yolinkAPI if data not valid
+    device.data.state = data.state;
+    this.valveService
+      .updateCharacteristic(platform.Characteristic.Active, (data.state === 'open')
+        ? platform.api.hap.Characteristic.Active.ACTIVE : platform.api.hap.Characteristic.Active.INACTIVE);
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in ValveDevice handleSet' + platform.reportError + msg);

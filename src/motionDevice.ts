@@ -78,7 +78,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
       this.logDeviceState(`Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
-                          `DevTemp: ${device.data.state.devTemperature}`);
+                          `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
+                          `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
       rc = (device.data.state.state === 'alert');
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
@@ -175,7 +176,8 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
           device.data.reportAt = this.reportAtTime.toISOString();
         }
         this.logDeviceState(`Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
-                            `DevTemp: ${device.data.state.devTemperature} (MQTT: ${message.event})`);
+                            `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
+                            `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F) (MQTT: ${message.event})`);
         this.motionService
           .updateCharacteristic(platform.Characteristic.MotionDetected,
             (message.data.state === 'alert') ? true : false )

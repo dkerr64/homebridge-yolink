@@ -62,7 +62,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
         rc = platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED;
       }
       this.logDeviceState(`Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
-                          `DevTemp: ${device.data.state.devTemperature}`);
+                          `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
+                          `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
     } else {
       platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
       this.leakService
@@ -136,7 +137,8 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
           device.data.reportAt = this.reportAtTime.toISOString();
         }
         this.logDeviceState(`Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
-                            `DevTemp: ${device.data.state.devTemperature} (MQTT: ${message.event})`);
+                            `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
+                            `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F) (MQTT: ${message.event})`);
         this.leakService
           .updateCharacteristic(platform.Characteristic.LeakDetected,
             (message.data.state === 'alert')

@@ -13,20 +13,24 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
  * initOutletDevice
  *
  */
-export async function initOutletDevice(this: YoLinkPlatformAccessory,
-  nOutlets = 1, onState: string, setOn: string, setOff:string): Promise<void> {
+export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: string, setOn: string, setOff:string): Promise<void> {
 
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
-  this.nOutlets = nOutlets;
+  this.nOutlets = 1;
   this.onState = onState;
   this.setOn = setOn;
   this.setOff = setOff;
   this.outlet = [];
 
-  if (nOutlets === 1) {
+  if (device.type === 'MultiOutlet') {
+    // Default to 5 outlets (YoLink power strip has USB + 4 outlets)
+    this.nOutlets = platform.config.devices[device.deviceId]?.nOutlets ?? 5;
+  }
+
+  if (this.nOutlets === 1) {
     this.outlet.push({});
     this.outlet[0].service = accessory.getService(platform.Service.Outlet)
                           || accessory.addService(platform.Service.Outlet);
@@ -47,19 +51,7 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory,
       .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet( () => {
         return(this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
       });
-    // For multiple outlet devices the first "outlet" is USB ports
-    /*
-    this.outlet.push({});
-    this.outlet[0].service = accessory.getService(platform.Service.Switch)
-                          || accessory.addService(platform.Service.Switch);
-    this.outlet[0].service
-      .setCharacteristic(platform.Characteristic.Name, device.name + ' USB');
-    this.outlet[0].service
-      .getCharacteristic(platform.Characteristic.On)
-      .onGet(handleGet.bind(this, 0))
-      .onSet(handleSet.bind(this, 0));
-    */
-    // Now add each of the outlets
+    // Add each of the outlets (the first "outlet" may be USB ports)
     for (let i = 0; i < this.nOutlets; i++) {
       this.outlet.push({});
       this.outlet[i].service = accessory.getService(`Outlet ${i}`)
@@ -197,19 +189,17 @@ async function handleSet(this: YoLinkPlatformAccessory, outlet: number, value: C
     if (this.nOutlets === 1) {
       // Single outlet device
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
-      if (data) {
-        device.data.state = data.state;
-        this.outlet[0].service
-          .updateCharacteristic(platform.Characteristic.On, (data.state === this.onState) ? true : false);
-      }
+      // error will have been thrown in yolinkAPI if data not valid
+      device.data.state = data.state;
+      this.outlet[0].service
+        .updateCharacteristic(platform.Characteristic.On, (data.state === this.onState) ? true : false);
     } else {
       // MultiOutlet device
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'chs':(1<<outlet), 'state':newState}))?.data;
-      if (data) {
-        device.data.state[outlet] = data.state[outlet];
-        this.outlet[outlet].service
-          .updateCharacteristic(platform.Characteristic.On, (data.state[outlet] === this.onState) ? true : false);
-      }
+      // error will have been thrown in yolinkAPI if data not valid
+      device.data.state[outlet] = data.state[outlet];
+      this.outlet[outlet].service
+        .updateCharacteristic(platform.Characteristic.On, (data.state[outlet] === this.onState) ? true : false);
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
