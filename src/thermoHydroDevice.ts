@@ -95,7 +95,8 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Prom
   try {
     const device = this.accessory.context.device;
     if (await this.checkDeviceState(platform, device) && device.data.online) {
-      this.logDeviceState(`Temperature ${device.data.state.temperature}, Humidity ${device.data.state.humidity}, ` +
+      this.logDeviceState(`Temperature ${device.data.state.temperature}\u00B0C ` +
+                          `(${(device.data.state.temperature*9/5+32).toFixed(1)}\u00B0F), Humidity ${device.data.state.humidity}, ` +
                           `Battery: ${device.data.state.battery} (Requested: ${sensor})`);
       if (this.thermoService) {
         this.thermoService
@@ -214,7 +215,8 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
           // unchanged, update the time string.
           device.data.reportAt = this.reportAtTime.toISOString();
         }
-        this.logDeviceState(`Temperature ${device.data.state.temperature}, Humidity ${device.data.state.humidity}, ` +
+        this.logDeviceState(`Temperature ${device.data.state.temperature}\u00B0C ` +
+                            `(${(device.data.state.temperature*9/5+32).toFixed(1)}\u00B0F), Humidity ${device.data.state.humidity}, ` +
                             `Battery: ${device.data.state.battery} (MQTT: ${message.event})`);
         if (this.thermoService) {
           this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);

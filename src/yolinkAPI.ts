@@ -117,10 +117,10 @@ export class YoLinkAPI {
   private yolinkLoggedIn: boolean;
   private accessSemaphore;
 
-  private accessTokenRefreshAt = 0.90;    //test with 0.005, production 0.90
+  private accessTokenRefreshAt = 0.90;    // test with 0.005, production 0.90
   private accesstokenHeartbeatAt = 0.95;  // test with 0.008, production 0.95
   // Access Token heartbeat and refresh are percentage of the expire_in time.
-  // Heartbeat at must be larger than refresh at to ensure that when the interval
+  // HeartbeatAt must be larger than refresh at to ensure that when the interval
   // timer fires and calls getAccessToken, the refresh time has already expired
   // which will force requesting new access token from YoLink.
   // At time of writing, YoLink access tokens have a 7200 second (2 hour) expire
@@ -332,23 +332,25 @@ export class YoLinkAPI {
    * setDeviceState
    *
    */
-  async setDeviceState(platform: YoLinkHomebridgePlatform, device, state): Promise<yolinkBUDP> {
+  async setDeviceState(platform: YoLinkHomebridgePlatform, device, state, method = 'setState'): Promise<yolinkBUDP> {
     // Retry 10 times. On failure retry after 2 seconds.  Add 2 seconds for
     // each failure with maximum of 5 seconds between each retry.
-    return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state), 10, 2000, 2000, 10000) as yolinkBUDP;
+    return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state, method), 10, 2000, 2000, 10000) as yolinkBUDP;
   }
 
-  async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state) {
+  async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state, method = 'setState') {
     platform.log.info(`YoLinkAPI.setDeviceState for ${device.name} (${device.deviceId}): ${JSON.stringify(state)}`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
     const bddp: yolinkBDDP = {
       time: new Date().getTime(),
-      method: device.type + '.setState',
+      method: device.type + '.' + method,
       targetDevice: device.deviceId,
       token: device.token,
-      params: state,
     };
+    if (state) {
+      bddp.params = state;
+    }
     platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
     const response = await fetch(platform.config.apiURL,
       { method: 'POST', body: JSON.stringify(bddp),
@@ -374,13 +376,14 @@ export class YoLinkAPI {
    * full tested.  Info logging is enabled to capture as much information
    * as possible for events like this. Please report bugs.
    */
-  async mqtt(platform: YoLinkHomebridgePlatform, msgCallback) {
-    const url = 'mqtt://' + this.mqttHost + ':' + platform.config.mqttPort.toString();
-    const accessToken = await this.getAccessToken(platform);
+  mqtt(platform: YoLinkHomebridgePlatform, msgCallback) {
+    const url = `mqtt://${this.mqttHost}:${platform.config.mqttPort.toString()}`;
+    const reports = `yl-home/${this.yolinkHomeId}/+/report`;
 
+    platform.log.info('Create MQTT client to connect to YoLink message service');
     const options = {
       clean: true,
-      username: accessToken!,
+      username: this.yolinkTokens.access_token,
       reconnectPeriod: 2000,
     };
 
@@ -388,60 +391,61 @@ export class YoLinkAPI {
     // the MQTT session. If we need to restart the MQTT session then we may need
     // to do so with a new access token.
     this.mqttTokenExpireTime = this.accessTokenExpireTime;
-
-    platform.verboseLog('MQTT options: ' + JSON.stringify(options));
+    platform.verboseLog(`MQTT options: ${JSON.stringify(options)}`);
     this.mqttClient = mqtt.connect(url, options);
 
     this.mqttClient.on('connect', () => {
-      this.mqttClient.subscribe('yl-home/' + this.yolinkHomeId + '/+/report', (error) => {
+      platform.verboseLog(`MQTT connect: subscribe to messages for '${reports}'`);
+      this.mqttClient.subscribe(reports, (error) => {
         if (error) {
-          throw(new Error(`mqtt subscribe error: ${error}`));
+          throw(new Error(`MQTT subscribe error: ${error}`));
         } else {
-          platform.log.info('mqtt subscribed: ' + 'yl-home/' + this.yolinkHomeId + '/+/report');
+          platform.log.info(`MQTT subscribed: ${reports}`);
         }
       });
     });
 
     this.mqttClient.on('message', (topic, message) => {
-      platform.verboseLog('mqtt received: ' + topic + '\n' + message.toString());
+      platform.verboseLog(`MQTT message: ${topic}\n${message.toString()}`);
       msgCallback(message);
     });
 
     this.mqttClient.on('reconnect', () => {
-      platform.log.info('mqtt reconnect, Connected: ' + this.mqttClient.connected);
-      if (Math.floor(new Date().getTime()/1000) < this.mqttTokenExpireTime) {
-        return;
-      }
-      // The access token we used to setup mqtt connection has or is about to expire.
-      // End this connection and establish a new one.
-      this.mqttClient.end(true, undefined, () => {
-        platform.log.info('mqtt client closed down, restart with new credentials');
+      if (Math.floor(new Date().getTime()/1000) >= this.mqttTokenExpireTime) {
+        platform.log.info(`MQTT reconnect:  Connected: ${this.mqttClient.connected}, Access token expired, restart MQTT client`);
+        this.mqttClient.end(true, undefined);
         this.mqtt(platform, msgCallback);
-      });
-
+      } else {
+        platform.log.info(`MQTT reconnect: Connected: ${this.mqttClient.connected}`);
+      }
     });
 
     this.mqttClient.on('close', () => {
-      platform.log.info('mqtt close, Connected: ' + this.mqttClient.connected);
+      platform.log.info(`MQTT close: Connected: ${this.mqttClient.connected}`);
     });
 
     this.mqttClient.on('disconnect', (packet) => {
-      platform.log.info('mqtt disconnect' + packet);
+      platform.log.info('MQTT disconnect:' + packet);
     });
 
     this.mqttClient.on('offline', () => {
-      platform.log.info('mqtt offline, Connected: ' + this.mqttClient.connected);
+      platform.log.info(`MQTT offline: Connected: ${this.mqttClient.connected}`);
     });
 
     this.mqttClient.on('end', () => {
-      platform.log.info('mqtt end, Connected: ' + this.mqttClient.connected);
+      platform.log.info('MQTT end');
     });
 
     this.mqttClient.on('error', (error) => {
-      platform.log.error('mqtt connect error: \'' + error + '\' Connected: ' + this.mqttClient.connected);
+      platform.log.error(`MQTT error: '${error}' Connected: ${this.mqttClient.connected}`);
       if (!this.mqttClient.connected) {
-        platform.log.info('mqtt client not connected, attempt restart');
-        this.mqtt(platform, msgCallback);
+        this.mqttClient.end(true, undefined);
+        platform.log.info('MQTT client not connected, wait 5 seconds and then attempt restart');
+        // We wait 5 seconds so as not to get into a really fast loop of
+        // retries if we keep getting an error.
+        setTimeout(() => {
+          this.mqtt(platform, msgCallback);
+        }, 5000);
       }
     });
 
