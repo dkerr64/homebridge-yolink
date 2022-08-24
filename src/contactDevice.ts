@@ -52,11 +52,11 @@ export async function initContactSensor(this: YoLinkPlatformAccessory): Promise<
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   let rc = platform.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
   try {
-    const device = this.accessory.context.device;
     if (await this.checkDeviceState(platform, device) && device.data.online && (device.data.state.state !== 'error')) {
       this.contactService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
@@ -64,9 +64,9 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       if (device.data.state.state === 'closed') {
         rc = platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED;
       }
-      this.logDeviceState(`Contact: ${device.data.state.state}, Battery: ${device.data.state.battery}`);
+      this.logDeviceState(device, `Contact: ${device.data.state.state}, Battery: ${device.data.state.battery}`);
     } else {
-      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
       this.contactService
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
@@ -126,13 +126,12 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  */
 export async function mqttContactSensor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
-    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -143,7 +142,7 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
       case 'StatusChange':
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
-          platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           this.contactService.updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
         }
@@ -156,7 +155,7 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
           // unchanged, update the time string.
           device.data.reportAt = this.reportAtTime.toISOString();
         }
-        this.logDeviceState(`Contact: ${device.data.state.state}, Battery: ${device.data.state.battery} (MQTT: ${message.event})`);
+        this.logDeviceState(device, `Contact: ${device.data.state.state}, Battery: ${device.data.state.battery} (MQTT: ${message.event})`);
         this.contactService
           .updateCharacteristic(platform.Characteristic.ContactSensorState,
             (message.data.state === 'closed')

@@ -20,7 +20,7 @@ export async function initUnknownDevice(this: YoLinkPlatformAccessory): Promise<
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device = this.accessory.context.device;
 
-  platform.log.warn(`YoLink device type: '${device.type}' is not supported (${this.deviceMsgName}) (initialize)`
+  platform.log.warn(`YoLink device type: '${device.type}' is not supported (${device.deviceMsgName}) (initialize)`
     + platform.reportError + JSON.stringify(device));
 
   this.refreshDataTimer(handleGet.bind(this));
@@ -32,17 +32,17 @@ export async function initUnknownDevice(this: YoLinkPlatformAccessory): Promise<
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
 
-      platform.log.warn(`YoLink device type: '${device.type}' is not supported (${this.deviceMsgName}) (handleGet)`
+      platform.log.warn(`YoLink device type: '${device.type}' is not supported (${device.deviceMsgName}) (handleGet)`
         + platform.reportError + JSON.stringify(device.data));
 
     } else {
-      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -59,12 +59,12 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  */
 export async function mqttUnknownDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
 
-    platform.log.warn(`YoLink device type: '${device.type}' is not supported (${this.deviceMsgName}) (MQTT)`
+    platform.log.warn(`YoLink device type: '${device.type}' is not supported (${device.deviceMsgName}) (MQTT)`
       + platform.reportError + JSON.stringify(message));
 
   } catch(e) {

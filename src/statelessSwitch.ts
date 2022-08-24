@@ -19,7 +19,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   const device = accessory.context.device;
   // Gap in milliseconds to consider whether double press or single press...
   // I never get a value less than 625ms so selecting 800 as resonable default.
-  this.config.doublePress ??= (platform.config.doublePress ??= 800);
+  device.config.doublePress ??= (platform.config.doublePress ??= 800);
   this.button = [];
 
   if (nButtons > 1) {
@@ -74,20 +74,20 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   // handleGet is only called during initalization. Data returned always represents the last
   // button action received by MQTT.
   const rc = platform.api.hap.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS;
   try {
-    const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
       // const reportTime = new Date(device.data.reportAt).getTime();
-      this.logDeviceState(`${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
+      this.logDeviceState(device, `${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
                           `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
                           `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
     } else {
-      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -152,12 +152,12 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  */
 export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
-    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -179,7 +179,7 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
           // unchanged, update the time string.
           device.data.reportAt = this.reportAtTime.toISOString();
         }
-        this.logDeviceState(`${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
+        this.logDeviceState(device, `${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
                             `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
                             `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F) (MQTT: ${message.event})`);
         // loop through all possible buttons...
@@ -191,19 +191,19 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
             const intervalMsg = (ms < 5000) ? ` (time since last press = ${ms}ms)` : '';
             this.button[i].timestamp = message.time;
             if (message.data.event.type === 'Press') {
-              if (ms < this.config.doublePress) {
+              if (ms < device.config.doublePress) {
                 clearTimeout(this.button[i].timeoutFn);
                 this.button[i].statelessService.updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
                   platform.api.hap.Characteristic.ProgrammableSwitchEvent.DOUBLE_PRESS);
                 this.button[i].timeoutFn = 0;
                 platform.log.info(`${mqttMessage} button ${i+1} double press event (time between presses = ${ms}ms,`
-                                + ` threshold = ${this.config.doublePress}ms)`);
+                                + ` threshold = ${device.config.doublePress}ms)`);
               } else {
                 this.button[i].timeoutFn = setTimeout( () => {
                   this.button[i].statelessService.updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
                     platform.api.hap.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
                   platform.log.info(`${mqttMessage} button ${i+1} single press event${intervalMsg}`);
-                }, this.config.doublePress);
+                }, device.config.doublePress);
               }
             } else {
               // Assume LongPress

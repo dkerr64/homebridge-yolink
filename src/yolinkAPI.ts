@@ -421,19 +421,19 @@ export class YoLinkAPI {
     });
 
     this.mqttClient.on('close', () => {
-      platform.log.info(`MQTT close: Connected: ${this.mqttClient.connected}`);
+      platform.verboseLog(`MQTT close: Connected: ${this.mqttClient.connected}`);
     });
 
     this.mqttClient.on('disconnect', (packet) => {
-      platform.log.info('MQTT disconnect:' + packet);
+      platform.verboseLog('MQTT disconnect:' + packet);
     });
 
     this.mqttClient.on('offline', () => {
-      platform.log.info(`MQTT offline: Connected: ${this.mqttClient.connected}`);
+      platform.verboseLog(`MQTT offline: Connected: ${this.mqttClient.connected}`);
     });
 
     this.mqttClient.on('end', () => {
-      platform.log.info('MQTT end');
+      platform.verboseLog('MQTT end');
     });
 
     this.mqttClient.on('error', (error) => {

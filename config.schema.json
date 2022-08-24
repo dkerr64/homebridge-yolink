@@ -60,7 +60,7 @@
         "required": false,
         "default": 14500,
         "minimum": 0,
-        "maximum":86400,
+        "maximum": 86400,
         "description": "Maximum number of seconds for cache data, after which we request an update from YoLink server. Defaults to just over 4 hours. For example, if you want to update at least once an hour, then set this to 3600. Zero (not recommended) means always retrieve from the server, maximum value is 86400 (24 hours)."
       },
       "verboseLog": {
@@ -96,7 +96,7 @@
         "required": false,
         "default": 800,
         "minimum": 0,
-        "maximum":5000,
+        "maximum": 5000,
         "description": "Time in milliseconds between button presses to consider as a double-press. Defaults to 800ms, zero disables double-press events, maximum accepted in user interface is 5000ms (5 seconds)."
       },
       "devices": {
@@ -147,22 +147,50 @@
                   "title": "Refresh time for data from YoLink server (override global setting)",
                   "type": "number",
                   "required": false,
-                  "default": 14500,
                   "minimum": 0,
-                  "maximum":86400
+                  "maximum": 86400
                 },
                 "doublePress": {
                   "title": "Time in milliseconds between button presses to consider as a double-press",
                   "type": "number",
                   "required": false,
-                  "default": 800,
                   "minimum": 0,
-                  "maximum":5000
+                  "maximum": 5000
+                },
+                "nOutlets": {
+                  "title": "Number of outlets in a multi-outlet power strip (multiple USB ports count as one outlet). Must be between 1 and 8, defaults to 5 (YoLink smart power strip)",
+                  "type": "number",
+                  "required": false,
+                  "minimum": 1,
+                  "maximum": 8
                 }
               }   
             }
           }
         }
+      },
+      "garageDoors": {
+        "type": "array",
+        "required": false,
+        "items": {
+          "title": "Garage Doorss",
+          "type": "object",
+          "properties": {
+            "controller": {
+              "title": "Garage Door or Finger controller device",
+              "type": "string",
+              "required": true,
+              "default": ""
+            },
+            "sensor": {
+              "title": "Door Sensor device",
+              "type": "string",
+              "required": true,
+              "default": ""
+            }
+          }
+        },
+        "description":"Pair two devices together into a single Garage Door accessory. You can find the Device ID in the Homebridge log, in the YoLink mobile app (as Device EUI) or in the Homebridge Config UI by clicking on an accessory's settings and copying the Serial Number field."
       }
     }
   }

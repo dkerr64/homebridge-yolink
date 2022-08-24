@@ -68,21 +68,21 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   let rc = false;
   try {
-    const device = this.accessory.context.device;
     if (await this.checkDeviceState(platform, device) && device.data.online) {
       this.motionService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      this.logDeviceState(`Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
+      this.logDeviceState(device, `Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
                           `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
                           `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
       rc = (device.data.state.state === 'alert');
     } else {
-      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
       this.motionService
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
@@ -145,13 +145,12 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  */
 export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
-    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -162,7 +161,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
       case 'StatusChange':
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
-          platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           this.motionService.updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
         }
@@ -175,7 +174,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
           // unchanged, update the time string.
           device.data.reportAt = this.reportAtTime.toISOString();
         }
-        this.logDeviceState(`Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
+        this.logDeviceState(device, `Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
                             `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
                             `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F) (MQTT: ${message.event})`);
         this.motionService

@@ -118,13 +118,13 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
  */
 async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   let rc = false;
   try {
-    const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
-      this.logDeviceState(`Outlet ${outlet}: ${device.data.state}`);
+      this.logDeviceState(device, `Outlet ${outlet}: ${device.data.state}`);
       if (this.nOutlets === 1) {
         if (device.data.state === this.onState) {
           rc = true;
@@ -136,7 +136,7 @@ async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise
         }
       }
     } else {
-      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -181,10 +181,10 @@ async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise
  */
 async function handleSet(this: YoLinkPlatformAccessory, outlet: number, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
     const newState = (value === true) ? this.setOn : this.setOff;
     if (this.nOutlets === 1) {
       // Single outlet device
@@ -285,13 +285,12 @@ async function handleSet(this: YoLinkPlatformAccessory, outlet: number, value: C
  */
 export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
-    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -304,14 +303,14 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
       case 'StatusChange':
         if (!device.data) {
         // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
-          platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           break;
         }
         // if we received a message then device must be online
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
-        this.logDeviceState(`Outlet: ${device.data.state} (MQTT: ${message.event})`);
+        this.logDeviceState(device, `Outlet: ${device.data.state} (MQTT: ${message.event})`);
         if (this.nOutlets === 1) {
           this.outlet[0].service
             .updateCharacteristic(platform.Characteristic.On, (message.data.state === this.onState) ? true : false);
@@ -334,7 +333,7 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
         // falls through
       case 'powerReport':
         // nothing to update in HomeKit
-        this.logDeviceState(`Unsupported message (MQTT: ${message.event})`);
+        this.logDeviceState(device, `Unsupported message (MQTT: ${message.event})`);
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
