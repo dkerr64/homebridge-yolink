@@ -177,7 +177,7 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
         if (!message.data.reportAt) {
           // mqtt data does not include a report time, so merging the objects leaves current
           // unchanged, update the time string.
-          device.data.reportAt = this.reportAtTime.toISOString();
+          device.data.reportAt = device.reportAtTime.toISOString();
         }
         this.logDeviceState(device, `${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
                             `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +

@@ -37,7 +37,7 @@ export class YoLinkPlatformAccessory {
     const device = accessory.context.device;
     this.deviceId = device.deviceId;
     device.deviceMsgName = `${device.name} (${device.deviceId})`;
-    this.lastReportAtTime = 0;
+    device.lastReportAtTime = 0;
     device.config = platform.config.devices[device.deviceId] ?? {};
     device.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
     device.config.enableExperimental ??= (platform.config.enableExperimental ??= false);
@@ -124,7 +124,7 @@ export class YoLinkPlatformAccessory {
           // only log (in like mode), when we have an update.
           const msgTime = new Date(parseInt(device.budp.msgid));
           const repTime = new Date(device.data?.reportAt ?? '9999-12-31');
-          this.reportAtTime = (msgTime < repTime) ? msgTime : repTime;
+          device.reportAtTime = (msgTime < repTime) ? msgTime : repTime;
           this.updateBatteryInfo.bind(this, device)();
         } else {
           device.data = undefined;
@@ -146,11 +146,11 @@ export class YoLinkPlatformAccessory {
     // reportAtTime is the earlier of the time stamp on this message, or
     // or the time reported in the message from YoLink. We use this to
     // only log (in like mode), when we have an update.
-    if (this.lastReportAtTime < this.reportAtTime.getTime()) {
-      this.lastReportAtTime = this.reportAtTime.getTime();
-      this.platform.log.info(`At ${this.reportAtTime.toLocaleString()}: Device state for ${device.deviceMsgName} is: ${msg}`);
+    if (device.lastReportAtTime < device.reportAtTime.getTime()) {
+      device.lastReportAtTime = device.reportAtTime.getTime();
+      this.platform.log.info(`At ${device.reportAtTime.toLocaleString()}: Device state for ${device.deviceMsgName} is: ${msg}`);
     } else {
-      this.platform.liteLog(`At ${this.reportAtTime.toLocaleString()}: Device state for ${device.deviceMsgName} is: ${msg}`);
+      this.platform.liteLog(`At ${device.reportAtTime.toLocaleString()}: Device state for ${device.deviceMsgName} is: ${msg}`);
     }
   }
 
@@ -268,7 +268,7 @@ export class YoLinkPlatformAccessory {
         // only log (in like mode), when we have an update.
         const msgTime = new Date(parseInt(message.msgid));
         const repTime = new Date(message.data?.reportAt ?? '9999-12-31');
-        this.reportAtTime = (msgTime < repTime) ? msgTime : repTime;
+        device.reportAtTime = (msgTime < repTime) ? msgTime : repTime;
         this.updateBatteryInfo.bind(this, device)();
         if (mqttHandler[this.deviceType]) {
           mqttHandler[this.deviceType].bind(this)(message);

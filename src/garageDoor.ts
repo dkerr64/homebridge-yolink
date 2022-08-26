@@ -25,6 +25,7 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
   // accessory.  The first device is handled in the main platformAccessory class.
   this.deviceId2 = sensor.deviceId;
   sensor.deviceMsgName = `${sensor.name} (${sensor.deviceId})`;
+  sensor.lastReportAtTime = 0;
   sensor.config = platform.config.devices[sensor.deviceId] ?? {};
   sensor.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
   sensor.config.enableExperimental ??= (platform.config.enableExperimental ??= false);
@@ -249,7 +250,7 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
           if (!message.data.reportAt) {
           // mqtt data does not include a report time, so merging the objects leaves current
           // unchanged, update the time string.
-            device.data.reportAt = this.reportAtTime.toISOString();
+            device.data.reportAt = device.reportAtTime.toISOString();
           }
         }
         this.logDeviceState(device, `Contact: ${device.data.state.state}, Battery: ${device.data.state.battery} (MQTT: ${message.event})`);

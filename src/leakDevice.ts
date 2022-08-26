@@ -133,7 +133,7 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
         if (!message.data.reportAt) {
           // mqtt data does not include a report time, so merging the objects leaves current
           // unchanged. As we use this to control when to log new data, update the time string.
-          device.data.reportAt = this.reportAtTime.toISOString();
+          device.data.reportAt = device.reportAtTime.toISOString();
         }
         this.logDeviceState(device, `Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
                             `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +

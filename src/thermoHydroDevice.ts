@@ -212,7 +212,7 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
         if (!message.data.reportAt) {
           // mqtt data does not include a report time, so merging the objects leaves current
           // unchanged, update the time string.
-          device.data.reportAt = this.reportAtTime.toISOString();
+          device.data.reportAt = device.reportAtTime.toISOString();
         }
         this.logDeviceState(device, `Temperature ${device.data.state.temperature}\u00B0C ` +
                             `(${(device.data.state.temperature*9/5+32).toFixed(1)}\u00B0F), Humidity ${device.data.state.humidity}, ` +
