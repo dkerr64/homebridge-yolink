@@ -36,22 +36,11 @@ export class YoLinkPlatformAccessory {
     Error.stackTraceLimit = 100;
     const device = accessory.context.device;
     this.deviceId = device.deviceId;
-    device.deviceMsgName = `${device.name} (${device.deviceId})`;
-    device.lastReportAtTime = 0;
-    device.config = platform.config.devices[device.deviceId] ?? {};
-    device.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
-    device.config.enableExperimental ??= (platform.config.enableExperimental ??= false);
-    device.config.temperature ??= (platform.config.deviceTemperatures ??= false);
-    device.hasBattery = false;
     // Special handling if we have two devices attached to the one accessory
     // only known case right now is for binding a garage door sensor with controller
     this.deviceType = (accessory.context.device2) ? 'GarageDoorCombo' : device.type;
 
-    // We need to serialize requests to YoLink API for each device.  Multiple threads
-    // can request state updates for a device at the same time.  This would not be good,
-    // so we need a semaphore to make sure we don't send a 2nd request to the same
-    // device before prior one has completed.
-    device.semaphore = new Semaphore();
+    this.initializeDeviceVars(platform, device);
 
     // Now initialize device, creating the homebridge services as required.
     // If device type exists in our list of supported services...
@@ -74,7 +63,6 @@ export class YoLinkPlatformAccessory {
         // battery level service.  YoLink reports 0..4, we will convert to 0,25,50,75,100 percent
         // deliberately using 'device.type' here.  If 'device2' has battery handle that in the
         // initDeviceService function.
-        device.hasBattery = deviceFeatures[device.type].hasBattery;
         if (device.hasBattery) {
           // We use a name here because an accessory might have two batteries (e.g. GarageDoorCombo)
           device.batteryService = accessory.getService('Battery')
@@ -100,6 +88,33 @@ export class YoLinkPlatformAccessory {
 
   /*********************************************************************
    * checkDeviceState
+   *
+   */
+  initializeDeviceVars(platform, device) {
+    device.data = {};
+    device.deviceMsgName = `${device.name} (${device.deviceId})`;
+    device.lastReportAtTime = 0;
+    device.config = platform.config.devices[device.deviceId] ?? {};
+    device.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
+    device.config.enableExperimental ??= (platform.config.enableExperimental ??= false);
+    device.config.temperature ??= (platform.config.deviceTemperatures ??= false);
+    device.hasBattery = deviceFeatures[device.type].hasBattery;
+    // Set updateTime to now, which will ensure retrieving data from YoLink
+    // on our first pass through.
+    device.updateTime = Math.floor(new Date().getTime() / 1000);
+    // We need to serialize requests to YoLink API for each device.  Multiple threads
+    // can request state updates for a device at the same time.  This would not be good,
+    // so we need a semaphore to make sure we don't send a 2nd request to the same
+    // device before prior one has completed.
+    device.semaphore = new Semaphore();
+    // GarageDoor specific...
+    device.timeout ??= 45;
+    // targetState used to track if garage door has been requested to open or close
+    device.targetState = '';
+  }
+
+  /*********************************************************************
+   * checkDeviceState
    * Updates device status object, sending a request to the YoLink API if we
    * have no data yet, or it has been a long time since the data was updated.
    *
@@ -110,9 +125,8 @@ export class YoLinkPlatformAccessory {
     try {
       platform.verboseLog(`checkDeviceState for ${device.deviceMsgName} (refresh after ${device.config.refreshAfter} seconds)`);
       const timestamp = Math.floor(new Date().getTime() / 1000);
-      if (!device.data
-        || (device.config.refreshAfter === 0)
-        || ((device.config.refreshAfter > 0) && (timestamp >= device.updateTime))) {
+      if ((device.config.refreshAfter === 0)
+      || ((device.config.refreshAfter > 0) && (timestamp >= device.updateTime))) {
         // If we have never retrieved data from the device, or data is older
         // than period we want to allow, then retrieve new data from the device.
         // Else return with data unchanged.
@@ -172,9 +186,8 @@ export class YoLinkPlatformAccessory {
     await handleGet.bind(this)();
 
     if (device.config.refreshAfter >= 60) {
-      // We don't allow for regular updates any more frequently than once a minute. And the
-      // timer will wait for at least one second before firing again to avoid runaway loops.
-      const nextUpdateIn = (device.updateTime) ? Math.max(1, device.updateTime - Math.floor(new Date().getTime() / 1000)) : 60;
+      // We don't allow for updates any more frequently than once a minute.
+      const nextUpdateIn = (device.updateTime) ? Math.max(60, device.updateTime - Math.floor(new Date().getTime() / 1000)) : 60;
       // If there was no device.updateTime then error occurred, so default to 60 seconds.
       platform.verboseLog(`Set data refresh timer for ${device.deviceMsgName} to run in ${nextUpdateIn} seconds`);
       setTimeout( () => {

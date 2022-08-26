@@ -231,6 +231,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       // the cached devices we stored in the `configureAccessory` method above.
       const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
 
+      sensor.timeout = garage.timeout;
       let accessoryClass;
       if (existingAccessory){
         // update existing accessory
