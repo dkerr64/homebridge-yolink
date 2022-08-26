@@ -18,7 +18,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
-  if (this.config.hide === 'thermo') {
+  if (device.config.hide === 'thermo') {
     platform.log.info(`Hide Thermometer service because config.[${device.deviceId}].hide is set to "thermo"`);
   } else {
     // Not trying to hide the thermometer service.
@@ -29,7 +29,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
       .onGet(handleGet.bind(this, 'thermo'));
   }
 
-  if (this.config.hide === 'hydro') {
+  if (device.config.hide === 'hydro') {
     platform.log.info(`Hide Hydrometer service because config.[${device.deviceId}].hide is set to "hydro"`);
   } else {
     // Not trying to hide the hydrometer service.
@@ -89,13 +89,13 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
  */
 async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   let rc = NaN;
   try {
-    const device = this.accessory.context.device;
     if (await this.checkDeviceState(platform, device) && device.data.online) {
-      this.logDeviceState(`Temperature ${device.data.state.temperature}\u00B0C ` +
+      this.logDeviceState(device, `Temperature ${device.data.state.temperature}\u00B0C ` +
                           `(${(device.data.state.temperature*9/5+32).toFixed(1)}\u00B0F), Humidity ${device.data.state.humidity}, ` +
                           `Battery: ${device.data.state.battery} (Requested: ${sensor})`);
       if (this.thermoService) {
@@ -109,11 +109,11 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Prom
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
       }
       if (device.data.state.alarm.lowBattery) {
-        platform.log.warn(`Device ${this.deviceMsgName} reports low battery`);
+        platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
       }
       rc = (sensor === 'hydro') ? device.data.state.humidity : device.data.state.temperature;
     } else {
-      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
       if (this.thermoService) {
         this.thermoService
           .updateCharacteristic(platform.Characteristic.StatusActive, false)
@@ -185,13 +185,12 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Prom
  */
 export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
-    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -203,7 +202,7 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
       case 'Report':
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
-          platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           break;
         }
         // if we received a message then device must be online
@@ -215,7 +214,7 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
           // unchanged, update the time string.
           device.data.reportAt = this.reportAtTime.toISOString();
         }
-        this.logDeviceState(`Temperature ${device.data.state.temperature}\u00B0C ` +
+        this.logDeviceState(device, `Temperature ${device.data.state.temperature}\u00B0C ` +
                             `(${(device.data.state.temperature*9/5+32).toFixed(1)}\u00B0F), Humidity ${device.data.state.humidity}, ` +
                             `Battery: ${device.data.state.battery} (MQTT: ${message.event})`);
         if (this.thermoService) {
@@ -225,7 +224,7 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
           this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
         }
         if (device.data.state.alarm.lowBattery) {
-          platform.log.warn(`Device ${this.deviceMsgName} reports low battery`);
+          platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
         }
         break;
       default:

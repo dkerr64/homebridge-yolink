@@ -7,7 +7,7 @@
 
 # Homebridge YoLink Plugin
 
-*Unofficial* plugin for YoLink. I wrote this plugin to integrate the YoLink devices that I own, so it is currently quite limited. This is implemented by building on the Homebridge platform plugin template and the [YoLink API.](http://doc.yosmart.com)
+*Unofficial* plugin for YoLink. I wrote this plugin to integrate the YoLink devices that I own. This is implemented by building on the Homebridge platform plugin template and the [YoLink API.](http://doc.yosmart.com)
 
 **Warning** this plugin is new and not fully tested for all devices.
 
@@ -30,6 +30,9 @@ Currently supports the following devices:
 * Siren (as a switch)
 * Switch
 * Outlet (single)
+* Outlet (multiple)
+* Garage Door Controller
+* Finger Controller
 
 The plugin registers as a MQTT client and subscribes to reports published by YoLink for real time alerts and status updates.
 
@@ -80,9 +83,16 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
                         "model": "YS1603-UC",
                         "refreshAfter": 14500,
                         "doublePress": 800,
+                        "nOutlets": 5
                     }
                 }
-            ]
+            ],
+            "garageDoors": [
+                {
+                    "controller": "0123456789abcdef",
+                    "sensor": "abcdef0123456789"
+                }
+            ] 
         }
     ]
 ```
@@ -102,6 +112,7 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
   * **enableExperimental** *(optional)*: If set to true, enables support for devices still considered experimental, see Device Notes below.
   * **doublePress** *(optional)*: Duration in milliseconds to trigger a double-press event on two button presses on a stateless device. Defaults to 800ms and a value of zero disables double-press feature. See notes below for YoLink FlexFob remote.
   * **devices** *(optional)*: Optional array of device settings, see below.
+  * **garageDoors** *(optional)*: Optional array of sensor/controller pairs, see below.
 
 * **Device Properties** are an array of objects that allow settings or overrides on a device-by-device basis. This array is optional but if provided contains the following fields:
   * **deviceId** *(required)*: ID to identify specific device. u can find this from the Homebridge log or in the Homebridge Config UI X by clicking on an accessory settings and copying the Serial Number field.
@@ -111,6 +122,11 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
     * **model** *(optional)*: YoLink does not provide device model number when requesting device information. If you want to keep a record of that and show it in the Homebridge accessories setting page then you can set it here, for example the original YoLink leak sensor has a model number of "YS7903-UC". This is a purely cosmetic setting with no functional purpose.
     * **refreshAfter** *(optional)*: Device specific override of global *refreshAfter*, see above. Defaults to global setting.
     * **doublePress** *(optional)*: Device specific override of global *doublePress*, see above. Defaults to global setting.
+    * **nOutlets** *(optional)*: For power strip or multi-outlet devices, number of controllable outlets.  See device notes below.
+
+* **garageDoors Properties** are an array of objects that allow you to pair two devices, either a *GarageDoor* or *Finger* controller with a *DoorSensor* that together represent a single garage door. The garage door inherits properties of the individual devices. The garage door *name* is taken from the controller device.
+  * **controller** *(required)*: string representing the *deviceID* of the controlling device (activates door open or close). Must be a *GarageDoor* or *Finger* type device.
+  * **sensor** *(required)*: string representing the *deviceID* of the sensor device (reports if door open or closed). Must be a *DoorSensor* type device.
 
 ## MQTT
 
@@ -183,6 +199,16 @@ A Switch device is implemented to support adding YoLink siren. This is untested,
 YoLink single outlet device is supported. Multi-outlet devices are not currently supported, if you have one please see below and report
 
 I have observed *Can't connect to Device* errors from YoLink when trying to retrieve device status. When these occur the plugin attemps to connect again, up to 5 times, before giving up. Warnings are written to log.
+
+### Multiple Outlet / Power Strip
+
+YoLink powerstrip is supported.  Each individual outlet, including the bank of USB charging ports, is controllable.  Where USB ports are provided they are the first "outlet" in the Homebridge/HomeKit accessory (identified as Outlet 0).  The default number of outlets is five (one USB bank, four main outlets) but you can change this with the *nOutlets* property.
+
+### Garage Door / Finger Controller
+
+The YoLink devices for controlling garage doors are supported as a Homebridge/HomeKit switch. These are momentarily activated devices (activate and then immediately deactivate) and are represented in Homebridge/HomeKit by the switch turning on and then turning off one second later.
+
+You can pair these devices with a Door Sensor and the combination appears in Homebridge/HomeKit as a Garage Door accessory.  The individual devices are removed from Homebridge/HomeKit. Door states of open and closed are supported but there is no support to report obstructions or a door stopped in either a fully open or fully closed position.
 
 ### Unsupported Devices
 

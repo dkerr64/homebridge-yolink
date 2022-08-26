@@ -49,11 +49,11 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   let rc = platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED;
   try {
-    const device = this.accessory.context.device;
     if (await this.checkDeviceState(platform, device) && device.data.online) {
       this.leakService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
@@ -61,11 +61,11 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       if (device.data.state.state === 'alert') {
         rc = platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED;
       }
-      this.logDeviceState(`Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
+      this.logDeviceState(device, `Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
                           `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
                           `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
     } else {
-      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
       this.leakService
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
@@ -106,13 +106,12 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  */
 export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
-    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -123,7 +122,7 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
       case 'Report':
         if (!device.data) {
         // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
-          platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           this.leakService.updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
         }
@@ -136,7 +135,7 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
           // unchanged. As we use this to control when to log new data, update the time string.
           device.data.reportAt = this.reportAtTime.toISOString();
         }
-        this.logDeviceState(`Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
+        this.logDeviceState(device, `Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
                             `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
                             `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F) (MQTT: ${message.event})`);
         this.leakService

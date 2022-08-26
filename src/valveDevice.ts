@@ -56,11 +56,11 @@ export async function initValveDevice(this: YoLinkPlatformAccessory): Promise<vo
  */
 async function handleGet(this: YoLinkPlatformAccessory, request = 'Active'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   let rc = platform.api.hap.Characteristic.Active.INACTIVE;
   try {
-    const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device)) {
       this.valveService
         // YoLink manipulator data does not return a 'online' value.  We will assume that if
@@ -69,9 +69,9 @@ async function handleGet(this: YoLinkPlatformAccessory, request = 'Active'): Pro
       if (device.data.state === 'open') {
         rc = platform.api.hap.Characteristic.Active.ACTIVE;
       }
-      this.logDeviceState(`Valve (${request}): ${device.data.state}, Battery: ${device.data.battery}`);
+      this.logDeviceState(device, `Valve (${request}): ${device.data.state}, Battery: ${device.data.battery}`);
     } else {
-      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
       this.valveService
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
@@ -109,10 +109,10 @@ async function handleInUse(this: YoLinkPlatformAccessory): Promise<Characteristi
  */
 async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
     const newState = (value === platform.api.hap.Characteristic.Active.ACTIVE) ? 'open' : 'close';
     const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
     // error will have been thrown in yolinkAPI if data not valid
@@ -184,13 +184,12 @@ async function handleType(this: YoLinkPlatformAccessory): Promise<Characteristic
  */
 export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
-    device.updateTime = Math.floor(new Date().getTime() / 1000) + this.config.refreshAfter;
-    const mqttMessage = `MQTT: ${message.event} for device ${this.deviceMsgName}`;
+    device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
+    const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
 
     switch (event[1]) {
@@ -201,7 +200,7 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
       case 'setState':
         if (!device.data) {
         // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
-          platform.log.warn(`Device ${this.deviceMsgName} has no data field, is device offline?`);
+          platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           this.valveService.updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
         }
@@ -209,7 +208,7 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
         device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
-        this.logDeviceState(`Valve: ${device.data.state}, Battery: ${device.data.battery} (MQTT: ${message.event})`);
+        this.logDeviceState(device, `Valve: ${device.data.state}, Battery: ${device.data.battery} (MQTT: ${message.event})`);
         this.valveService
           .updateCharacteristic(platform.Characteristic.Active,
             (message.data.state === 'open')

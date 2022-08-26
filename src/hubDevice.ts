@@ -19,8 +19,6 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 export async function initHubDevice(this: YoLinkPlatformAccessory): Promise<void> {
   // Homebridge does not have equivalent to a Hub device, so we essentially
   // just dummy out the functions for logging purposes.
-  // Don't attempt to get data any more frequently than once an hour.
-  this.config.refreshAfter = Math.max(3600, this.config.refreshAfter);
   this.refreshDataTimer(handleGet.bind(this));
 }
 
@@ -30,14 +28,14 @@ export async function initHubDevice(this: YoLinkPlatformAccessory): Promise<void
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
     if( await this.checkDeviceState(platform, device) ) {
-      this.logDeviceState(`WiFi: ${device.data.wifi.enable}, Ethernet: ${device.data.eth.enable}`);
+      this.logDeviceState(device, `WiFi: ${device.data.wifi.enable}, Ethernet: ${device.data.eth.enable}`);
     } else {
-      platform.log.error(`Device offline or other error for ${this.deviceMsgName}`);
+      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -55,13 +53,13 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  */
 export async function mqttHubDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const device = this.accessory.context.device;
   // serialize access to device data.
-  const releaseSemaphore = await this.deviceSemaphore.acquire();
+  const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const device = this.accessory.context.device;
     // Merge received data into existing data object
     Object.assign(device.data, message.data);
-    this.logDeviceState(`WiFi: ${device.data.wifi.enable}, Ethernet: ${device.data.eth.enable} (MQTT: ${message.event})`);
+    this.logDeviceState(device, `WiFi: ${device.data.wifi.enable}, Ethernet: ${device.data.eth.enable} (MQTT: ${message.event})`);
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttHubDevice' + platform.reportError + msg);
