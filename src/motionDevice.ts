@@ -184,8 +184,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
         break;
       case 'setOpenRemind':
-        // I don't know what this is intended for.  I have seen it from the YoLink
-        // outdoor motion sensor.  It does not carry either motion state or battery
+        // This does not carry either motion state or battery
         // state fields, so there is nothing we can update.  Sample packet...
         // {"event":"MotionSensor.setOpenRemind","time":1658089933504,"msgid":"1658089933504",
         // "data":{"alertInterval":1,"ledAlarm":false,"nomotionDelay":1,"sensitivity":2,

@@ -75,7 +75,7 @@ export class YoLinkPlatformAccessory {
         // initDeviceService function.
         device.hasBattery = deviceFeatures[device.type].hasBattery;
         if (device.hasBattery) {
-          // We use a name here because an accessory might have two batteries (e.g. GarrageDoorCombo)
+          // We use a name here because an accessory might have two batteries (e.g. GarageDoorCombo)
           device.batteryService = accessory.getService('Battery')
                                || accessory.addService(platform.Service.Battery, 'Battery', 'battery');
           device.batteryService
@@ -113,7 +113,7 @@ export class YoLinkPlatformAccessory {
         || (device.config.refreshAfter === 0)
         || ((device.config.refreshAfter > 0) && (timestamp >= device.updateTime))) {
         // If we have never retrieved data from the device, or data is older
-        // than period we want to allow, then retireve new data from the device.
+        // than period we want to allow, then retrieve new data from the device.
         // Else return with data unchanged.
         device.budp = await platform.yolinkAPI.getDeviceState(platform, device);
         if (device.budp) {

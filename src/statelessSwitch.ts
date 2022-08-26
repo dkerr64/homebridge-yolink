@@ -18,7 +18,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
   // Gap in milliseconds to consider whether double press or single press...
-  // I never get a value less than 625ms so selecting 800 as resonable default.
+  // I never get a value less than 625ms so selecting 800 as reasonable default.
   device.config.doublePress ??= (platform.config.doublePress ??= 800);
   this.button = [];
 
@@ -77,7 +77,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   const device = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
-  // handleGet is only called during initalization. Data returned always represents the last
+  // handleGet is only called during initialization. Data returned always represents the last
   // button action received by MQTT.
   const rc = platform.api.hap.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS;
   try {
@@ -145,7 +145,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  *   "deviceId":"abcdef1234567890"
  * }
  *
- * "keyMask" is a bitfield. E.g. for a four button remote the bits set will be 1, 2, 4, 8.  If you press
+ * "keyMask" is a bit field. E.g. for a four button remote the bits set will be 1, 2, 4, 8.  If you press
  * two buttons simultaneously then you will get e.g. 9 for buttons one and four... as a "LongPress".
  *
  * "type" can be "Press" or "LongPress"

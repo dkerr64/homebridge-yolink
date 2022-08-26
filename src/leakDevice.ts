@@ -11,7 +11,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 
 /***********************************************************************
  * initLeakSensor
- * Initialise the leak sensor device services
+ * Initialize the leak sensor device services
  */
 export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;

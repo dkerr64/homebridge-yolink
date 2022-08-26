@@ -27,7 +27,6 @@ import { PLATFORM_NAME,
 
 import { YoLinkPlatformAccessory } from './platformAccessory';
 import { YoLinkAPI } from './yolinkAPI';
-import { platform } from 'os';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const packageJSON = require('../package.json');
@@ -54,7 +53,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     public readonly api: API) {
 
     Error.stackTraceLimit = 100;
-    // transforms array of devices into object that can be referrenced by deviceId...
+    // transforms array of devices into object that can be referenced by deviceId...
     const devices = {};
     if (this.config.devices) {
       this.config.devices.forEach(x => devices[x.deviceId] = x.config);
@@ -71,7 +70,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.garageDoors ??= [];
 
     this.log.info(`YoLink plugin for HomeBridge version ${packageJSON.version} (c) 2022 David A. Kerr${this.reportError}`);
-    this.verboseLog(`Loaded configuaration:\n${JSON.stringify(this.config)}`);
+    this.verboseLog(`Loaded configuration:\n${JSON.stringify(this.config)}`);
 
     this.yolinkAPI = new YoLinkAPI(this);
 
@@ -236,7 +235,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       if (existingAccessory){
         // update existing accessory
         this.verboseLog(`Restoring accessory from cache: ${existingAccessory.displayName} ` +
-                          `(Controler: ${garage.controller}, Sensor: ${garage.sensor})`);
+                          `(Controller: ${garage.controller}, Sensor: ${garage.sensor})`);
         existingAccessory.context.device = controller;
         existingAccessory.context.device2 = sensor;
         this.api.updatePlatformAccessories([existingAccessory]);
@@ -244,7 +243,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       } else {
         // create a new accessory
         this.log.info(`Adding new accessory: ${controller.name} ` +
-                        `(Controler: ${garage.controller}, Sensor: ${garage.sensor})`);
+                        `(Controller: ${garage.controller}, Sensor: ${garage.sensor})`);
         const accessory = new this.api.platformAccessory(controller.name, uuid);
         accessory.context.device = controller;
         accessory.context.device2 = sensor;

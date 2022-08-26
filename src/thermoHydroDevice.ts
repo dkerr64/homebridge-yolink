@@ -11,7 +11,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 
 /***********************************************************************
  * initThermoHydroDevice
- * Initialise the temperature and humidity device services.
+ * Initialize the temperature and humidity device services.
  */
 export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -195,7 +195,7 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
 
     switch (event[1]) {
       case 'Alert':
-        // I can see no way in HomeKit documentation for a thermo/hyrdro sensor
+        // I can see no way in HomeKit documentation for a thermo/hydro sensor
         // to generate an alert.  I think bounds testing / alerting all has to be
         // handled within HomeKit.
         // falls through
