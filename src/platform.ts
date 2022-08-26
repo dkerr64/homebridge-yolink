@@ -27,6 +27,7 @@ import { PLATFORM_NAME,
 
 import { YoLinkPlatformAccessory } from './platformAccessory';
 import { YoLinkAPI } from './yolinkAPI';
+import { platform } from 'os';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const packageJSON = require('../package.json');
@@ -199,58 +200,58 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       }
     }
 
-    // Now handle garage doors... two devices bound together
-    try {
-      for (const accessory of this.accessories) {
-        const device = accessory.context.device;
-        const device2 = accessory.context.device2;
-        if (device2) {
-          if (!this.config.garageDoors?.some(x => x.controller === device.deviceId && x.sensor === device2.deviceId)) {
-            this.log.warn(`Removing Garage Door accessory from cache: ${accessory.displayName} (${device.deviceId} & ${device2.deviceId})`);
-            this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-          }
+    // Now handle garage doors... two devices bound together. Start by removing
+    // any existing garage door accessory that may no longer be configured.
+    for (const accessory of this.accessories) {
+      const device = accessory.context.device;
+      const device2 = accessory.context.device2;
+      if (device2) {
+        if (!this.config.garageDoors?.some(x => x.controller === device.deviceId && x.sensor === device2.deviceId)) {
+          this.log.warn(`Removing Garage Door accessory from cache: ${accessory.displayName} (${device.deviceId} & ${device2.deviceId})`);
+          this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
         }
       }
-      for (const garage of this.config.garageDoors) {
+    }
+    // Now add each garage door accessory
+    for (const garage of this.config.garageDoors) {
       // check that sensor and controller are in our device list
-        const garageDevices = deviceList.filter(x => (x.deviceId === garage.controller || x.deviceId === garage.sensor));
-        if (garageDevices.length !== 2) {
-          throw new Error(`Garage Door must have two known devices.  Ignoring this door:\n${JSON.stringify(garage)}`);
-        }
-        const controller = garageDevices.find(x => x.deviceId === garage.controller);
-        const sensor = garageDevices.find(x => x.deviceId === garage.sensor);
-        if (sensor.type !== 'DoorSensor' || !(controller.type === 'Finger' || controller.type === 'GarageDoor')) {
-          throw new Error('Garage Door sensor must be of type \'DoorSensor\' and controller of type \'Finger\' or \'GarageDoor\'');
-        }
-        const uuid = this.api.hap.uuid.generate(`${garage.controller}${garage.sensor}`);
-        // see if an accessory with the same uuid has already been registered and restored from
-        // the cached devices we stored in the `configureAccessory` method above.
-        const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
-
-        let accessoryClass;
-        if (existingAccessory){
-          // update existing accessory
-          this.verboseLog(`Restoring accessory from cache: ${existingAccessory.displayName} ` +
-                          `(Controler: ${garage.controller}, Sensor: ${garage.sensor})`);
-          existingAccessory.context.device = controller;
-          existingAccessory.context.device2 = sensor;
-          this.api.updatePlatformAccessories([existingAccessory]);
-          accessoryClass = new YoLinkPlatformAccessory(this, existingAccessory);
-        } else {
-          // create a new accessory
-          this.log.info(`Adding new accessory: ${controller.name} ` +
-                        `(Controler: ${garage.controller}, Sensor: ${garage.sensor})`);
-          const accessory = new this.api.platformAccessory(controller.name, uuid);
-          accessory.context.device = controller;
-          accessory.context.device2 = sensor;
-          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-          accessoryClass = new YoLinkPlatformAccessory(this, accessory);
-        }
-        this.deviceAccessories.push(accessoryClass);
+      const garageDevices = deviceList.filter(x => (x.deviceId === garage.controller || x.deviceId === garage.sensor));
+      if (garageDevices.length !== 2) {
+        this.log.warn(`Garage Door must have two known devices. Ignoring this door:\n${JSON.stringify(garage)}`);
+        continue;
       }
-    } catch(e) {
-      const msg = String((e instanceof Error) ? e.message : e);
-      this.log.error(msg);
+      const controller = garageDevices.find(x => x.deviceId === garage.controller);
+      const sensor = garageDevices.find(x => x.deviceId === garage.sensor);
+      if (sensor.type !== 'DoorSensor' || !(controller.type === 'Finger' || controller.type === 'GarageDoor')) {
+        this.log.warn('Garage Door sensor must be of type \'DoorSensor\' and controller of type \'Finger\' or \'GarageDoor\' ' +
+                      `Ignoring this door:\n${JSON.stringify(garage)}`);
+        continue;
+      }
+      const uuid = this.api.hap.uuid.generate(`${garage.controller}${garage.sensor}`);
+      // see if an accessory with the same uuid has already been registered and restored from
+      // the cached devices we stored in the `configureAccessory` method above.
+      const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+
+      let accessoryClass;
+      if (existingAccessory){
+        // update existing accessory
+        this.verboseLog(`Restoring accessory from cache: ${existingAccessory.displayName} ` +
+                          `(Controler: ${garage.controller}, Sensor: ${garage.sensor})`);
+        existingAccessory.context.device = controller;
+        existingAccessory.context.device2 = sensor;
+        this.api.updatePlatformAccessories([existingAccessory]);
+        accessoryClass = new YoLinkPlatformAccessory(this, existingAccessory);
+      } else {
+        // create a new accessory
+        this.log.info(`Adding new accessory: ${controller.name} ` +
+                        `(Controler: ${garage.controller}, Sensor: ${garage.sensor})`);
+        const accessory = new this.api.platformAccessory(controller.name, uuid);
+        accessory.context.device = controller;
+        accessory.context.device2 = sensor;
+        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        accessoryClass = new YoLinkPlatformAccessory(this, accessory);
+      }
+      this.deviceAccessories.push(accessoryClass);
     }
   }
 
