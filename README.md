@@ -74,6 +74,7 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
             "allDevices": true,
             "enableExperimental": false,
             "doublePress": 800,
+            "deviceTemperatures": false,
             "devices": [
                 {
                     "deviceId": "0123456789abcdef",
@@ -83,7 +84,8 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
                         "model": "YS1603-UC",
                         "refreshAfter": 14500,
                         "doublePress": 800,
-                        "nOutlets": 5
+                        "nOutlets": 5,
+                        "temperature": false
                     }
                 }
             ],
@@ -111,6 +113,7 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
   * **allDevices** *(optional)*: If set to false then only devices listed in the Devices section of the config file are loaded, and then only if the hide property is false. Defaults to true so all devices reported by YoLink are loaded (if hide property is false).
   * **enableExperimental** *(optional)*: If set to true, enables support for devices still considered experimental, see Device Notes below.
   * **doublePress** *(optional)*: Duration in milliseconds to trigger a double-press event on two button presses on a stateless device. Defaults to 800ms and a value of zero disables double-press feature. See notes below for YoLink FlexFob remote.
+  * **deviceTemperatures** *(optional)*: If set to true then create a temperature service for those devices that report temperature in addition to their main function. See device notes below.
   * **devices** *(optional)*: Optional array of device settings, see below.
   * **garageDoors** *(optional)*: Optional array of sensor/controller pairs, see below.
 
@@ -123,6 +126,7 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
     * **refreshAfter** *(optional)*: Device specific override of global *refreshAfter*, see above. Defaults to global setting.
     * **doublePress** *(optional)*: Device specific override of global *doublePress*, see above. Defaults to global setting.
     * **nOutlets** *(optional)*: For power strip or multi-outlet devices, number of controllable outlets.  See device notes below.
+    * **temperature** *(optional)*: If set to true then create a temperature service in addition to the main function. See device notes below.
 
 * **garageDoors** are an array of objects that allow you to pair two devices, either a *GarageDoor* or *Finger* controller with a *DoorSensor* that together represent a single garage door. The garage door inherits properties of the individual devices. The garage door *name* is taken from the controller device.
   * **controller** *(required)*: string representing the *deviceID* of the controlling device (activates door open or close). Must be a *GarageDoor* or *Finger* type device.
@@ -152,13 +156,19 @@ The plugin recognizes these devices and register *Accessory Information* service
 
 Normal status reporting occurs every 4 hours. Alerts will be reported immediately. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
 
+YoLink leak sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
+
 ### Vibration Sensor
 
 HomeKit does not have a vibration sensor device type so this plugin registers these devices as a Motion Sensor. Normal status reporting occurs every 4 hours. Alerts will be reported immediately. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
 
+YoLink vibration sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
+
 ### Motion Sensor
 
 Normal status reporting occurs every 4 hours. Alerts will be reported immediately. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
+
+Some YoLink Motion sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
 
 ### Thermometer / Humidity Sensor
 

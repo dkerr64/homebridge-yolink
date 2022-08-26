@@ -41,6 +41,7 @@ export class YoLinkPlatformAccessory {
     device.config = platform.config.devices[device.deviceId] ?? {};
     device.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
     device.config.enableExperimental ??= (platform.config.enableExperimental ??= false);
+    device.config.temperature ??= (platform.config.deviceTemperatures ??= false);
     device.hasBattery = false;
     // Special handling if we have two devices attached to the one accessory
     // only known case right now is for binding a garage door sensor with controller

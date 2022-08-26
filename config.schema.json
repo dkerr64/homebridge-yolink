@@ -77,12 +77,6 @@
         "default": true,
         "description": "Homebridge / HomeKit can make very frequent requests for device status.  This suppresses logging of every request (unless verbose logging is enabled)."
       },
-      "enableExperimental": {
-        "title": "Enable support for devices under development.  USE ONLY IF REQUESTED to assist development",
-        "type": "boolean",
-        "required": false,
-        "default": false
-      },
       "allDevices": {
         "title": "Load all devices / accessories by default",
         "type": "boolean",
@@ -98,6 +92,19 @@
         "minimum": 0,
         "maximum": 5000,
         "description": "Time in milliseconds between button presses to consider as a double-press. Defaults to 800ms, zero disables double-press events, maximum accepted in user interface is 5000ms (5 seconds)."
+      },
+      "deviceTemperatures": {
+        "title": "Create temperature service for those devices that report this",
+        "type": "boolean",
+        "required": false,
+        "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors and Flex Fob. This will create a temperature sensor for those."
+
+      },
+      "enableExperimental": {
+        "title": "Enable support for devices under development.  USE ONLY IF REQUESTED to assist development",
+        "type": "boolean",
+        "required": false,
+        "default": false
       },
       "devices": {
         "type": "array",
@@ -163,6 +170,12 @@
                   "required": false,
                   "minimum": 1,
                   "maximum": 8
+                },
+                "temperature": {
+                  "title": "Create temperature service for this devices",
+                  "type": "boolean",
+                  "required": false,
+                  "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors and Flex Fob. This will create a temperature sensor for those."
                 }
               }   
             }

@@ -22,6 +22,22 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
   this.motionService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.motionService.getCharacteristic(platform.Characteristic.MotionDetected)
     .onGet(handleGet.bind(this));
+
+  if (device.config.temperature) {
+    // If requested add a service for the internal device temperature.
+    this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
+                      || accessory.addService(platform.Service.TemperatureSensor);
+    this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
+    this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
+      .onGet(handleGet.bind(this, 'thermo'));
+  } else {
+    // If not requested then remove it if it already exists.
+    const service = accessory.getService(platform.Service.TemperatureSensor);
+    if (service) {
+      accessory.removeService(service);
+    }
+  }
+
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
   this.refreshDataTimer(handleGet.bind(this));
@@ -66,21 +82,27 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
  *    "reportAt": "2022-07-22T15:23:56.808Z"
  *  }
  */
-async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
+async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
-  let rc = false;
+  let rc = (devSensor === 'main') ? false : 0;
   try {
     if (await this.checkDeviceState(platform, device) && device.data.online) {
       this.motionService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
+      switch(devSensor) {
+        case 'thermo':
+          rc = device.data.state.devTemperature;
+          break;
+        default:
+          rc = device.data.state.state === 'alert';
+      }
       this.logDeviceState(device, `Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
                           `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
                           `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
-      rc = (device.data.state.state === 'alert');
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
       this.motionService
