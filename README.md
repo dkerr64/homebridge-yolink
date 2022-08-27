@@ -11,7 +11,7 @@
 
 **Warning** this plugin is new and not fully tested for all devices.
 
-**Warning** this plugin is not intended to provide safety or security services. For critical applications use YoLink's own services and in particular consider their device-to-device capability. For example, do not rely on homebridge or homekit to turn off a main water supply in a leak detection -- use YoLink device-to-device.
+**Warning** this plugin is not intended to provide safety or security services. For critical applications use YoLink's own services and in particular consider their device-to-device capability. For example, do not rely on Homebridge or Homekit to turn off a main water supply in a leak detection -- use YoLink device-to-device.
 
 Pull requests and/or other offers of development assistance gratefully received.
 
@@ -74,6 +74,7 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
             "allDevices": true,
             "enableExperimental": false,
             "doublePress": 800,
+            "deviceTemperatures": false,
             "devices": [
                 {
                     "deviceId": "0123456789abcdef",
@@ -83,14 +84,16 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
                         "model": "YS1603-UC",
                         "refreshAfter": 14500,
                         "doublePress": 800,
-                        "nOutlets": 5
+                        "nOutlets": 5,
+                        "temperature": false
                     }
                 }
             ],
             "garageDoors": [
                 {
                     "controller": "0123456789abcdef",
-                    "sensor": "abcdef0123456789"
+                    "sensor": "abcdef0123456789",
+                    "timeout": 45
                 }
             ] 
         }
@@ -98,23 +101,24 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
 ```
 
 * **Platform Properties**
-  * **name** *(required)*: Plaform name, set to 'YoLink'.
+  * **name** *(required)*: Platform name, set to 'YoLink'.
   * **platform** *(required)*: Platform identifier, set to 'YoLink'.
   * **tokenURL** *(required)*: YoLink's authentication server URL.
   * **apiURL** *(required)*: YoLink's API server URL.
   * **mqttPort** *(optional)*: MQTT port at the YoLink API server, defaults to 8003.
   * **userAccessId** *(required)*: Obtain from the YoLink app on your mobile device... Settings->Account->Advanced Settings->User Access Credentials. If none exist use the (+) button to request credentials be generated for you. Copy down the UAID (user access ID) and Secret Key.
-  * **secretKey** *(required)*: Secret key obtained as descrived above.
+  * **secretKey** *(required)*: Secret key obtained as described above.
   * **refreshAfter** *(optional)*: The plugin maintains a cache of device status so that it can response very quickly to state requests from HomeKit without having to send a request to the YoLink servers. This is specified in number of seconds and defaults to 14500 (just over 4 hours) which means that if the plugin cache is not updated during this period then retrieve status from the YoLink server. If set to zero than the plugin will always request status from YoLink servers for every HomeKit request (not recommended).
   * **verboseLog** *(optional)*: Sometimes it is helpful to log more detail than *info* but somewhat less than *debug*. This is that half-way. Defaults to false.
   * **liteLog** *(optional)*: HomeKit makes frequent requests for device status, this suppresses logging of every request (unless verboseLog is true). Requests that require message be sent to YoLink servers are still logged. Defaults to true.
   * **allDevices** *(optional)*: If set to false then only devices listed in the Devices section of the config file are loaded, and then only if the hide property is false. Defaults to true so all devices reported by YoLink are loaded (if hide property is false).
   * **enableExperimental** *(optional)*: If set to true, enables support for devices still considered experimental, see Device Notes below.
   * **doublePress** *(optional)*: Duration in milliseconds to trigger a double-press event on two button presses on a stateless device. Defaults to 800ms and a value of zero disables double-press feature. See notes below for YoLink FlexFob remote.
+  * **deviceTemperatures** *(optional)*: If set to true then create a temperature service for those devices that report temperature in addition to their main function. See device notes below.
   * **devices** *(optional)*: Optional array of device settings, see below.
   * **garageDoors** *(optional)*: Optional array of sensor/controller pairs, see below.
 
-* **Device Properties** are an array of objects that allow settings or overrides on a device-by-device basis. This array is optional but if provided contains the following fields:
+* **Devices** are an array of objects that allow settings or overrides on a device-by-device basis. This array is optional but if provided contains the following fields:
   * **deviceId** *(required)*: ID to identify specific device. u can find this from the Homebridge log or in the Homebridge Config UI X by clicking on an accessory settings and copying the Serial Number field.
   * **config** *(optional)*: Object with settings specific for this device:
     * **hide** *(optional)*: See device notes below. Hide this device from Homebridge / HomeKit. You might want to do this to suppress the "device not supported" warning message in the log. As there is no accessory type in HomeKit for a hub, you might want to set this to true for the YoLink hub. Defaults to false
@@ -123,16 +127,18 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
     * **refreshAfter** *(optional)*: Device specific override of global *refreshAfter*, see above. Defaults to global setting.
     * **doublePress** *(optional)*: Device specific override of global *doublePress*, see above. Defaults to global setting.
     * **nOutlets** *(optional)*: For power strip or multi-outlet devices, number of controllable outlets.  See device notes below.
+    * **temperature** *(optional)*: If set to true then create a temperature service in addition to the main function. See device notes below.
 
-* **garageDoors Properties** are an array of objects that allow you to pair two devices, either a *GarageDoor* or *Finger* controller with a *DoorSensor* that together represent a single garage door. The garage door inherits properties of the individual devices. The garage door *name* is taken from the controller device.
+* **garageDoors** are an array of objects that allow you to pair two devices, either a *GarageDoor* or *Finger* controller with a *DoorSensor* that together represent a single garage door. The garage door inherits properties of the individual devices. The garage door *name* is taken from the controller device. See device notes below.
   * **controller** *(required)*: string representing the *deviceID* of the controlling device (activates door open or close). Must be a *GarageDoor* or *Finger* type device.
   * **sensor** *(required)*: string representing the *deviceID* of the sensor device (reports if door open or closed). Must be a *DoorSensor* type device.
+  * **timeout** *(optional)*: time in seconds after which the door status is reset to 'open' or 'closed' after activating the controller if no report has been received from the door sensor. Defaults to 45 seconds.
 
 ## MQTT
 
 The plugin registers with YoLink servers as a MQTT client and subscribes to published messages to receive alerts (e.g. motion sensor detects movement) which are forwarded to homebridge. At the time of writing the resiliency of the MQTT client has not been fully tested, so how well it responds to roaming (change of IP address) or disconnects is not fully known. Logging is enabled to trace events, please report if the MQTT client stops working.
 
-MQTT client is receives updates from YoLink devices at different times depending on the device. An alert event generates a message immediately but regular updates are received when there is no alert. Devices like the leak detector report every 4 hours, but tempearture and humidity sensor sends updates based on environmental change rate, or at least every hour. This is documented in YoLink user guide.
+MQTT client is receives updates from YoLink devices at different times depending on the device. An alert event generates a message immediately but regular updates are received when there is no alert. Devices like the leak detector report every 4 hours, but temperature and humidity sensor sends updates based on environmental change rate, or at least every hour. This is documented in YoLink user guide.
 
 If you are comfortable relying entirely on YoLink notifications you can set the *refreshAfter* property to something larger than 14400 seconds (4 hours) which will cause the plugin to always report the cached state of a device, updating the cache whenever YoLink sends a report or when an internal timer runs based on *refreshAfter*. If this is set to less than 60 seconds then timers will not run, but data will be refreshed on HomeKit requests more than 60 seconds from the previous request.
 
@@ -146,31 +152,37 @@ Many YoLink devices are battery powered and report battery health. This plugin c
 
 ### Hub / Speaker Hub
 
-The plugin recognises these devices and register *Accessory Information* service in Homebridge... however as hubs are not defined in HomeKit no tile is created for these.
+The plugin recognizes these devices and register *Accessory Information* service in Homebridge... however as hubs are not defined in HomeKit no tile is created for these.
 
 ### Leak Sensor
 
 Normal status reporting occurs every 4 hours. Alerts will be reported immediately. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
 
+YoLink leak sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
+
 ### Vibration Sensor
 
 HomeKit does not have a vibration sensor device type so this plugin registers these devices as a Motion Sensor. Normal status reporting occurs every 4 hours. Alerts will be reported immediately. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
+
+YoLink vibration sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
 
 ### Motion Sensor
 
 Normal status reporting occurs every 4 hours. Alerts will be reported immediately. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
 
+Some YoLink Motion sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
+
 ### Thermometer / Humidity Sensor
 
-Normal status reporting occurs based on changes in temperature or humidity over time, with a maximum reporting period of one hour. If you want to check on device status more frequently then set *refreshAfter* to desired interval. While you can request an Alert in the YoLink app (for example when humidity or temperature exeeds a threshold), HomeKit does not support alerts for this device type so those alerts cannot be passed on to HomeKit.
+Normal status reporting occurs based on changes in temperature or humidity over time, with a maximum reporting period of one hour. If you want to check on device status more frequently then set *refreshAfter* to desired interval. While you can request an Alert in the YoLink app (for example when humidity or temperature exceeds a threshold), HomeKit does not support alerts for this device type so those alerts cannot be passed on to HomeKit.
 
-If you have a Thermometer / Humidity sensor but only want to track one value then you can hide one or the other from HomeKit. Set the *hide* configuration paramater to "thermo" or "hydro" to hide that from HomeKit. You may want to do this for example with a remote temperature probe monitoring swimming pool water temperature where humidity value is not relevant.
+If you have a Thermometer / Humidity sensor but only want to track one value then you can hide one or the other from HomeKit. Set the *hide* configuration parameter to "thermo" or "hydro" to hide that from HomeKit. You may want to do this for example with a remote temperature probe monitoring swimming pool water temperature where humidity value is not relevant.
 
 ### Water Valve Controller
 
 YoLink water valve controllers report as a "manipulator" device, the plugin registers this as a HomeKit generic valve. HomeKit has the concept of both open/close and in use where in use means that fluid is actually flowing through the device. Presumably this allows for a valve to be open, but no fluid to flow. YoLink only reports open/close and so the plugin uses this state for both valve position and in use (fluid flowing). Normal status reporting occurs every 4 hours. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
 
-I have observed *Can't connect to Device* errors from YoLink when trying to retrieve device status. When these occur the plugin attemps to connect again, up to 5 times, before giving up. Warnings are written to log.
+I have observed *Can't connect to Device* errors from YoLink when trying to retrieve device status. When these occur the plugin attempts to connect again, up to 5 times, before giving up. Warnings are written to log.
 
 ### Door Sensor
 
@@ -178,7 +190,7 @@ The YoLink door sensor is implemented as a HomeKit contact sensor which can then
 
 ### FlexFob Remote
 
-The YoLink FlexFob four-button smart remote is setup as a HomeKit stateless programmable switch. In Homebridge it is represented with multiple service tiles that all combine into the one accessory on Apple Home. Each button can be programmed to trigger up to three actions in HomeKit beased on a single press, a double press or a long press.
+The YoLink FlexFob four-button smart remote is setup as a HomeKit stateless programmable switch. In Homebridge it is represented with multiple service tiles that all combine into the one accessory on Apple Home. Each button can be programmed to trigger up to three actions in HomeKit; a single press, a double press or a long press.
 
 Double press is not supported directly by the YoLink FlexFob but is generated when two button presses are received within a set timeout. This can be set in the plugin configuration with the *doublePress* setting which should be a value in milliseconds. The default is 800ms. You can experiment to find the ideal setting for yourself by looking at the Homebridge logs as you press the button... the time between each press is logged. If set to zero then the plugin will never generate a double-press event but will send two single-press events instead.
 
@@ -198,17 +210,19 @@ A Switch device is implemented to support adding YoLink siren. This is untested,
 
 YoLink single outlet device is supported. Multi-outlet devices are not currently supported, if you have one please see below and report
 
-I have observed *Can't connect to Device* errors from YoLink when trying to retrieve device status. When these occur the plugin attemps to connect again, up to 5 times, before giving up. Warnings are written to log.
+I have observed *Can't connect to Device* errors from YoLink when trying to retrieve device status. When these occur the plugin attempts to connect again, up to 5 times, before giving up. Warnings are written to log.
 
 ### Multiple Outlet / Power Strip
 
-YoLink powerstrip is supported.  Each individual outlet, including the bank of USB charging ports, is controllable.  Where USB ports are provided they are the first "outlet" in the Homebridge/HomeKit accessory (identified as Outlet 0).  The default number of outlets is five (one USB bank, four main outlets) but you can change this with the *nOutlets* property.
+YoLink power strip is supported.  Each individual outlet, including the bank of USB charging ports, is controllable.  Where USB ports are provided they are the first "outlet" in the Homebridge/HomeKit accessory (identified as Outlet 0).  The default number of outlets is five (one USB bank, four main outlets) but you can change this with the *nOutlets* property.
 
 ### Garage Door / Finger Controller
 
 The YoLink devices for controlling garage doors are supported as a Homebridge/HomeKit switch. These are momentarily activated devices (activate and then immediately deactivate) and are represented in Homebridge/HomeKit by the switch turning on and then turning off one second later.
 
 You can pair these devices with a Door Sensor and the combination appears in Homebridge/HomeKit as a Garage Door accessory.  The individual devices are removed from Homebridge/HomeKit. Door states of open and closed are supported but there is no support to report obstructions or a door stopped in either a fully open or fully closed position.
+
+When you open or close a garage door its status is set to 'opening' or 'closing' until the sensor reports that it is complete.  You can set a timeout after which the door state is reset to either 'open' or 'closed' depending on last reported state from the sensor. Defaults to 45 seconds but you can change this with the *timeout* setting to value between 10 and 120 seconds.
 
 ### Unsupported Devices
 
@@ -220,7 +234,7 @@ If you have a device not supported by the plugin then useful information will be
 
 Various strategies are employed in an attempt to handle an unstable network. If a failure occurs at any point while accessing the network then the plugin will attempt to reconnect.
 
-For login and retrieving access tokens the plugin will retry indefinitely with 5 second initial delay, increasing by 5 seconds for each repeated attempt to a maximum of 60 seconds between retries. If the network goes down, then this should ensure that the connection to YoLink is reestablished within 60 seconds of network recoverd.
+For login and retrieving access tokens the plugin will retry indefinitely with 5 second initial delay, increasing by 5 seconds for each repeated attempt to a maximum of 60 seconds between retries. If the network goes down, then this should ensure that the connection to YoLink is reestablished within 60 seconds of network recovery.
 
 For getting or setting device information the plugin will retry a maximum of 10 times before giving up. The initial retry delay is 2 seconds, incrementing by 2 seconds each time with a maximum interval of 10 seconds.  After all attempts it will fail with a message to log, but this will not terminate the plugin.
 

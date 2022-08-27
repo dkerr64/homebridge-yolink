@@ -153,7 +153,7 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
         if (!message.data.reportAt) {
           // mqtt data does not include a report time, so merging the objects leaves current
           // unchanged, update the time string.
-          device.data.reportAt = this.reportAtTime.toISOString();
+          device.data.reportAt = device.reportAtTime.toISOString();
         }
         this.logDeviceState(device, `Contact: ${device.data.state.state}, Battery: ${device.data.state.battery} (MQTT: ${message.event})`);
         this.contactService

@@ -11,7 +11,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 
 /***********************************************************************
  * initLeakSensor
- * Initialise the leak sensor device services
+ * Initialize the leak sensor device services
  */
 export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -22,6 +22,22 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
   this.leakService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.leakService.getCharacteristic(platform.Characteristic.LeakDetected)
     .onGet(handleGet.bind(this));
+
+  if (device.config.temperature) {
+    // If requested add a service for the internal device temperature.
+    this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
+                      || accessory.addService(platform.Service.TemperatureSensor);
+    this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
+    this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
+      .onGet(handleGet.bind(this, 'thermo'));
+  } else {
+    // If not requested then remove it if it already exists.
+    const service = accessory.getService(platform.Service.TemperatureSensor);
+    if (service) {
+      accessory.removeService(service);
+    }
+  }
+
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
   this.refreshDataTimer(handleGet.bind(this));
@@ -47,19 +63,25 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
  *    "reportAt": "2022-07-22T15:37:08.126Z"
  *  }
  */
-async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
+async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
-  let rc = platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED;
+  let rc = (devSensor === 'main') ? platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED : 0;
   try {
     if (await this.checkDeviceState(platform, device) && device.data.online) {
       this.leakService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      if (device.data.state.state === 'alert') {
-        rc = platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED;
+      switch(devSensor) {
+        case 'thermo':
+          rc = device.data.state.devTemperature;
+          break;
+        default:
+          if (device.data.state.state === 'alert') {
+            rc = platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED;
+          }
       }
       this.logDeviceState(device, `Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
                           `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
@@ -133,7 +155,7 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
         if (!message.data.reportAt) {
           // mqtt data does not include a report time, so merging the objects leaves current
           // unchanged. As we use this to control when to log new data, update the time string.
-          device.data.reportAt = this.reportAtTime.toISOString();
+          device.data.reportAt = device.reportAtTime.toISOString();
         }
         this.logDeviceState(device, `Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
                             `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +

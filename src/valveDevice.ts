@@ -140,7 +140,7 @@ async function handleType(this: YoLinkPlatformAccessory): Promise<Characteristic
 /***********************************************************************
  * mqttValveDevice
  *
- * Example of message received, first one is regular repoorting, 2nd one
+ * Example of message received, first one is regular reporting, 2nd one
  * is on another device (the YoLink app) opening a valve.  Note that some
  * fields are not provided in 2nd version (e.g. Battery level).
  *  {

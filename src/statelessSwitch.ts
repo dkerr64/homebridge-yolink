@@ -18,7 +18,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
   // Gap in milliseconds to consider whether double press or single press...
-  // I never get a value less than 625ms so selecting 800 as resonable default.
+  // I never get a value less than 625ms so selecting 800 as reasonable default.
   device.config.doublePress ??= (platform.config.doublePress ??= 800);
   this.button = [];
 
@@ -49,6 +49,22 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
       .getCharacteristic(platform.Characteristic.ProgrammableSwitchEvent)
       .onGet(handleGet.bind(this));
   }
+
+  if (device.config.temperature) {
+    // If requested add a service for the internal device temperature.
+    this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
+                      || accessory.addService(platform.Service.TemperatureSensor);
+    this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
+    this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
+      .onGet(handleGet.bind(this, 'thermo'));
+  } else {
+    // If not requested then remove it if it already exists.
+    const service = accessory.getService(platform.Service.TemperatureSensor);
+    if (service) {
+      accessory.removeService(service);
+    }
+  }
+
   // timer to regularly update the data.
   this.refreshDataTimer(handleGet.bind(this));
 }
@@ -72,17 +88,23 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
  *   "reportAt":"2022-08-12T20:05:48.990Z"
  * }
  */
-async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
+async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
-  // handleGet is only called during initalization. Data returned always represents the last
+  // handleGet is only called during initialization. Data returned always represents the last
   // button action received by MQTT.
-  const rc = platform.api.hap.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS;
+  let rc = 0;
   try {
     if( await this.checkDeviceState(platform, device) ) {
-      // const reportTime = new Date(device.data.reportAt).getTime();
+      switch(devSensor) {
+        case 'thermo':
+          rc = device.data.state.devTemperature;
+          break;
+        default:
+          rc = 0;
+      }
       this.logDeviceState(device, `${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
                           `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
                           `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
@@ -145,7 +167,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  *   "deviceId":"abcdef1234567890"
  * }
  *
- * "keyMask" is a bitfield. E.g. for a four button remote the bits set will be 1, 2, 4, 8.  If you press
+ * "keyMask" is a bit field. E.g. for a four button remote the bits set will be 1, 2, 4, 8.  If you press
  * two buttons simultaneously then you will get e.g. 9 for buttons one and four... as a "LongPress".
  *
  * "type" can be "Press" or "LongPress"
@@ -177,7 +199,7 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
         if (!message.data.reportAt) {
           // mqtt data does not include a report time, so merging the objects leaves current
           // unchanged, update the time string.
-          device.data.reportAt = this.reportAtTime.toISOString();
+          device.data.reportAt = device.reportAtTime.toISOString();
         }
         this.logDeviceState(device, `${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
                             `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +

@@ -250,7 +250,7 @@ export class YoLinkAPI {
         this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp/1000);
       }
     } catch(e) {
-      // If error occurred that we probably need to login again.  Propogate the error up.
+      // If error occurred that we probably need to login again.  Propagate the error up.
       //const msg = (e instanceof Error) ? e.message : e;
       //platform.log.error(`Error retrieving access token: ${msg}`);
       this.yolinkLoggedIn = false;
@@ -368,7 +368,7 @@ export class YoLinkAPI {
   /*********************************************************************
    * mqtt
    *
-   * Open a MQTT session with YoLink API server to recieve update
+   * Open a MQTT session with YoLink API server to receive update
    * messages from YoLink for each device.
    *
    * This has not been thoroughly tested.  How it behaves on roaming (IP
