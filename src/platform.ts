@@ -165,19 +165,21 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
 
       // If device is assigned to a garage door then hide it as we will
       // handle those as special case.
-      let skip = false;
-      if (this.config.garageDoors?.some(x => (x.sensor === device.deviceId || x.controller === device.deviceId))) {
-        this.log.info(`Device ${device.name} (${device.deviceId}) assigned to a Garage Door`);
-        skip = true;
-      }
-      skip = skip || (!this.config.allDevices && !this.config.devices[device.deviceId])
-                  || (this.config.devices[device.deviceId]
+      const garage = this.config.garageDoors?.some(x => (x.sensor === device.deviceId || x.controller === device.deviceId));
+      const skip = (!this.config.allDevices && !this.config.devices[device.deviceId])
+                 || (this.config.devices[device.deviceId]
                       && (this.config.devices[device.deviceId].hide === true || this.config.devices[device.deviceId].hide === 'true'));
 
-      if (skip) {
+      if (skip || garage) {
         if (existingAccessory){
           this.log.warn(`Remove accessory from cache as config 'hide=true' for: ${existingAccessory.displayName} (${device.deviceId})`);
           this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
+        } else {
+          if (garage) {
+            this.log.info(`Device ${device.name} (${device.deviceId}) assigned to a garage door`);
+          } else {
+            this.log.info(`Not registering device ${device.name} (${device.deviceId}) as config 'hide=true'`);
+          }
         }
       } else {
         let accessoryClass;
@@ -270,8 +272,8 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
         deviceAccessory.mqttMessage(data);
       } else {
         // If a device is hidden (not loaded into homebridge) then we may receive
-        // messages for it... which is perfectly okay, but worth logging.
-        this.log.info(`MQTT received ${message.event} message for unknown device (${data.deviceId})`);
+        // messages for it... which is perfectly okay, but worth logging (only if not lite-logging)
+        this.liteLog(`MQTT received ${data.event} message for hidden device (${data.deviceId})`);
       }
     });
   }
