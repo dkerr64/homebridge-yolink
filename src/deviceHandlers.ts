@@ -16,6 +16,7 @@ import { initSwitchDevice, mqttSwitchDevice } from './switchDevice';
 import { initOutletDevice, mqttOutletDevice } from './outletDevice';
 import { initStatelessSwitch, mqttStatelessSwitch } from './statelessSwitch';
 import { initGarageDoor, mqttGarageDoor } from './garageDoor';
+import { initLockDevice, mqttLockDevice } from './lockDevice';
 
 export const deviceFeatures = {
   Hub: { experimental: false, hasBattery: false },
@@ -34,6 +35,7 @@ export const deviceFeatures = {
   GarageDoor: { experimental: false, hasBattery: false },
   Finger: { experimental: false, hasBattery: true },
   GarageDoorCombo: { experimental: false, hasBattery: false },
+  Lock: { experimental: true, hasBattery: true },
 };
 
 export const initDeviceService = {
@@ -53,6 +55,7 @@ export const initDeviceService = {
   GarageDoor(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('toggle', '', ''); },
   Finger(this: YoLinkPlatformAccessory) { initSwitchDevice.bind(this)('toggle', '', ''); },
   GarageDoorCombo(this: YoLinkPlatformAccessory) { initGarageDoor.bind(this)(); },
+  Lock(this: YoLinkPlatformAccessory) { initLockDevice.bind(this)(); },
 };
 
 export const mqttHandler = {
@@ -72,4 +75,5 @@ export const mqttHandler = {
   GarageDoor(this: YoLinkPlatformAccessory, data) { mqttSwitchDevice.bind(this)(data); },
   Finger(this: YoLinkPlatformAccessory, data) { mqttSwitchDevice.bind(this)(data); },
   GarageDoorCombo(this: YoLinkPlatformAccessory, data) { mqttGarageDoor.bind(this)(data); },
+  Lock(this: YoLinkPlatformAccessory, data) { mqttLockDevice.bind(this)(data); },
 };
