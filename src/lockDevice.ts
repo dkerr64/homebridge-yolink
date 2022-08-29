@@ -18,13 +18,30 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
-  this.lockService = accessory.getService(platform.Service.LockMechanism) || accessory.addService(platform.Service.LockMechanism);
+  this.lockService = accessory.getService(platform.Service.LockMechanism)
+                  || accessory.addService(platform.Service.LockMechanism);
   this.lockService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.lockService.getCharacteristic(platform.Characteristic.LockCurrentState)
     .onGet(handleGet.bind(this, 'current'));
   this.lockService.getCharacteristic(platform.Characteristic.LockTargetState)
     .onGet(handleGet.bind(this, 'target'))
     .onSet(handleSet.bind(this));
+
+  // Lock Management is a no-op for us, but according to Apple documentation
+  // implementation of it is mandatory. So we will implement as no-op!
+  this.lockMgmtServer = accessory.getService(platform.Service.LockManagement)
+                     || accessory.addService(platform.Service.LockManagement);
+  this.lockMgmtServer.getCharacteristic(platform.Characteristic.Version)
+    .onGet( () => {
+      platform.verboseLog('Lock Management Version characteristic onGet called');
+      return('1.0');
+    });
+  this.lockMgmtServer.getCharacteristic(platform.Characteristic.LockControlPoint)
+    .onSet( (value: CharacteristicValue) => {
+      platform.verboseLog(`Lock Management LockControlPoint onSet called with '${value}'`);
+      return;
+    });
+
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
   this.refreshDataTimer(handleGet.bind(this));
@@ -74,6 +91,9 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   const releaseSemaphore = await device.semaphore.acquire();
   try {
     platform.log.warn(`Unsupported request to lock or unlock ${device.deviceMsgName} to '${value}'`);
+    // If it is supported set the current state to the new state, for now just set to requested.
+    this.lockService
+      .updateCharacteristic(platform.Characteristic.LockCurrentState, value);
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LockDevice handleGet' + platform.reportError + msg);
@@ -97,7 +117,7 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery) ? `, Battery: ${message.data.state.battery}`: '';
+    const batteryMsg = (device.hasBattery) ? `, Battery: ${message.data.battery}`: '';
 
     switch (event[1]) {
       case 'Report':
@@ -121,10 +141,10 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
           // unchanged, update the time string.
           device.data.reportAt = device.reportAtTime.toISOString();
         }
-        this.logDeviceState(device, `Lock: ${device.data.state}${batteryMsg} (MQTT: ${message.event})`);
+        this.logDeviceState(device, `Lock: ${message.data.state}${batteryMsg} (MQTT: ${message.event})`);
         this.lockService
           .updateCharacteristic(platform.Characteristic.LockCurrentState,
-            (message.data.state.state === 'locked') ? 1 : 0);
+            (message.data.state === 'locked') ? 1 : 0);
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));

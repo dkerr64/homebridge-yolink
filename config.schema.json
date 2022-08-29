@@ -126,7 +126,6 @@
                   "title": "Hide device from HomeKit",
                   "type": "string",
                   "required": false,
-                  "default": "false",
                   "oneOf": [
                     { "title": "false", "enum": ["false"] },
                     { "title": "true", "enum": ["true"] },
