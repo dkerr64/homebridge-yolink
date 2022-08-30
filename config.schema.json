@@ -184,7 +184,7 @@
         "type": "array",
         "required": false,
         "items": {
-          "title": "Garage Doorss",
+          "title": "Garage Doors",
           "type": "object",
           "properties": {
             "controller": {

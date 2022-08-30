@@ -32,10 +32,7 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
       .onGet(handleGet.bind(this, 'thermo'));
   } else {
     // If not requested then remove it if it already exists.
-    const service = accessory.getService(platform.Service.TemperatureSensor);
-    if (service) {
-      accessory.removeService(service);
-    }
+    accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
   }
 
   // Call get handler to initialize data fields to current state and set

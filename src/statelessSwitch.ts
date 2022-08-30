@@ -59,10 +59,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
       .onGet(handleGet.bind(this, 'thermo'));
   } else {
     // If not requested then remove it if it already exists.
-    const service = accessory.getService(platform.Service.TemperatureSensor);
-    if (service) {
-      accessory.removeService(service);
-    }
+    accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
   }
 
   // timer to regularly update the data.
