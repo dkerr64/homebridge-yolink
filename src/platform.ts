@@ -27,7 +27,6 @@ import { PLATFORM_NAME,
 
 import { YoLinkPlatformAccessory } from './platformAccessory';
 import { YoLinkAPI } from './yolinkAPI';
-
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const packageJSON = require('../package.json');
 
@@ -59,9 +58,11 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       this.config.devices.forEach(x => devices[x.deviceId] = x.config);
     }
     this.config.devices = devices;
-    this.config.verboseLog ??= false;
-    this.config.liteLog ??= true;
-    this.config.allDevices ??= true;
+    this.config.verboseLog = this.makeBoolean(this.config.verboseLog, false);
+    this.config.liteLog = this.makeBoolean(this.config.liteLog, true);
+    this.config.allDevices = this.makeBoolean(this.config.allDevices, true);
+    this.config.enableExperimental = this.makeBoolean(this.config.enableExperimental, false);
+    this.config.deviceTemperatures = this.makeBoolean(this.config.deviceTemperatures, false);
     this.config.mqttPort ??= YOLINK_MQTT_PORT;
     this.config.apiURL ??= YOLINK_API_URL;
     this.config.tokenURL ??= YOLINK_TOKEN_URL;
@@ -121,6 +122,16 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   }
 
   /*********************************************************************
+   * makeBoolean
+   * Allow for both 'true' as a boolean and "true" as a string to equal
+   * true.  And provide a default for when it is undefined.
+   */
+  makeBoolean(a, b: boolean): boolean {
+    return (typeof a === 'undefined') ? b : a === 'true' || a === true;
+  }
+
+
+  /*********************************************************************
    * discoverDevices
    */
   async discoverDevices() {
@@ -159,18 +170,15 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       // the cached devices we stored in the `configureAccessory` method above.
       const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
 
-      if (this.config.devices[device.deviceId]) {
-        device.name = this.config.devices[device.deviceId].name ?? device.name;
-      }
+      device.config = this.config.devices[device.deviceId] ?? {};
+      device.name = device.config.name ?? device.name;
 
       // If device is assigned to a garage door then hide it as we will
       // handle those as special case.
       const garage = this.config.garageDoors?.some(x => (x.sensor === device.deviceId || x.controller === device.deviceId));
-      const skip = (!this.config.allDevices && !this.config.devices[device.deviceId])
-                 || (this.config.devices[device.deviceId]
-                      && (this.config.devices[device.deviceId].hide === true || this.config.devices[device.deviceId].hide === 'true'));
+      device.config.hide = this.makeBoolean(device.config.hide, !this.config.allDevices);
 
-      if (skip || garage) {
+      if (device.config.hide || garage) {
         if (existingAccessory){
           this.log.warn(`Remove accessory from cache as config 'hide=true' for: ${existingAccessory.displayName} (${device.deviceId})`);
           this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
