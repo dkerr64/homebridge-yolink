@@ -101,6 +101,8 @@ export class YoLinkPlatformAccessory {
     // Set updateTime to now, which will ensure retrieving data from YoLink
     // on our first pass through.
     device.updateTime = Math.floor(new Date().getTime() / 1000);
+    // set time of last log message to way back when...
+    device.reportAtTime = new Date(0);
     // We need to serialize requests to YoLink API for each device.  Multiple threads
     // can request state updates for a device at the same time.  This would not be good,
     // so we need a semaphore to make sure we don't send a 2nd request to the same

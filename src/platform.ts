@@ -176,9 +176,9 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       // If device is assigned to a garage door then hide it as we will
       // handle those as special case.
       const garage = this.config.garageDoors?.some(x => (x.sensor === device.deviceId || x.controller === device.deviceId));
-      device.config.hide = this.makeBoolean(device.config.hide, !this.config.allDevices);
+      const skip = this.makeBoolean(device.config.hide, !this.config.allDevices);
 
-      if (device.config.hide || garage) {
+      if (skip || garage) {
         if (existingAccessory){
           this.log.warn(`Remove accessory from cache as config 'hide=true' for: ${existingAccessory.displayName} (${device.deviceId})`);
           this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
