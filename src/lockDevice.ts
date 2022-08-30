@@ -52,6 +52,24 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
  *
  * Example of message received
  *
+ * {
+ *   "code": "000000",
+ *   "time": 1661884194053,
+ *   "msgid": 1661884194053,
+ *   "method": "Lock.getState",
+ *   "desc": "Success",
+ *   "data": {
+ *     "state": "locked",
+ *     "battery": 4,
+ *     "rlSet": "left",
+ *     "loraInfo": {
+ *       "signal": -26,
+ *       "gatewayId": "abcdef1234567890",
+ *       "gateways": 1
+ *     }
+ *   }
+ * }
+ *
  */
 async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -62,9 +80,9 @@ async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): 
   // rc 0 = unsecured, 1 = secured, (and for current state only... 2 = jammed, 3 = unknown)
   try {
     if( await this.checkDeviceState(platform, device) ) {
-      const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.state.battery}`: '';
-      this.logDeviceState(device, `Lock: ${device.data.state.state}${batteryMsg}`);
-      rc = (device.data.state.state === 'locked') ? 1 : 0;
+      const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.battery}`: '';
+      this.logDeviceState(device, `Lock: ${device.data.state}${batteryMsg}`);
+      rc = (device.data.state === 'locked') ? 1 : 0;
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
@@ -135,7 +153,7 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
         // if we received a message then device must be online
         device.data.online = true;
         // Merge received data into existing data object
-        Object.assign(device.data.state, message.data);
+        Object.assign(device.data, message.data);
         if (!message.data.reportAt) {
           // mqtt data does not include a report time, so merging the objects leaves current
           // unchanged, update the time string.
