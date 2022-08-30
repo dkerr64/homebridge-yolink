@@ -20,6 +20,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
 
   if (device.config.hide === 'thermo') {
     platform.log.info(`Hide Thermometer service because config.[${device.deviceId}].hide is set to "thermo"`);
+    accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
   } else {
     // Not trying to hide the thermometer service.
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
@@ -31,6 +32,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
 
   if (device.config.hide === 'hydro') {
     platform.log.info(`Hide Hydrometer service because config.[${device.deviceId}].hide is set to "hydro"`);
+    accessory.removeService(accessory.getService(platform.Service.HumiditySensor)!);
   } else {
     // Not trying to hide the hydrometer service.
     this.hydroService = accessory.getService(platform.Service.HumiditySensor)
