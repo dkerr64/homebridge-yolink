@@ -94,10 +94,9 @@ export class YoLinkPlatformAccessory {
     device.data = {};
     device.deviceMsgName = `${device.name} (${device.deviceId})`;
     device.lastReportAtTime = 0;
-    device.config = platform.config.devices[device.deviceId] ?? {};
     device.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
-    device.config.enableExperimental ??= (platform.config.enableExperimental ??= false);
-    device.config.temperature ??= (platform.config.deviceTemperatures ??= false);
+    device.config.enableExperimental = platform.makeBoolean(device.config.enableExperimental, platform.config.enableExperimental);
+    device.config.temperature = platform.makeBoolean(device.config.temperature, platform.config.deviceTemperatures);
     device.hasBattery = deviceFeatures[device.type].hasBattery;
     // Set updateTime to now, which will ensure retrieving data from YoLink
     // on our first pass through.

@@ -33,6 +33,7 @@ Currently supports the following devices:
 * Outlet (multiple)
 * Garage Door Controller
 * Finger Controller
+* Lock (experimental and unfinished)
 
 The plugin registers as a MQTT client and subscribes to reports published by YoLink for real time alerts and status updates.
 
@@ -85,7 +86,8 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
                         "refreshAfter": 14500,
                         "doublePress": 800,
                         "nOutlets": 5,
-                        "temperature": false
+                        "temperature": false,
+                        "enableExperimental": false
                     }
                 }
             ],
@@ -128,6 +130,7 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
     * **doublePress** *(optional)*: Device specific override of global *doublePress*, see above. Defaults to global setting.
     * **nOutlets** *(optional)*: For power strip or multi-outlet devices, number of controllable outlets.  See device notes below.
     * **temperature** *(optional)*: If set to true then create a temperature service in addition to the main function. See device notes below.
+    * **enableExperimental** *(optional)*: Device specific override of global *enableExperimental*, see above. Defaults to global setting.
 
 * **garageDoors** are an array of objects that allow you to pair two devices, either a *GarageDoor* or *Finger* controller with a *DoorSensor* that together represent a single garage door. The garage door inherits properties of the individual devices. The garage door *name* is taken from the controller device. See device notes below.
   * **controller** *(required)*: string representing the *deviceID* of the controlling device (activates door open or close). Must be a *GarageDoor* or *Finger* type device.
@@ -223,6 +226,10 @@ The YoLink devices for controlling garage doors are supported as a Homebridge/Ho
 You can pair these devices with a Door Sensor and the combination appears in Homebridge/HomeKit as a Garage Door accessory.  The individual devices are removed from Homebridge/HomeKit. Door states of open and closed are supported but there is no support to report obstructions or a door stopped in either a fully open or fully closed position.
 
 When you open or close a garage door its status is set to 'opening' or 'closing' until the sensor reports that it is complete.  You can set a timeout after which the door state is reset to either 'open' or 'closed' depending on last reported state from the sensor. Defaults to 45 seconds but you can change this with the *timeout* setting to value between 10 and 120 seconds.
+
+### Lock
+
+Support for YoLink lock devices is under development and experimental. Set *enableExperimental* to true and observe log files. Please report back.
 
 ### Unsupported Devices
 

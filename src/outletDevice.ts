@@ -27,7 +27,7 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
 
   if (device.type === 'MultiOutlet') {
     // Default to 5 outlets (YoLink power strip has USB + 4 outlets)
-    this.nOutlets = platform.config.devices[device.deviceId]?.nOutlets ?? 5;
+    this.nOutlets = device.config.nOutlets ?? 5;
   }
 
   if (this.nOutlets === 1) {
