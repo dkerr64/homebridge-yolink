@@ -33,7 +33,7 @@ Currently supports the following devices:
 * Outlet (multiple)
 * Garage Door Controller
 * Finger Controller
-* Lock (experimental and unfinished)
+* Lock (experimental)
 
 The plugin registers as a MQTT client and subscribes to reports published by YoLink for real time alerts and status updates.
 
@@ -229,7 +229,7 @@ When you open or close a garage door its status is set to 'opening' or 'closing'
 
 ### Lock
 
-Support for YoLink lock devices is under development and experimental. Set *enableExperimental* to true and observe log files. Please report back.
+Support for YoLink lock devices is experimental. Set *enableExperimental* to true.
 
 ### Unsupported Devices
 
