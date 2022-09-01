@@ -18,6 +18,11 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
+  this.setMethod = 'setState';
+  this.lockedState = 'locked';
+  this.setLock = 'lock';
+  this.setUnlock = 'unlock';
+
   this.lockService = accessory.getService(platform.Service.LockMechanism)
                   || accessory.addService(platform.Service.LockMechanism);
   this.lockService.setCharacteristic(platform.Characteristic.Name, device.name);
@@ -82,7 +87,7 @@ async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): 
     if( await this.checkDeviceState(platform, device) ) {
       const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.battery}`: '';
       this.logDeviceState(device, `Lock: ${device.data.state}${batteryMsg}`);
-      rc = (device.data.state === 'locked') ? 1 : 0;
+      rc = (device.data.state === this.lockedState) ? 1 : 0;
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
@@ -101,6 +106,23 @@ async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): 
  *
  * This is an example of JSON object returned.
  *
+ * {
+ *   "code":"000000",
+ *   "time":1662008265011,
+ *   "msgid":1662008265011,
+ *   "method":"Lock.setState",
+ *   "desc":"Success",
+ *   "data":{
+ *     "state":"locked",
+ *     "loraInfo":{
+ *       "signal":-45,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     },
+ *     "source":"app"
+ *   }
+ * }
+ *
  */
 async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -108,10 +130,13 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
-    platform.log.warn(`Unsupported request to lock or unlock ${device.deviceMsgName} to '${value}'`);
-    // If it is supported set the current state to the new state, for now just set to requested.
+    const newState = (value === 1) ? this.setLock : this.setUnlock;
+    const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}, this.setMethod))?.data;
+    // error will have been thrown in yolinkAPI if data not valid
+    device.data.state = data.state;
+    // Set the current state to the new state as reported by response from YoLink
     this.lockService
-      .updateCharacteristic(platform.Characteristic.LockCurrentState, value);
+      .updateCharacteristic(platform.Characteristic.LockCurrentState, (data.state === this.lockedState) ? 1 : 0);
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LockDevice handleGet' + platform.reportError + msg);
@@ -162,7 +187,7 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
         this.logDeviceState(device, `Lock: ${message.data.state}${batteryMsg} (MQTT: ${message.event})`);
         this.lockService
           .updateCharacteristic(platform.Characteristic.LockCurrentState,
-            (message.data.state === 'locked') ? 1 : 0);
+            (message.data.state === this.lockedState) ? 1 : 0);
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
