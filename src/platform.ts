@@ -22,7 +22,6 @@ import { PLATFORM_NAME,
   YOLINK_MQTT_PORT,
   YOLINK_API_URL,
   YOLINK_TOKEN_URL,
-  YOLINK_REFRESH_INTERVAL,
 } from './settings';
 
 import { YoLinkPlatformAccessory } from './platformAccessory';
@@ -66,7 +65,6 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.mqttPort ??= YOLINK_MQTT_PORT;
     this.config.apiURL ??= YOLINK_API_URL;
     this.config.tokenURL ??= YOLINK_TOKEN_URL;
-    this.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL;
     this.config.version ??= packageJSON.version;
     this.config.garageDoors ??= [];
 

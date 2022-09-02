@@ -229,7 +229,7 @@ When you open or close a garage door its status is set to 'opening' or 'closing'
 
 ### Lock
 
-Support for YoLink lock devices is experimental. Set *enableExperimental* to true.
+Support for YoLink lock devices is experimental. Set *enableExperimental* to true. The YoLink Smart Lock M1 can be locked and unlocked from Homebridge / HomeKit but the lock does not report status changes when it is manually locked or unlocked.  This increases the chance that the status shown in Homebridge / HomeKit will get out-of-sync with the lock.  To minimize this the *refreshAfter* period defaults to 10 seconds... meaning that when status is requested then the plugin will send a request to YoLink servers if it has been more than 10 seconds since the last status request. You can change this in the config file. For this reason use of Homebridge [child bridge](https://github.com/homebridge/homebridge/wiki/Child-Bridges) is encouraged.
 
 ### Unsupported Devices
 

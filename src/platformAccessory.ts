@@ -14,6 +14,7 @@ import { YoLinkHomebridgePlatform } from './platform';
 import Semaphore from 'semaphore-promise';
 import { initDeviceService, mqttHandler, deviceFeatures} from './deviceHandlers';
 import { initUnknownDevice, mqttUnknownDevice } from './unknownDevice';
+import { YOLINK_REFRESH_INTERVAL } from './settings';
 
 export class YoLinkPlatformAccessory {
   // public deviceService!: Service;
@@ -94,7 +95,7 @@ export class YoLinkPlatformAccessory {
     device.data = {};
     device.deviceMsgName = `${device.name} (${device.deviceId})`;
     device.lastReportAtTime = 0;
-    device.config.refreshAfter ??= (platform.config.refreshAfter ??= 3600);
+    device.config.refreshAfter ??= (platform.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL);
     device.config.enableExperimental = platform.makeBoolean(device.config.enableExperimental, platform.config.enableExperimental);
     device.config.temperature = platform.makeBoolean(device.config.temperature, platform.config.deviceTemperatures);
     device.hasBattery = deviceFeatures[device.type].hasBattery;
@@ -185,11 +186,9 @@ export class YoLinkPlatformAccessory {
     platform.verboseLog(`Data refresh timer for ${device.deviceMsgName} fired`);
 
     await handleGet.bind(this)();
-
     if (device.config.refreshAfter >= 60) {
       // We don't allow for updates any more frequently than once a minute.
-      const nextUpdateIn = (device.updateTime) ? Math.max(60, device.updateTime - Math.floor(new Date().getTime() / 1000)) : 60;
-      // If there was no device.updateTime then error occurred, so default to 60 seconds.
+      const nextUpdateIn = Math.max(60, (device.updateTime||0) - Math.floor(new Date().getTime() / 1000));
       platform.verboseLog(`Set data refresh timer for ${device.deviceMsgName} to run in ${nextUpdateIn} seconds`);
       setTimeout( () => {
         this.refreshDataTimer(handleGet);
