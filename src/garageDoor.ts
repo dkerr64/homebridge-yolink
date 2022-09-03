@@ -52,8 +52,9 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
       return(false);
     });
 
+  await this.refreshDataTimer(handleGet.bind(this, doorSensor));
+  // above must await because we use doorSensor in handleGet for doorController
   this.refreshDataTimer(handleGet.bind(this, doorController));
-  this.refreshDataTimer(handleGet.bind(this, doorSensor));
 }
 
 /***********************************************************************
@@ -78,6 +79,7 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
  */
 async function handleGet(this: YoLinkPlatformAccessory, device, needSemaphore = true): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
+  const doorSensor = this.accessory.context.device2;
   // serialize access to device data. This function can be called with parameter that
   // indicates whether semaphore is needed... this allows for nesting with another
   // function that already holds the semaphore.
@@ -86,32 +88,34 @@ async function handleGet(this: YoLinkPlatformAccessory, device, needSemaphore = 
   let rc = platform.api.hap.Characteristic.CurrentDoorState.CLOSED;
   try {
     if (await this.checkDeviceState(platform, device)) {
-      if (device.type === 'GarageDoor' || device.type === 'Finger') {
-        this.logDeviceState(device, `Garage Door or Finger: ${(device.data.battery)?'Battery: '+device.data.battery:'No data'}`);
-        rc = 1;
-      } else if (device.data.online && (device.data.state.state !== 'error')) {
-        // device.type must be DoorSensor
-        if (device.targetState) {
-          // if targetState has value then it means that we have requested the door
-          // to open or close but it has not reported back that it has completed yet.
-          switch (device.targetState) {
-            case 'open':
-              rc = platform.api.hap.Characteristic.CurrentDoorState.OPENING;
-              break;
-            default:
-              rc = platform.api.hap.Characteristic.CurrentDoorState.CLOSING;
-          }
-        } else {
-          // if targetState has no value then door is at steady state
-          // either open or closed.
-          switch (device.data.state.state) {
-            case 'open':
-              rc = platform.api.hap.Characteristic.CurrentDoorState.OPEN;
-              break;
-            default:
-              rc = platform.api.hap.Characteristic.CurrentDoorState.CLOSED;
-          }
+      // 'device' may equal device2, in either case we want to test targetState for the doorSensor
+      if (doorSensor.targetState) {
+        // if targetState has value then it means that we have requested the door
+        // to open or close but it has not reported back that it has completed yet.
+        switch (doorSensor.targetState) {
+          case 'open':
+            rc = platform.api.hap.Characteristic.CurrentDoorState.OPENING;
+            break;
+          default:
+            rc = platform.api.hap.Characteristic.CurrentDoorState.CLOSING;
         }
+      } else {
+        // if targetState has no value then door is at steady state
+        // either open or closed.
+        switch (doorSensor.data.state.state) {
+          case 'open':
+            rc = platform.api.hap.Characteristic.CurrentDoorState.OPEN;
+            break;
+          default:
+            rc = platform.api.hap.Characteristic.CurrentDoorState.CLOSED;
+        }
+      }
+      if (device.type === 'GarageDoor' || device.type === 'Finger') {
+        // return value for target state must be open or closed, not opening or closing.
+        // 0=open, 1=closed, 2=opening, 3=closing, 4=stopped(not used)
+        rc = (rc > 1) ? rc - 2 : rc;
+        this.logDeviceState(device, `Garage Door or Finger: ${(device.data.battery)?'Battery: '+device.data.battery:''}, rc: ${rc}`);
+      } else {
         this.logDeviceState(device, `Sensor: ${device.data.state.state}, Battery: ${device.data.state.battery}, rc: ${rc}`);
       }
     } else {
@@ -176,8 +180,12 @@ async function handleSet(this: YoLinkPlatformAccessory, device, value: Character
     // 0=open, 1=closed, 2=opening, 3=closing, 4=stopped(not used)
     if (value === 0 && (doorState === 0 || doorState === 2)) {
       platform.log.warn(`Request to open garage door (${device.deviceMsgName}) ignored, door already open or opening`);
+      this.garageService
+        .updateCharacteristic(platform.Characteristic.TargetDoorState, platform.api.hap.Characteristic.TargetDoorState.OPEN);
     } else if (value === 1 && (doorState === 1 || doorState === 3)) {
       platform.log.warn(`Request to close garage door (${device.deviceMsgName}) ignored, door already closed or closing`);
+      this.garageService
+        .updateCharacteristic(platform.Characteristic.TargetDoorState, platform.api.hap.Characteristic.TargetDoorState.CLOSED);
     } else {
       clearTimeout(doorSensor.resetTimer);
       if (value === 0) {
@@ -305,6 +313,11 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
             (message.data.state === 'open')
               ? platform.api.hap.Characteristic.CurrentDoorState.OPEN
               : platform.api.hap.Characteristic.CurrentDoorState.CLOSED);
+        this.garageService
+          .updateCharacteristic(platform.Characteristic.TargetDoorState,
+            (message.data.state === 'open')
+              ? platform.api.hap.Characteristic.TargetDoorState.OPEN
+              : platform.api.hap.Characteristic.TargetDoorState.CLOSED);
         break;
       case 'setOpenRemind':
         // Homebridge has no equivalent and message does not carry either contact state or battery
