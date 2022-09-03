@@ -107,6 +107,7 @@
       },
       "devices": {
         "type": "array",
+        "description": "Device specific configuration that can override global settings for a specific device.  Devices are identified by their YoLink Unique ID.",
         "items": {
           "title": "Device",
           "type": "object",
@@ -212,5 +213,97 @@
         "description":"Pair two devices together into a single Garage Door accessory. You can find the Device ID in the Homebridge log, in the YoLink mobile app (as Device EUI) or in the Homebridge Config UI by clicking on an accessory's settings and copying the Serial Number field."
       }
     }
-  }
+  },
+  "layout": [
+    {
+      "items": [
+        {
+          "ref": "required",
+          "type": "fieldset",
+          "expandable": true,
+          "expanded": true,
+          "title": "Required settings",
+          "items": [
+            "name",
+            "platform",
+            "tokenURL",
+            "apiURL",
+            "mqttPort",
+            "userAccessId",
+            "secretKey"
+          ]
+        },
+        {
+          "ref": "optional",
+          "type": "fieldset",
+          "expandable": true,
+          "expanded": false,
+          "title": "Optional global configuration",
+          "items": [
+            "refreshAfter",
+            "doublePress",
+            "deviceTemperatures",
+            "verboseLog",
+            "liteLog",
+            "allDevices",
+            "enableExperimental"
+          ]
+        },
+        {
+          "ref": "devices",
+          "type": "fieldset",
+          "expandable": true,
+          "expanded": false,
+          "title": "Device configuration",
+          "items": [
+            {
+              "key": "devices",
+              "type": "array",
+              "add": "New",
+              "remove": "Delete",
+              "items": [
+                {
+                  "key": "config",
+                  "type": "section",
+                  "expandable": true,
+                  "expanded": false,
+                  "title": "{{'Device ' + $index }}",
+                  "items": [
+                    "devices[].deviceId",
+                    "devices[].config.hide",
+                    "devices[].config.name",
+                    "devices[].config.model",
+                    "devices[].config.refreshAfter",
+                    "devices[].config.doublePress",
+                    "devices[].config.nOutlets",
+                    "devices[].config.temperature"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ref": "garageDoors",
+          "type": "fieldset",
+          "expandable": true,
+          "expanded": false,
+          "title": "Garage Doors",
+          "items": [
+            {
+              "key": "garageDoors",
+              "type": "array",
+              "add": "New",
+              "remove": "Delete",
+              "items": [
+                "garageDoors[].controller",
+                "garageDoors[].sensor",
+                "garageDoors[].timeout"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

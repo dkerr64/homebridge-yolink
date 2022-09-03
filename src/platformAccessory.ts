@@ -13,8 +13,6 @@ import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import Semaphore from 'semaphore-promise';
 import { initDeviceService, mqttHandler, deviceFeatures} from './deviceHandlers';
-import { initUnknownDevice, mqttUnknownDevice } from './unknownDevice';
-import { YOLINK_REFRESH_INTERVAL } from './settings';
 
 export class YoLinkPlatformAccessory {
   // public deviceService!: Service;
@@ -23,12 +21,15 @@ export class YoLinkPlatformAccessory {
   public config!: {
     [key: string]: any;
   };
+
+  // Allow adding 'any' type of variable to this class
+  [key: string]: any;
   /* eslint-enable @typescript-eslint/no-explicit-any */
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
-  public deviceId;
-  public deviceMsgName;
+  // Some accessory types may have two YoLink devices
+  public deviceId: string;
+  public deviceId2: string;
+  public deviceMsgName = '';
 
   constructor(
     readonly platform: YoLinkHomebridgePlatform,
@@ -37,6 +38,7 @@ export class YoLinkPlatformAccessory {
     Error.stackTraceLimit = 100;
     const device = accessory.context.device;
     this.deviceId = device.deviceId;
+    this.deviceId2 = '';
     // Special handling if we have two devices attached to the one accessory
     // only known case right now is for binding a garage door sensor with controller
     this.deviceType = (accessory.context.device2) ? 'GarageDoorCombo' : device.type;
@@ -47,7 +49,7 @@ export class YoLinkPlatformAccessory {
     // If device type exists in our list of supported services...
     if (initDeviceService[this.deviceType]) {
       // And it is not experimental, or we are allowing experimental...
-      if ((!deviceFeatures[this.deviceType].experimental || device.config.enableExperimental)) {
+      if ((!(deviceFeatures[this.deviceType].experimental||false) || device.config.enableExperimental)) {
         // Then set accessory information...
         this.infoService = this.accessory.getService(platform.Service.AccessoryInformation) as Service;
         this.infoService
@@ -82,7 +84,7 @@ export class YoLinkPlatformAccessory {
       }
     } else {
       // We do not have support for this device yet.
-      initUnknownDevice.bind(this)();
+      initDeviceService['Unknown'].bind(this)();
     }
     return(this);
   }
@@ -91,11 +93,13 @@ export class YoLinkPlatformAccessory {
    * checkDeviceState
    *
    */
-  initializeDeviceVars(platform, device) {
+  initializeDeviceVars(platform: YoLinkHomebridgePlatform, device) {
     device.data = {};
     device.deviceMsgName = `${device.name} (${device.deviceId})`;
     device.lastReportAtTime = 0;
-    device.config.refreshAfter ??= (platform.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL);
+    // Lock is not sending state updates over MQTT so we need to frequently check for status.
+    // If refreshAfter is not explicitly set for the lock in config file then set to 10 seconds.
+    device.config.refreshAfter ??= (device.type === 'Lock') ? 10 : platform.config.refreshAfter;
     device.config.enableExperimental = platform.makeBoolean(device.config.enableExperimental, platform.config.enableExperimental);
     device.config.temperature = platform.makeBoolean(device.config.temperature, platform.config.deviceTemperatures);
     device.hasBattery = deviceFeatures[device.type].hasBattery;
@@ -123,7 +127,7 @@ export class YoLinkPlatformAccessory {
    * Calls to this function should be serialized with deviceSemaphore to
    * prevent sending multiple requests for the same data to the server.
    */
-  async checkDeviceState(platform, device) {
+  async checkDeviceState(platform: YoLinkHomebridgePlatform, device) {
     try {
       platform.verboseLog(`checkDeviceState for ${device.deviceMsgName} (refresh after ${device.config.refreshAfter} seconds)`);
       const timestamp = Math.floor(new Date().getTime() / 1000);
@@ -179,7 +183,7 @@ export class YoLinkPlatformAccessory {
    * right time to force call to yolinkAPI.getDeviceState.  All this to optimize
    * performance of user experience.
    */
-  async refreshDataTimer(handleGet) {
+  async refreshDataTimer(this: YoLinkPlatformAccessory, handleGet) {
     const platform: YoLinkHomebridgePlatform = this.platform;
     const device = this.accessory.context.device;
 
@@ -287,7 +291,7 @@ export class YoLinkPlatformAccessory {
         if (mqttHandler[this.deviceType]) {
           mqttHandler[this.deviceType].bind(this)(message);
         } else {
-          mqttUnknownDevice.bind(this)(message);
+          mqttHandler['Unknown'].bind(this)(message);
         }
       } else {
         platform.log.warn(`MQTT: ${message.event} for uninitialized device ${device.deviceMsgName}`
