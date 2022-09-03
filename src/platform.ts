@@ -22,6 +22,7 @@ import { PLATFORM_NAME,
   YOLINK_MQTT_PORT,
   YOLINK_API_URL,
   YOLINK_TOKEN_URL,
+  YOLINK_REFRESH_INTERVAL,
 } from './settings';
 
 import { YoLinkPlatformAccessory } from './platformAccessory';
@@ -67,6 +68,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.tokenURL ??= YOLINK_TOKEN_URL;
     this.config.version ??= packageJSON.version;
     this.config.garageDoors ??= [];
+    this.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL;
 
     this.log.info(`YoLink plugin for HomeBridge version ${packageJSON.version} (c) 2022 David A. Kerr${this.reportError}`);
     this.verboseLog(`Loaded configuration:\n${JSON.stringify(this.config)}`);

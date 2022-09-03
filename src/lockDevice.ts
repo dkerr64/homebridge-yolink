@@ -8,7 +8,6 @@
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
-import { YOLINK_REFRESH_INTERVAL } from './settings';
 
 /***********************************************************************
  * initLockDevice
@@ -23,10 +22,6 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
   this.lockedState = 'locked';
   this.setLock = 'lock';
   this.setUnlock = 'unlock';
-
-  // Lock is not sending state updates over MQTT so we need to frequently check for status.
-  // If refreshAfter is still the default (very large) then set to 10 seconds.
-  device.config.refreshAfter = (device.config.refreshAfter === YOLINK_REFRESH_INTERVAL) ? 10 : device.config.refreshAfter;
 
   this.lockService = accessory.getService(platform.Service.LockMechanism)
                   || accessory.addService(platform.Service.LockMechanism);
