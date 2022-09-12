@@ -21,7 +21,7 @@ import { initGarageDoor, mqttGarageDoor }               from './garageDoor';
 import { initLockDevice, mqttLockDevice }               from './lockDevice';
 
 export const deviceFeatures = {
-  Unknown:          { hasBattery: false },
+  Unknown:          { hasBattery: false, experimental: false },
   Hub:              { hasBattery: false },
   SpeakerHub:       { hasBattery: false },
   VibrationSensor:  { hasBattery: true },
@@ -38,7 +38,7 @@ export const deviceFeatures = {
   GarageDoor:       { hasBattery: false },
   Finger:           { hasBattery: true },
   GarageDoorCombo:  { hasBattery: false },
-  Lock:             { hasBattery: true, experimental: true },
+  Lock:             { hasBattery: true },
 };
 
 export const initDeviceService = {
