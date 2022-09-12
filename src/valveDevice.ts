@@ -119,7 +119,9 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
     device.data.state = data.state;
     this.valveService
       .updateCharacteristic(platform.Characteristic.Active, (data.state === 'open')
-        ? platform.api.hap.Characteristic.Active.ACTIVE : platform.api.hap.Characteristic.Active.INACTIVE);
+        ? platform.api.hap.Characteristic.Active.ACTIVE : platform.api.hap.Characteristic.Active.INACTIVE)
+      .updateCharacteristic(platform.Characteristic.InUse, (data.state === 'open')
+        ? platform.api.hap.Characteristic.InUse.IN_USE : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in ValveDevice handleSet' + platform.reportError + msg);
@@ -208,10 +210,12 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
         Object.assign(device.data, message.data);
         this.logDeviceState(device, `Valve: ${device.data.state}, Battery: ${device.data.battery} (MQTT: ${message.event})`);
         this.valveService
-          .updateCharacteristic(platform.Characteristic.Active,
-            (message.data.state === 'open')
-              ? platform.api.hap.Characteristic.Active.ACTIVE
-              : platform.api.hap.Characteristic.Active.INACTIVE)
+          .updateCharacteristic(platform.Characteristic.Active, (message.data.state === 'open')
+            ? platform.api.hap.Characteristic.Active.ACTIVE
+            : platform.api.hap.Characteristic.Active.INACTIVE)
+          .updateCharacteristic(platform.Characteristic.InUse, (message.data.state === 'open')
+            ? platform.api.hap.Characteristic.InUse.IN_USE
+            : platform.api.hap.Characteristic.InUse.NOT_IN_USE)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
         break;
       default:
