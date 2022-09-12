@@ -102,7 +102,7 @@ export class YoLinkPlatformAccessory {
     device.config.refreshAfter ??= (device.type === 'Lock') ? 10 : platform.config.refreshAfter;
     device.config.enableExperimental = platform.makeBoolean(device.config.enableExperimental, platform.config.enableExperimental);
     device.config.temperature = platform.makeBoolean(device.config.temperature, platform.config.deviceTemperatures);
-    device.hasBattery = deviceFeatures[device.type].hasBattery;
+    device.hasBattery = deviceFeatures[device.type]?.hasBattery ?? false;
     // Set updateTime to now, which will ensure retrieving data from YoLink
     // on our first pass through.
     device.updateTime = Math.floor(new Date().getTime() / 1000);
