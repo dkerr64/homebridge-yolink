@@ -148,8 +148,79 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
 /***********************************************************************
  * mqttLockDevice
  *
- * Example of message received,
+ * Example of message received...
+ * {
+ *   "event":"Lock.Alert",
+ *   "time":1663015501183,
+ *   "msgid":"1663015501182",
+ *   "data":{
+ *     "state":"unlocked",
+ *     "battery":4,
+ *     "alertType":"unlock",
+ *     "source":"manual",
+ *     "loraInfo":{
+ *       "signal":-62,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
  *
+ * And also...
+ * {
+ *   "event":"Lock.StatusChange",
+ *   "time":1663015557598,
+ *   "msgid":"1663015557597",
+ *   "data":{
+ *     "state":"locked",
+ *     "battery":4,
+ *     "rlSet":"left",
+ *       "loraInfo":{
+ *       "signal":-61,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
+ *
+ * setState used when YoLink app changes the lock status...
+ * {
+ *   "event":"Lock.setState",
+ *   "time":1663016513902,
+ *   "msgid":"1663016513901",
+ *   "data":{
+ *     "state":"locked",
+ *     "loraInfo":{
+ *       "signal":-68,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     },
+ *     "source":"app"
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
+ *
+ * When a passcode unlocks...
+ * {
+ *   "event":"Lock.Alert",
+ *   "time":1663016954717,
+ *   "msgid":"1663016954715",
+ *   "data":{
+ *     "state":"unlocked",
+ *     "battery":4,
+ *     "alertType":"unlock",
+ *     "source":"pwd",
+ *     "user":"admin",
+ *     "loraInfo":{
+ *       "signal":-67,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
  */
 export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -169,14 +240,14 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
         // falls through
       case 'setState':
         // falls through
+      case 'Alert':
+        // falls through
       case 'StatusChange':
         if (!device.data) {
         // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           break;
         }
-        // if we received a message then device must be online
-        device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
         if (!message.data.reportAt) {

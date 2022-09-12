@@ -97,12 +97,10 @@ export class YoLinkPlatformAccessory {
     device.data = {};
     device.deviceMsgName = `${device.name} (${device.deviceId})`;
     device.lastReportAtTime = 0;
-    // Lock is not sending state updates over MQTT so we need to frequently check for status.
-    // If refreshAfter is not explicitly set for the lock in config file then set to 10 seconds.
-    device.config.refreshAfter ??= (device.type === 'Lock') ? 10 : platform.config.refreshAfter;
+    device.config.refreshAfter ??= platform.config.refreshAfter;
     device.config.enableExperimental = platform.makeBoolean(device.config.enableExperimental, platform.config.enableExperimental);
     device.config.temperature = platform.makeBoolean(device.config.temperature, platform.config.deviceTemperatures);
-    device.hasBattery = deviceFeatures[device.type].hasBattery;
+    device.hasBattery = deviceFeatures[device.type]?.hasBattery ?? false;
     // Set updateTime to now, which will ensure retrieving data from YoLink
     // on our first pass through.
     device.updateTime = Math.floor(new Date().getTime() / 1000);

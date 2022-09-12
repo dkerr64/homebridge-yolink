@@ -295,8 +295,6 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
           platform.log.warn(`Device ${doorSensor.deviceMsgName} has no data field, is device offline?`);
           break;
         }
-        // if we received a message then device must be online
-        doorSensor.data.online = true;
         // Merge received data into existing data object
         if (doorSensor.data.state) {
           Object.assign(doorSensor.data.state, message.data);
