@@ -248,8 +248,6 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           break;
         }
-        // if we received a message then device must be online
-        device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
         if (!message.data.reportAt) {

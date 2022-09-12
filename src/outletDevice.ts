@@ -306,8 +306,6 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           break;
         }
-        // if we received a message then device must be online
-        device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
         this.logDeviceState(device, `Outlet: ${device.data.state} (MQTT: ${message.event})`);

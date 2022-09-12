@@ -204,8 +204,6 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
           this.valveService.updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
         }
-        // if we received a message then device must be online
-        device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
         this.logDeviceState(device, `Valve: ${device.data.state}, Battery: ${device.data.battery} (MQTT: ${message.event})`);

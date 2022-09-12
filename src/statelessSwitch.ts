@@ -189,8 +189,6 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
           platform.log.warn(`${mqttMessage} has no data field, is device offline?`);
           break;
         }
-        // if we received a message then device must be online
-        device.data.online = true;
         // Merge received data into existing data object
         Object.assign(device.data.state, message.data);
         if (!message.data.reportAt) {
