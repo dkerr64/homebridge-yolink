@@ -73,6 +73,12 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
             "verboseLog": false,
             "liteLog": true,
             "allDevices": true,
+            "excludeTypes": [
+                "Hub",
+                "SpeakerHub"
+            ],
+            "includeTypes": [
+            ],
             "enableExperimental": false,
             "doublePress": 800,
             "deviceTemperatures": false,
@@ -114,6 +120,8 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
   * **verboseLog** *(optional)*: Sometimes it is helpful to log more detail than *info* but somewhat less than *debug*. This is that half-way. Defaults to false.
   * **liteLog** *(optional)*: HomeKit makes frequent requests for device status, this suppresses logging of every request (unless verboseLog is true). Requests that require message be sent to YoLink servers are still logged. Defaults to true.
   * **allDevices** *(optional)*: If set to false then only devices listed in the Devices section of the config file are loaded, and then only if the hide property is false. Defaults to true so all devices reported by YoLink are loaded (if hide property is false).
+  * **excludeTypes** *(optional)*: Array of YoLink device types that will be excluded even if *allDevices* is set to true. The currently supported list of device types is *Hub, SpeakerHub, VibrationSensor, MotionSensor, LeakSensor, Manipulator, THSensor, DoorSensor, Siren, Switch, Outlet, SmartRemoter, MultiOutlet, GarageDoor, Finger* and *Lock*. Defaults to exclude Hub and Speaker Hub.  Note that capitalization is important and values must be entered exactly as listed here.
+  * **includeTypes** *(optional)*: Array of YoLink device types that will be included even if *allDevices* is set to false.  Same list of device types as above with no default.
   * **enableExperimental** *(optional)*: If set to true, enables support for devices still considered experimental, see Device Notes below.
   * **doublePress** *(optional)*: Duration in milliseconds to trigger a double-press event on two button presses on a stateless device. Defaults to 800ms and a value of zero disables double-press feature. See notes below for YoLink FlexFob remote.
   * **deviceTemperatures** *(optional)*: If set to true then create a temperature service for those devices that report temperature in addition to their main function. See device notes below.

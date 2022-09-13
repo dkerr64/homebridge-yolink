@@ -82,7 +82,67 @@
         "type": "boolean",
         "required": false,
         "default": true,
-        "description": "This will load all devices whether an entry exists in the config file or not (see devices section below).  If set to false then only devices specifically listed in device section, with hide set to false, will load."
+        "description": "This will load all devices whether an entry exists in the config file or not (see devices section below).  If set to false then only devices specifically listed in device section, with hide set to false, or devices of the Type(s) selected below, will load."
+      },
+      "excludeTypes": {
+        "title": "When load all devices is selected, exclude devices of these types",
+        "type": "array",
+        "required": false,
+        "uniqueItems": true,
+        "items": {
+          "title": "Exclude",
+          "type": "string",
+          "enum": [
+            "Hub",
+            "SpeakerHub",
+            "VibrationSensor",
+            "MotionSensor",
+            "LeakSensor",
+            "Manipulator",
+            "THSensor",
+            "DoorSensor",
+            "Siren",
+            "Switch",
+            "Outlet",
+            "SmartRemoter",
+            "MultiOutlet",
+            "GarageDoor",
+            "Finger",
+            "Lock"
+          ]
+        },
+        "default": [
+          "Hub",
+          "SpeakerHub"
+        ]
+      },
+      "includeTypes": {
+        "title": "When load all devices is not selected, include devices of these types",
+        "type": "array",
+        "required": false,
+        "uniqueItems": true,
+        "items": {
+          "title": "Include",
+          "type": "string",
+          "enum": [
+            "Hub",
+            "SpeakerHub",
+            "VibrationSensor",
+            "MotionSensor",
+            "LeakSensor",
+            "Manipulator",
+            "THSensor",
+            "DoorSensor",
+            "Siren",
+            "Switch",
+            "Outlet",
+            "SmartRemoter",
+            "MultiOutlet",
+            "GarageDoor",
+            "Finger",
+            "Lock"
+          ]
+        }
       },
       "doublePress": {
         "title": "Time in milliseconds between button presses to consider as a double-press",
@@ -100,10 +160,11 @@
 
       },
       "enableExperimental": {
-        "title": "Enable support for devices under development.  USE ONLY IF REQUESTED to assist development",
+        "title": "Enable support for devices under development",
         "type": "boolean",
         "required": false,
-        "default": false
+        "default": false,
+        "description": "USE ONLY IF REQUESTED by plugin author to assist development"
       },
       "devices": {
         "type": "array",
@@ -245,8 +306,10 @@
             "deviceTemperatures",
             "verboseLog",
             "liteLog",
+            "enableExperimental",
             "allDevices",
-            "enableExperimental"
+            "excludeTypes",
+            "includeTypes"
           ]
         },
         {
