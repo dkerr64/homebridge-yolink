@@ -132,6 +132,10 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
+    const devTempMsg = (message.data.devTemperature) ? `, DevTemp: ${message.data.devTemperature}\u00B0C ` +
+                                                                `(${(message.data.devTemperature*9/5+32).toFixed(1)}\u00B0F)` : '';
 
     switch (event[1]) {
       case 'Alert':
@@ -154,9 +158,7 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
           // unchanged. As we use this to control when to log new data, update the time string.
           device.data.reportAt = device.reportAtTime.toISOString();
         }
-        this.logDeviceState(device, `Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
-                            `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
-                            `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F) (MQTT: ${message.event})`);
+        this.logDeviceState(device, `Leak: ${device.data.state.state}${alertMsg}${batteryMsg}${devTempMsg} (MQTT: ${message.event})`);
         this.leakService
           .updateCharacteristic(platform.Characteristic.LeakDetected,
             (message.data.state === 'alert')

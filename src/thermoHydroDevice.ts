@@ -194,6 +194,8 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
 
     switch (event[1]) {
       case 'Alert':
@@ -217,8 +219,8 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
           device.data.reportAt = device.reportAtTime.toISOString();
         }
         this.logDeviceState(device, `Temperature ${device.data.state.temperature}\u00B0C ` +
-                            `(${(device.data.state.temperature*9/5+32).toFixed(1)}\u00B0F), Humidity ${device.data.state.humidity}, ` +
-                            `Battery: ${device.data.state.battery} (MQTT: ${message.event})`);
+                                              `(${(device.data.state.temperature*9/5+32).toFixed(1)}\u00B0F), `+
+                                    `Humidity ${device.data.state.humidity}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
         if (this.thermoService) {
           this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
         }
