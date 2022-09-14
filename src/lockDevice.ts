@@ -39,12 +39,23 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
   this.lockMgmtServer.getCharacteristic(platform.Characteristic.Version)
     .onGet( () => {
       platform.verboseLog('Lock Management Version characteristic onGet called');
+      // return '1.0' as required by Apple specification docs.
       return('1.0');
     });
   this.lockMgmtServer.getCharacteristic(platform.Characteristic.LockControlPoint)
     .onSet( (value: CharacteristicValue) => {
       platform.verboseLog(`Lock Management LockControlPoint onSet called with '${value}'`);
       return;
+    });
+
+  // Door Bell service...
+  this.doorBellService = accessory.getService(platform.Service.Doorbell)
+                      || accessory.addService(platform.Service.Doorbell);
+  this.doorBellService.setCharacteristic(platform.Characteristic.Name, device.name);
+  this.doorBellService.getCharacteristic(platform.Characteristic.ProgrammableSwitchEvent)
+    .onGet( () => {
+      platform.verboseLog('Lock door bell onGet called');
+      return(platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
     });
 
   // Call get handler to initialize data fields to current state and set
@@ -202,7 +213,7 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
  *   "deviceId":"abcdef1234567890"
  * }
  *
- * When a passcode unlocks...
+ * When a PIN unlocks...
  * {
  *   "event":"Lock.Alert",
  *   "time":1663016954717,
@@ -221,6 +232,24 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
  *   },
  *   "deviceId":"abcdef1234567890"
  * }
+ *
+ * When door bell button pressed...
+ * {
+ *   "event":"Lock.Alert",
+ *   "time":1663069662083,
+ *   "msgid":"1663069662077",
+ *   "data":{
+ *     "state":"unlocked",
+ *     "battery":4,
+ *     "alertType":"bell",
+ *     "loraInfo":{
+ *       "signal":-65,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
  */
 export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -231,7 +260,8 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery) ? `, Battery: ${message.data.battery}`: '';
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
 
     switch (event[1]) {
       case 'Report':
@@ -255,7 +285,12 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
           // unchanged, update the time string.
           device.data.reportAt = device.reportAtTime.toISOString();
         }
-        this.logDeviceState(device, `Lock: ${message.data.state}${batteryMsg} (MQTT: ${message.event})`);
+        this.logDeviceState(device, `Lock: ${message.data.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
+        if (message.data.alertType === 'bell') {
+          this.doorBellService
+            .updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
+              platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+        }
         this.lockService
           .updateCharacteristic(platform.Characteristic.LockCurrentState,
             (message.data.state === this.lockedState) ? 1 : 0);

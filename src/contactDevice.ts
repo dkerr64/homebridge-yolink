@@ -133,6 +133,8 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
 
     switch (event[1]) {
       case 'Alert':
@@ -155,7 +157,7 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
           // unchanged, update the time string.
           device.data.reportAt = device.reportAtTime.toISOString();
         }
-        this.logDeviceState(device, `Contact: ${device.data.state.state}, Battery: ${device.data.state.battery} (MQTT: ${message.event})`);
+        this.logDeviceState(device, `Contact: ${device.data.state.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
         this.contactService
           .updateCharacteristic(platform.Characteristic.ContactSensorState,
             (message.data.state === 'closed')

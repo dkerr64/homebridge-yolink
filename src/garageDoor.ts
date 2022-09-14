@@ -273,6 +273,9 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
   }
   // 'device2' is the sensor device...
   const doorSensor = this.accessory.context.device2;
+  const batteryMsg = (doorSensor.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+  const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
+
   // serialize access to device data.
   const releaseSemaphore = await doorSensor.semaphore.acquire();
   try {
@@ -304,8 +307,7 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
             doorSensor.data.reportAt = doorSensor.reportAtTime.toISOString();
           }
         }
-        this.logDeviceState(doorSensor, `Contact: ${doorSensor.data.state.state}, ` +
-                                        `Battery: ${doorSensor.data.state.battery} (MQTT: ${message.event})`);
+        this.logDeviceState(doorSensor, `Contact: ${doorSensor.data.state.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
         this.garageService
           .updateCharacteristic(platform.Characteristic.CurrentDoorState,
             (message.data.state === 'open')

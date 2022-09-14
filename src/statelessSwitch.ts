@@ -178,6 +178,9 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const devTempMsg = (message.data.devTemperature) ? `, DevTemp: ${message.data.devTemperature}\u00B0C ` +
+                                                                `(${(message.data.devTemperature*9/5+32).toFixed(1)}\u00B0F)` : '';
 
     switch (event[1]) {
       case 'Report':
@@ -196,9 +199,7 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
           // unchanged, update the time string.
           device.data.reportAt = device.reportAtTime.toISOString();
         }
-        this.logDeviceState(device, `${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
-                            `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
-                            `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F) (MQTT: ${message.event})`);
+        this.logDeviceState(device, `${JSON.stringify(device.data.state.event)}${batteryMsg}${devTempMsg} (MQTT: ${message.event})`);
         // loop through all possible buttons...
         for (let i=0, b=message.data.event.keyMask; b; i++, b=b>>>1) {
           // if keyMask is set for this button then process the message...

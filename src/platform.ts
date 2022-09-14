@@ -61,6 +61,8 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.verboseLog = this.makeBoolean(this.config.verboseLog, false);
     this.config.liteLog = this.makeBoolean(this.config.liteLog, true);
     this.config.allDevices = this.makeBoolean(this.config.allDevices, true);
+    this.config.excludeTypes ??= [];
+    this.config.includeTypes ??= [];
     this.config.enableExperimental = this.makeBoolean(this.config.enableExperimental, false);
     this.config.deviceTemperatures = this.makeBoolean(this.config.deviceTemperatures, false);
     this.config.mqttPort ??= YOLINK_MQTT_PORT;
@@ -176,7 +178,11 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       // If device is assigned to a garage door then hide it as we will
       // handle those as special case.
       const garage = this.config.garageDoors?.some(x => (x.sensor === device.deviceId || x.controller === device.deviceId));
-      const skip = this.makeBoolean(device.config.hide, !this.config.allDevices);
+      // Skip over devices that are marked to as hide true, or the device type is listed in the excludeTypes or
+      // includeTypes array based on whether allDevices is set to true or false...
+      const skip = this.makeBoolean(device.config.hide,
+        !((this.config.allDevices && this.config.excludeTypes.some(x => (x === device.type))) !==
+          (this.config.allDevices || this.config.includeTypes.some(x => (x === device.type)))));
 
       if (skip || garage) {
         if (existingAccessory){
