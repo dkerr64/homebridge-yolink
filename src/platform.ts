@@ -61,10 +61,11 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.verboseLog = this.makeBoolean(this.config.verboseLog, false);
     this.config.liteLog = this.makeBoolean(this.config.liteLog, true);
     this.config.allDevices = this.makeBoolean(this.config.allDevices, true);
-    this.config.excludeTypes ??= [];
+    this.config.excludeTypes ??= [ 'Hub', 'SpeakerHub' ];
     this.config.includeTypes ??= [];
     this.config.enableExperimental = this.makeBoolean(this.config.enableExperimental, false);
     this.config.deviceTemperatures = this.makeBoolean(this.config.deviceTemperatures, false);
+    this.config.powerFailureSensorAs ??= 'Outlet';
     this.config.mqttPort ??= YOLINK_MQTT_PORT;
     this.config.apiURL ??= YOLINK_API_URL;
     this.config.tokenURL ??= YOLINK_TOKEN_URL;
@@ -129,7 +130,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    * true.  And provide a default for when it is undefined.
    */
   makeBoolean(a, b: boolean): boolean {
-    return (typeof a === 'undefined') ? b : a === 'true' || a === true;
+    return (typeof a === 'undefined') ? b : String(a).toLowerCase() === 'true' || a === true;
   }
 
 
