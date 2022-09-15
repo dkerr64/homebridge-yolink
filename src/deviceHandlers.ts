@@ -40,7 +40,7 @@ export const deviceFeatures = {
   Finger:             { hasBattery: true },
   GarageDoorCombo:    { hasBattery: false },
   Lock:               { hasBattery: true },
-  PowerFailureAlarm:  { hasBattery: true, experimental: true },
+  PowerFailureAlarm:  { hasBattery: true },
 };
 
 export const initDeviceService = {

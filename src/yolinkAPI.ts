@@ -118,7 +118,7 @@ export class YoLinkAPI {
   private accessSemaphore;
 
   private accessTokenRefreshAt = 0.90;    // test with 0.005, production 0.90
-  private accesstokenHeartbeatAt = 0.95;  // test with 0.008, production 0.95
+  private accessTokenHeartbeatAt = 0.95;  // test with 0.008, production 0.95
   // Access Token heartbeat and refresh are percentage of the expire_in time.
   // HeartbeatAt must be larger than refresh at to ensure that when the interval
   // timer fires and calls getAccessToken, the refresh time has already expired
@@ -132,6 +132,7 @@ export class YoLinkAPI {
   private mqttTokenExpireTime = 0;
   private mqttHost: string;
   private mqttClient;
+  private mqttTimer: null | ReturnType<typeof setTimeout> = null;
 
   constructor( private readonly platform: YoLinkHomebridgePlatform) {
     platform.verboseLog('YoLinkAPI.constructor');
@@ -208,7 +209,7 @@ export class YoLinkAPI {
     this.accessTokenHeartbeat = setInterval( () => {
       platform.verboseLog('Refresh access token timer fired');
       this.getAccessToken(platform);
-    }, this.yolinkTokens.expires_in * 1000 * this.accesstokenHeartbeatAt );
+    }, this.yolinkTokens.expires_in * 1000 * this.accessTokenHeartbeatAt );
   }
 
   /*********************************************************************
@@ -370,13 +371,14 @@ export class YoLinkAPI {
    *
    * Open a MQTT session with YoLink API server to receive update
    * messages from YoLink for each device.
-   *
-   * This has not been thoroughly tested.  How it behaves on roaming (IP
-   * address changes) or temporary disconnects/reconnects has not been
-   * full tested.  Info logging is enabled to capture as much information
-   * as possible for events like this. Please report bugs.
    */
   mqtt(platform: YoLinkHomebridgePlatform, msgCallback) {
+    // Make sure we don't have a timer waiting to fire.  That would cause
+    // an unnecessary second call on this function.
+    if (this.mqttTimer !== null) {
+      clearTimeout(this.mqttTimer);
+      this.mqttTimer = null;
+    }
     const url = `mqtt://${this.mqttHost}:${platform.config.mqttPort.toString()}`;
     const reports = `yl-home/${this.yolinkHomeId}/+/report`;
 
@@ -440,12 +442,15 @@ export class YoLinkAPI {
       platform.log.error(`MQTT error: '${error}' Connected: ${this.mqttClient.connected}`);
       if (!this.mqttClient.connected) {
         this.mqttClient.end(true, undefined);
-        platform.log.info('MQTT client not connected, wait 5 seconds and then attempt restart');
-        // We wait 5 seconds so as not to get into a really fast loop of
-        // retries if we keep getting an error.
-        setTimeout(() => {
-          this.mqtt(platform, msgCallback);
-        }, 5000);
+        if (this.mqttTimer === null) {
+          platform.log.info('MQTT client not connected, wait 5 seconds and then attempt restart');
+          // We wait 5 seconds so as not to get into a really fast loop of retries if we
+          // keep getting an error. Don't start new timer if one already running.
+          this.mqttTimer = setTimeout(() => {
+            this.mqttTimer = null;
+            this.mqtt(platform, msgCallback);
+          }, 5000);
+        }
       }
     });
 

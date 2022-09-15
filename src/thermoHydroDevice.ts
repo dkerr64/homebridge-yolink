@@ -18,7 +18,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
 
-  if (device.config.hide === 'thermo') {
+  if (String(device.config.hide).toLowerCase() === 'thermo') {
     platform.log.info(`Hide Thermometer service because config.[${device.deviceId}].hide is set to "thermo"`);
     accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
   } else {
@@ -30,7 +30,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
       .onGet(handleGet.bind(this, 'thermo'));
   }
 
-  if (device.config.hide === 'hydro') {
+  if (String(device.config.hide).toLowerCase() === 'hydro') {
     platform.log.info(`Hide Hydrometer service because config.[${device.deviceId}].hide is set to "hydro"`);
     accessory.removeService(accessory.getService(platform.Service.HumiditySensor)!);
   } else {
