@@ -17,15 +17,28 @@ export async function initPowerSensor(this: YoLinkPlatformAccessory): Promise<vo
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
   const device = accessory.context.device;
+  const serviceType = String(device.config.powerFailureSensorAs).toLowerCase();
 
-  this.outletService = accessory.getService(platform.Service.Outlet)
-                    || accessory.addService(platform.Service.Outlet);
-  this.outletService
-    .setCharacteristic(platform.Characteristic.Name, device.name);
-  this.outletService
-    .getCharacteristic(platform.Characteristic.On)
-    .onGet(handleGet.bind(this))
-    .onSet(handleSet.bind(this));
+  if (serviceType === 'contact') {
+    // In case it was previously set as outlet, remove it...
+    accessory.removeService(accessory.getService(platform.Service.Outlet)!);
+    this.outletService = undefined;
+    this.contactService = accessory.getService(platform.Service.ContactSensor)
+                       || accessory.addService(platform.Service.ContactSensor);
+    this.contactService.setCharacteristic(platform.Characteristic.Name, device.name);
+    this.contactService.getCharacteristic(platform.Characteristic.ContactSensorState)
+      .onGet(handleGet.bind(this));
+  } else {
+    // In case it was previously set as contact, remove it...
+    accessory.removeService(accessory.getService(platform.Service.ContactSensor)!);
+    this.contactService = undefined;
+    this.outletService = accessory.getService(platform.Service.Outlet)
+                      || accessory.addService(platform.Service.Outlet);
+    this.outletService.setCharacteristic(platform.Characteristic.Name, device.name);
+    this.outletService.getCharacteristic(platform.Characteristic.On)
+      .onGet(handleGet.bind(this))
+      .onSet(handleSet.bind(this));
+  }
 
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
@@ -35,20 +48,58 @@ export async function initPowerSensor(this: YoLinkPlatformAccessory): Promise<vo
 /***********************************************************************
  * handleGet
  *
- * This is an example of JSON object returned.
+ * This is an example of JSON object returned...
+ * {
+ *   "code": "000000",
+ *   "time": 1663120072812,
+ *   "msgid": 1663120072812,
+ *   "method": "PowerFailureAlarm.getState",
+ *   "desc": "Success",
+ *   "data": {
+ *     "online": true,
+ *     "state": {
+ *       "alertDuration": 30,
+ *       "alertInterval": 60,
+ *       "alertType": null,
+ *       "battery": 4,
+ *       "powerSupply": true,
+ *       "sound": 1,
+ *       "state": "normal",
+ *       "version": "0608"
+ *     },
+ *     "deviceId": "xxx",
+ *     "reportAt": "2022-09-14T01:35:14.157Z"
+ *   }
+ * }
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
-  let rc = false;
+  // default rc assumes that all is okay (power is up)
+  let rc = (this.contactService) ? platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED : true;
   try {
-    if( await this.checkDeviceState(platform, device) ) {
-      this.logDeviceState(device, `Power Failure: ${device.data.state}`);
-      rc = device.data.state === 'normal';
+    if( await this.checkDeviceState(platform, device) && device.data.online) {
+      if (this.contactService) {
+        this.contactService
+          .updateCharacteristic(platform.Characteristic.StatusActive, true)
+          .updateCharacteristic(platform.Characteristic.StatusFault, false);
+        if (!device.data.state.powerSupply) {
+          rc = platform.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
+        }
+      } else {
+        rc = device.data.state.powerSupply;
+      }
+      this.logDeviceState(device, `Power OK: ${device.data.state.powerSupply}, ` +
+                                  `State: ${device.data.state.state}, Battery: ${device.data.state.battery}`);
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      if (this.contactService) {
+        this.contactService
+          .updateCharacteristic(platform.Characteristic.StatusActive, false)
+          .updateCharacteristic(platform.Characteristic.StatusFault, true);
+      }
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -72,7 +123,7 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   try {
     this.log.info(`Power Failure Alarm handleSet (${value})`);
     this.outletService
-      .updateCharacteristic(platform.Characteristic.On, (device.data.state === 'normal') ? true : false);
+      .updateCharacteristic(platform.Characteristic.On, device.data.state.powerSupply);
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in OutletDevice handleGet' + platform.reportError + msg);
@@ -84,8 +135,85 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
 /***********************************************************************
  * mqttPowerSensor
  *
- * Example of message received.
+ * Example of message received...
+ * {
+ *   "event": "PowerFailureAlarm.Alert",
+ *   "time": 1663029430659,
+ *   "msgid": "1663029430658",
+ *   "data": {
+ *     "state": "alert",
+ *     "sound": 1,
+ *     "battery": 4,
+ *     "powerSupply": false,
+ *     "alertDuration": 30,
+ *     "alertInterval": 5,
+ *     "version": "0608",
+ *     "loraInfo": {
+ *       "signal": -47,
+ *       "gatewayId": "xxx",
+ *       "gateways": 4
+ *     }
+ *   },
+ *   "deviceId": "xxx"
+ * }
  *
+ * {
+ *   "event": "PowerFailureAlarm.StatusChange",
+ *   "time": 1663029928110,
+ *   "msgid": "1663029928109",
+ *   "data": {
+ *     "state": "normal",
+ *     "sound": 1,
+ *     "battery": 4,
+ *     "powerSupply": true,
+ *     "alertDuration": 30,
+ *     "alertInterval": 5,
+ *     "version": "0608",
+ *     "loraInfo": {
+ *       "signal": -31,
+ *       "gatewayId": "xxx",
+ *       "gateways": 4
+ *     }
+ *   },
+ *   "deviceId": "xxx"
+ * }
+ *
+ * {
+ *   "event": "PowerFailureAlarm.Report",
+ *   "time": 1663030738694,
+ *   "msgid": "1663030738694",
+ *   "data": {
+ *     "state": "normal",
+ *     "sound": 1,
+ *     "battery": 4,
+ *     "powerSupply": true,
+ *     "alertDuration": 30,
+ *     "alertInterval": 5,
+ *     "version": "0608",
+ *     "loraInfo": {
+ *       "signal": -30,
+ *       "gatewayId": "xxx",
+ *       "gateways": 4
+ *     }
+ *   },
+ *   "deviceId": "xxx"
+ * }
+ *
+ * {
+ *   "event": "PowerFailureAlarm.setOption",
+ *   "time": 1663030338998,
+ *   "msgid": "1663030338998",
+ *   "data": {
+ *     "alertDuration": 30,
+ *     "alertInterval": 5,
+ *     "loraInfo": {
+ *       "signal": -34,
+ *       "gatewayId": "xxx",
+ *       "gateways": 4
+ *     }
+ *   },
+ *   "deviceId": "xxx"
+ * }
  */
 export async function mqttPowerSensor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -102,25 +230,40 @@ export async function mqttPowerSensor(this: YoLinkPlatformAccessory, message): P
     switch (event[1]) {
       case 'Alert':
         // falls through
-      case 'Report':
-        // falls through
       case 'StatusChange':
+        // falls through
+      case 'Report':
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
-          this.powerService.updateCharacteristic(platform.Characteristic.StatusFault, true);
+          if (this.contactService) {
+            this.contactService.updateCharacteristic(platform.Characteristic.StatusFault, true);
+          }
           break;
         }
+        // if we received a message then device must be online
+        device.data.online = true;
         // Merge received data into existing data object
-        Object.assign(device.data, message.data);
+        Object.assign(device.data.state, message.data);
         if (!message.data.reportAt) {
           // mqtt data does not include a report time, so merging the objects leaves current
-          // unchanged, update the time string.
+          // unchanged. As we use this to control when to log new data, update the time string.
           device.data.reportAt = device.reportAtTime.toISOString();
         }
-        this.logDeviceState(device, `Power Failure: ${message.data.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
-        this.outletService
-          .updateCharacteristic(platform.Characteristic.On, (message.data.state === 'normal') ? true : false);
+        this.logDeviceState(device, `Power OK: ${message.data.powerSupply}, ` +
+                                    `State: ${message.data.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
+        if (this.contactService) {
+          this.contactService
+            .updateCharacteristic(platform.Characteristic.ContactSensorState,
+              (message.data.powerSupply)
+                ? platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED
+                : platform.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED)
+            .updateCharacteristic(platform.Characteristic.StatusActive, true)
+            .updateCharacteristic(platform.Characteristic.StatusFault, false);
+        } else {
+          this.outletService
+            .updateCharacteristic(platform.Characteristic.On, device.data.state.powerSupply);
+        }
         break;
       case 'setOption':
         // Ignore this as there is no status reported.

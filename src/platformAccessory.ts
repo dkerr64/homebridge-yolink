@@ -80,7 +80,9 @@ export class YoLinkPlatformAccessory {
         // And finally call the device specific initialization...
         initDeviceService[this.deviceType].bind(this)();
       } else {
-        platform.log.warn(`Experimental device ${device.deviceMsgName} skipped. Enable experimental devices in config.`);
+        platform.log.warn(`Experimental device ${device.deviceMsgName} skipped. Enable experimental devices in config. `
+                        + 'Initializing as Unknown device');
+        initDeviceService['Unknown'].bind(this)();
       }
     } else {
       // We do not have support for this device yet.
@@ -100,6 +102,7 @@ export class YoLinkPlatformAccessory {
     device.config.refreshAfter ??= platform.config.refreshAfter;
     device.config.enableExperimental = platform.makeBoolean(device.config.enableExperimental, platform.config.enableExperimental);
     device.config.temperature = platform.makeBoolean(device.config.temperature, platform.config.deviceTemperatures);
+    device.config.powerFailureSensorAs ??= platform.config.powerFailureSensorAs;
     device.hasBattery = deviceFeatures[device.type]?.hasBattery ?? false;
     // Set updateTime to now, which will ensure retrieving data from YoLink
     // on our first pass through.

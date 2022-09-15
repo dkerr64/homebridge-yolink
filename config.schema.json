@@ -108,7 +108,8 @@
             "MultiOutlet",
             "GarageDoor",
             "Finger",
-            "Lock"
+            "Lock",
+            "PowerFailureAlarm"
           ]
         },
         "default": [
@@ -140,7 +141,8 @@
             "MultiOutlet",
             "GarageDoor",
             "Finger",
-            "Lock"
+            "Lock",
+            "PowerFailureAlarm"
           ]
         }
       },
@@ -158,6 +160,16 @@
         "required": false,
         "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors and Flex Fob. This will create a temperature sensor for those."
 
+      },
+      "powerFailureSensorAs": {
+        "title": "Represent YoLink Power Failure Alarm as",
+        "type": "string",
+        "required": false,
+        "oneOf": [
+          { "title": "Outlet device", "enum": ["Outlet"] },
+          { "title": "Contact sensor", "enum": ["Contact"] }
+        ],
+        "description": "HomeKit does not have the concept of a power failure sensor so we much choose either an Outlet or Contact sensor to represent the YoLink device."
       },
       "enableExperimental": {
         "title": "Enable support for devices under development",
@@ -304,6 +316,7 @@
             "refreshAfter",
             "doublePress",
             "deviceTemperatures",
+            "powerFailureSensorAs",
             "verboseLog",
             "liteLog",
             "enableExperimental",
