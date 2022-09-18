@@ -55,7 +55,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     // transforms array of devices into object that can be referenced by deviceId...
     const devices = {};
     if (this.config.devices) {
-      this.config.devices.forEach(x => devices[x.deviceId] = x.config);
+      this.config.devices.forEach(x => devices[String(x.deviceId).toLowerCase()] = x.config);
     }
     this.config.devices = devices;
     this.config.verboseLog = this.makeBoolean(this.config.verboseLog, false);
