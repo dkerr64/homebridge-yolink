@@ -250,6 +250,40 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
  *   },
  *   "deviceId":"abcdef1234567890"
  * }
+ *
+ * Some MQTT messages cannot be supported by apple home, e.g. getUsers, setPassword, addTemporaryPWD.
+ * We just ignore these.  Example message... (and yes, pwd is obscured in the actual msg)
+ * {
+ *   "event":"Lock.getUsers",
+ *   "time":1663507654044,
+ *   "msgid":"1663507654043",
+ *   "data":{
+ *     "offset":0,
+ *     "limit":5,
+ *     "total":3,
+ *     "items":[
+ *       {
+ *         "index":0,
+ *         "start":"2022-09-18T13:00:00.043Z",
+ *         "end":"2248-10-09T06:00:00.043Z",
+ *         "pwd":"1**4"
+ *       },
+ *       {
+ *         "index":1,
+ *         "start":"2022-09-18T13:00:00.043Z",
+ *         "end":"2248-10-09T06:00:00.043Z",
+ *         "pwd":"1**4"
+ *       },
+ *       {
+ *         "index":2,
+ *         "start":"2022-09-18T13:00:00.043Z",
+ *         "end":"2248-10-09T06:00:00.043Z",
+ *         "pwd":"1**4"
+ *       }
+ *     ]
+ *   },
+ *   "deviceId":"d88b4c0100036498"
+ * }
  */
 export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -294,6 +328,15 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
         this.lockService
           .updateCharacteristic(platform.Characteristic.LockCurrentState,
             (message.data.state === this.lockedState) ? 1 : 0);
+        break;
+      case 'getUsers':
+        // falls through
+      case 'addPassword':
+        // falls through
+      case 'addTemporaryPWD':
+        // Homebridge has no equivalent and message does not carry either lock state or battery
+        // state fields, so there is nothing we can update.
+        platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));

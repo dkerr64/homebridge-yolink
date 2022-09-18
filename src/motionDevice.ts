@@ -210,7 +210,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
         // {"event":"MotionSensor.setOpenRemind","time":1658089933504,"msgid":"1658089933504",
         // "data":{"alertInterval":1,"ledAlarm":false,"nomotionDelay":1,"sensitivity":2,
         // "loraInfo":{"signal":-87,"gatewayId":"<redacted>","gateways":1}},"deviceId":"<redacted>"}
-        platform.verboseLog(mqttMessage + ' ' + JSON.stringify(message));
+        platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
