@@ -1,11 +1,7 @@
-
-<p align="center">
-
-<img src="https://github.com/homebridge/branding/raw/master/logos/homebridge-wordmark-logo-vertical.png" width="150">
-
-</p>
-
 # Homebridge YoLink Plugin
+
+[![npm](https://badgen.net/npm/v/homebridge-yolink/latest?icon=npm&label)](https://www.npmjs.com/package/homebridge-yolink)
+[![npm](https://badgen.net/npm/dt/homebridge-yolink?label=downloads)](https://www.npmjs.com/package/homebridge-yolink)
 
 *Unofficial* plugin for YoLink. I wrote this plugin to integrate the YoLink devices that I own. This is implemented by building on the Homebridge platform plugin template and the [YoLink API.](http://doc.yosmart.com)
 
