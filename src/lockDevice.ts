@@ -282,7 +282,7 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
  *       }
  *     ]
  *   },
- *   "deviceId":"d88b4c0100036498"
+ *   "deviceId":"abcdef1234567890"
  * }
  */
 export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
@@ -332,6 +332,12 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
       case 'getUsers':
         // falls through
       case 'addPassword':
+        // falls through
+      case 'delPassword':
+        // falls through
+      case 'updatePassword':
+        // falls through
+      case 'clearPassword':
         // falls through
       case 'addTemporaryPWD':
         // Homebridge has no equivalent and message does not carry either lock state or battery
