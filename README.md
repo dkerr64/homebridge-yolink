@@ -1,5 +1,6 @@
 # Homebridge YoLink Plugin
 
+[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 [![npm](https://badgen.net/npm/v/homebridge-yolink/latest?icon=npm&label)](https://www.npmjs.com/package/homebridge-yolink)
 [![npm](https://badgen.net/npm/dt/homebridge-yolink?label=downloads)](https://www.npmjs.com/package/homebridge-yolink)
 
