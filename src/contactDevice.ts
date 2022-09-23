@@ -169,7 +169,7 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
       case 'setOpenRemind':
         // Homebridge has no equivalent and message does not carry either contact state or battery
         // state fields, so there is nothing we can update.
-        platform.verboseLog(mqttMessage + ' ' + JSON.stringify(message));
+        platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));

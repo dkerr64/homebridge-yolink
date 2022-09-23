@@ -267,7 +267,7 @@ export async function mqttPowerSensor(this: YoLinkPlatformAccessory, message): P
         break;
       case 'setOption':
         // Ignore this as there is no status reported.
-        platform.verboseLog(mqttMessage + ' ' + JSON.stringify(message));
+        platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
