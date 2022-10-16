@@ -20,6 +20,7 @@ import { initStatelessSwitch, mqttStatelessSwitch }     from './statelessSwitch'
 import { initGarageDoor, mqttGarageDoor }               from './garageDoor';
 import { initLockDevice, mqttLockDevice }               from './lockDevice';
 import { initPowerSensor, mqttPowerSensor }             from './powerDevice';
+import { initLightbulb, mqttLightbulb }                 from './lightbulbDevice';
 
 export const deviceFeatures = {
   Unknown:            { hasBattery: false, experimental: false },
@@ -41,6 +42,7 @@ export const deviceFeatures = {
   GarageDoorCombo:    { hasBattery: false },
   Lock:               { hasBattery: true },
   PowerFailureAlarm:  { hasBattery: true },
+  Dimmer:             { hasBattery: false },
 };
 
 export const initDeviceService = {
@@ -63,6 +65,7 @@ export const initDeviceService = {
   GarageDoorCombo(this: YoLinkPlatformAccessory)    { initGarageDoor.bind(this)(); },
   Lock(this: YoLinkPlatformAccessory)               { initLockDevice.bind(this)(); },
   PowerFailureAlarm(this: YoLinkPlatformAccessory)  { initPowerSensor.bind(this)(); },
+  Dimmer(this: YoLinkPlatformAccessory)             { initLightbulb.bind(this)('open', 'open', 'close'); },
 };
 
 export const mqttHandler = {
@@ -85,4 +88,5 @@ export const mqttHandler = {
   GarageDoorCombo(this: YoLinkPlatformAccessory, data)    { mqttGarageDoor.bind(this)(data); },
   Lock(this: YoLinkPlatformAccessory, data)               { mqttLockDevice.bind(this)(data); },
   PowerFailureAlarm(this: YoLinkPlatformAccessory, data)  { mqttPowerSensor.bind(this)(data); },
+  Dimmer(this: YoLinkPlatformAccessory, data)             { mqttLightbulb.bind(this)(data); },
 };

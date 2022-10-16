@@ -285,7 +285,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    */
   async registerMqtt() {
     // Now connect to YoLink MQTT server and subscribe to messages
-    this.yolinkAPI.mqtt(this, (message) => {
+    this.yolinkAPI.mqtt(this, (message: string) => {
       // This function is called for every message received over MQTT
       const data = JSON.parse(message);
       // Find the device in the deviceAccessories list
