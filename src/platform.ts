@@ -240,7 +240,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       const sensor = garageDevices.find(x => x.deviceId === garage.sensor);
       if (sensor.type !== 'DoorSensor' || !(controller.type === 'Finger' || controller.type === 'GarageDoor')) {
         this.log.warn('Garage Door sensor must be of type \'DoorSensor\' and controller of type \'Finger\' or \'GarageDoor\' ' +
-                      `Ignoring this door:\n${JSON.stringify(garage)}`);
+                      `Check config file for deviceID typo. Ignoring this door:\n${JSON.stringify(garage)}`);
         continue;
       }
       const uuid = this.api.hap.uuid.generate(`${garage.controller}${garage.sensor}`);
@@ -269,6 +269,14 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
         accessoryClass = new YoLinkPlatformAccessory(this, accessory);
       }
       this.deviceAccessories.push(accessoryClass);
+    }
+
+    // check for mistyped deviceId's in config file
+    for (const [device, info] of Object.entries(this.config.devices)) {
+      if (!deviceList.some(x => x.deviceId === device)) {
+        this.log.warn(`Device "${device}" does not exist in YoLink device list (${JSON.stringify(info)}). ` +
+                          'Check config file for deviceID typo.');
+      }
     }
   }
 
