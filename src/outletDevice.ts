@@ -26,8 +26,9 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
   this.outlet = [];
 
   if (device.type === 'MultiOutlet') {
-    // Default to 5 outlets (YoLink power strip has USB + 4 outlets)
-    this.nOutlets = device.config.nOutlets ?? 5;
+    // if number of outlets set in config file then use that
+    this.nOutlets = device.config.nOutlets ?? (await handleGet.bind(this)(-1));
+    platform.log.info(`Device ${device.deviceMsgName} has ${this.nOutlets} outlets`);
   }
 
   if (this.nOutlets === 1) {
@@ -121,19 +122,20 @@ async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise
   const device = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
-  let rc = false;
   try {
     if( await this.checkDeviceState(platform, device) ) {
-      this.logDeviceState(device, `Outlet ${outlet}: ${device.data.state}`);
+      if (outlet < 0) {
+        // if function was called with negative outlet number then we're being asked to try and
+        // automatically detect the number of outlets on the device based on the returned data.
+        // "ch" values start from 0 (a two outlet device is 0 and 1).
+        return(Math.max(...device.data.delays?.map(o => o.ch) ?? [0]) + 1);
+      }
+      this.logDeviceState(device, `nOutlets: ${this.nOutlets}, Outlet (0..n-1) ${outlet}: ${device.data.state}`);
       if (this.nOutlets === 1) {
-        if (device.data.state === this.onState) {
-          rc = true;
-        }
-      } else {
+        return(device.data.state === this.onState);
+      } else { // if (outlet >= 0) {
         // MultiOutlet device returns state as an array
-        if (device.data.state[outlet] === this.onState) {
-          rc = true;
-        }
+        return(device.data.state[outlet] === this.onState);
       }
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
@@ -144,7 +146,7 @@ async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise
   } finally {
     await releaseSemaphore();
   }
-  return (rc);
+  return(false);
 }
 
 /***********************************************************************
@@ -161,7 +163,7 @@ async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise
  *   }
  * }
  *
- * And for a MultOutlet device...
+ * And for a MultiOutlet device...
  * {
  *   "code":"000000",
  *   "time":1661131613258,
@@ -192,14 +194,14 @@ async function handleSet(this: YoLinkPlatformAccessory, outlet: number, value: C
       // error will have been thrown in yolinkAPI if data not valid
       device.data.state = data.state;
       this.outlet[0].service
-        .updateCharacteristic(platform.Characteristic.On, (data.state === this.onState) ? true : false);
+        .updateCharacteristic(platform.Characteristic.On, data.state === this.onState);
     } else {
       // MultiOutlet device
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'chs':(1<<outlet), 'state':newState}))?.data;
       // error will have been thrown in yolinkAPI if data not valid
       device.data.state[outlet] = data.state[outlet];
       this.outlet[outlet].service
-        .updateCharacteristic(platform.Characteristic.On, (data.state[outlet] === this.onState) ? true : false);
+        .updateCharacteristic(platform.Characteristic.On, data.state[outlet] === this.onState);
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -311,11 +313,11 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
         this.logDeviceState(device, `Outlet: ${device.data.state} (MQTT: ${message.event})`);
         if (this.nOutlets === 1) {
           this.outlet[0].service
-            .updateCharacteristic(platform.Characteristic.On, (message.data.state === this.onState) ? true : false);
+            .updateCharacteristic(platform.Characteristic.On, message.data.state === this.onState);
         } else {
-          for (let i = 0; i <= this.nOutlets; i++) {
+          for (let i = 0; i < this.nOutlets; i++) {
             this.outlet[i].service
-              .updateCharacteristic(platform.Characteristic.On, (message.data.state[i] === this.onState) ? true : false);
+              .updateCharacteristic(platform.Characteristic.On, message.data.state[i] === this.onState);
           }
         }
         break;
