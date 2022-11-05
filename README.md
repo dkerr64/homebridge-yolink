@@ -16,6 +16,7 @@ Pull requests and/or other offers of development assistance gratefully received.
 
 Currently supports the following devices:
 
+* Dimmer (as light bulb)
 * Door Sensor
 * Finger Controller
 * FlexFob Remote
@@ -159,6 +160,10 @@ Many YoLink devices are battery powered and report battery health. This plugin c
 
 **Experimental** devices are work-in-progress and may not function as expected. They are included to allow further testing and must be enabled by adding the setting *"enableExperimental": true* to the plugin configuration. Feedback and bug reports welcomed.
 
+### Dimmer
+
+YoLink smart dimmer is implemented as a HomeKit light bulb.
+
 ### Door Sensor
 
 The YoLink door sensor is implemented as a HomeKit contact sensor which can then be used to trigger an action on contact open or contact closed.
@@ -215,7 +220,7 @@ I have observed *Can't connect to Device* errors from YoLink when trying to retr
 
 ### Outlet (multiple) / Power Strip
 
-YoLink power strip is supported. Each individual outlet, including the bank of USB charging ports, is controllable. Where USB ports are provided they are the first "outlet" in the Homebridge/HomeKit accessory (identified as Outlet 0). The default number of outlets is five (one USB bank, four main outlets) but you can change this with the *nOutlets* property.
+YoLink power strip is supported. Each individual outlet, including the bank of USB charging ports, is controllable. Where USB ports are provided they are the first "outlet" in the Homebridge/HomeKit accessory (identified as Outlet 0). The plugin attempts to discover the number of outlets but if that fails then you can change this with the *nOutlets* property.
 
 ### Power Failure Alarm
 

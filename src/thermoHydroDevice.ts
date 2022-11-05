@@ -184,6 +184,21 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Prom
  *    },
  *    "deviceId": "abcdef1234567890"
  *  }
+ *
+ * The newer X3 sensor also sends a DataRecord which we will quietly ignore
+ * {
+ *   "event": "THSensor.DataRecord",
+ *   "time": 1665651601414,
+ *   "msgid": "1665651601414",
+ *   "data": {
+ *     "records": [{
+ *       "temperature": 29.2,
+ *       "humidity": 63.9,
+ *       "time": "2022-10-13T08:50:01.000Z"
+ *     }]
+ *   },
+ *   "deviceId": "abcdef1234567890"
+ * }
  */
 export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -230,6 +245,10 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
         if (device.data.state.alarm.lowBattery) {
           platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
         }
+        break;
+      case 'DataRecord':
+        // No equivalent for this in HomeKit
+        platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
