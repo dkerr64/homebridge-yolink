@@ -6,7 +6,7 @@
  */
 
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
-import { YoLinkHomebridgePlatform } from './platform';
+import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
 /***********************************************************************
@@ -16,8 +16,8 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
-  const doorController = this.accessory.context.device;
-  const doorSensor = this.accessory.context.device2;
+  const doorController: YoLinkDevice = accessory.context.device;
+  const doorSensor: YoLinkDevice = accessory.context.device2;
 
   // Need to do some initialization of the second device attached to the
   // accessory.  The first device is handled in the main platformAccessory class.
@@ -77,14 +77,14 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
  * }
  *
  */
-async function handleGet(this: YoLinkPlatformAccessory, device, needSemaphore = true): Promise<CharacteristicValue> {
+async function handleGet(this: YoLinkPlatformAccessory, device: YoLinkDevice, needSemaphore = true): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const doorSensor = this.accessory.context.device2;
+  const doorSensor: YoLinkDevice = this.accessory.context.device2;
   // serialize access to device data. This function can be called with parameter that
   // indicates whether semaphore is needed... this allows for nesting with another
   // function that already holds the semaphore.
   // eslint-disable-next-line brace-style
-  const releaseSemaphore = (needSemaphore) ? await device.semaphore.acquire() : async function() { return; };
+  const releaseSemaphore = (needSemaphore) ? await device.semaphore.acquire() : function() { return; };
   let rc = platform.api.hap.Characteristic.CurrentDoorState.CLOSED;
   try {
     if (await this.checkDeviceState(platform, device)) {
@@ -125,7 +125,7 @@ async function handleGet(this: YoLinkPlatformAccessory, device, needSemaphore = 
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in GarageDoor handleGet' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
   return (rc);
 }
@@ -170,9 +170,9 @@ async function handleGet(this: YoLinkPlatformAccessory, device, needSemaphore = 
  * }
  */
 
-async function handleSet(this: YoLinkPlatformAccessory, device, value: CharacteristicValue): Promise<void> {
+async function handleSet(this: YoLinkPlatformAccessory, device: YoLinkDevice, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const doorSensor = this.accessory.context.device2;
+  const doorSensor: YoLinkDevice = this.accessory.context.device2;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
@@ -204,7 +204,7 @@ async function handleSet(this: YoLinkPlatformAccessory, device, value: Character
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in GarageDoor handleGet' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
 }
 
@@ -212,7 +212,7 @@ async function handleSet(this: YoLinkPlatformAccessory, device, value: Character
  * resetDoorState
  *
  */
-async function resetDoorState(this: YoLinkPlatformAccessory, doorSensor, targetState): Promise<void> {
+async function resetDoorState(this: YoLinkPlatformAccessory, doorSensor: YoLinkDevice, targetState): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   // serialize access to device data.
   const releaseSemaphore = await doorSensor.semaphore.acquire();
@@ -236,7 +236,7 @@ async function resetDoorState(this: YoLinkPlatformAccessory, doorSensor, targetS
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in GarageDoor resetDoorState' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
 }
 
@@ -261,6 +261,27 @@ async function resetDoorState(this: YoLinkPlatformAccessory, doorSensor, targetS
  *   },
  *   "deviceId":"abcdef1234567890"
  * }
+ *
+ * {
+ *   "event":"DoorSensor.Report",
+ *   "time":1670100848930,"msgid":"1670100848926",
+ *   "data":{
+ *     "state":"closed",
+ *     "alertType":"normal",
+ *     "battery":4,
+ *     "delay":0,
+ *     "version":"060d",
+ *     "openRemindDelay":0,
+ *     "alertInterval":0,
+ *     "loraInfo":{
+ *       "signal":-95,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
+*
  */
 export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -272,7 +293,7 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
     return;
   }
   // 'device2' is the sensor device...
-  const doorSensor = this.accessory.context.device2;
+  const doorSensor: YoLinkDevice = this.accessory.context.device2;
   const batteryMsg = (doorSensor.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
   const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
 
@@ -331,6 +352,6 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttGarageDoor' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
 }

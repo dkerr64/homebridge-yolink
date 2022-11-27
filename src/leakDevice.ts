@@ -6,7 +6,7 @@
  */
 
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
-import { YoLinkHomebridgePlatform } from './platform';
+import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
 /***********************************************************************
@@ -16,7 +16,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
-  const device = accessory.context.device;
+  const device: YoLinkDevice = accessory.context.device;
 
   this.leakService = accessory.getService(platform.Service.LeakSensor) || accessory.addService(platform.Service.LeakSensor);
   this.leakService.setCharacteristic(platform.Characteristic.Name, device.name);
@@ -62,7 +62,7 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
  */
 async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   let rc = (devSensor === 'main') ? platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED : 0;
@@ -93,7 +93,7 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LeakDevice handleGet' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
   return (rc);
 }
@@ -125,7 +125,7 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
  */
 export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
@@ -174,6 +174,6 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttLeakSensor' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
 }

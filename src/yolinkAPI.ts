@@ -11,7 +11,7 @@
  */
 
 import { URL, URLSearchParams } from 'url';
-import { YoLinkHomebridgePlatform } from './platform';
+import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import fetch from 'node-fetch';
 import Semaphore from 'semaphore-promise';
 import mqtt from 'mqtt';
@@ -38,9 +38,7 @@ type yolinkBUDP = {
   msgid: string;
   code: string;
   desc: string;
-  data: {
-    [key: string]: any;
-  };
+  data: any;
   [key: string]: any;
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -59,7 +57,7 @@ type yolinkAccessTokens = {
  * retryFn
  *
  */
-function retryFn(platform, fn, retriesLeft = 5, interval = 2000, intervalInc = 2000, intervalMax = 10000) {
+function retryFn(platform: YoLinkHomebridgePlatform, fn, retriesLeft = 5, interval = 2000, intervalInc = 2000, intervalMax = 10000) {
   return new Promise((resolve, reject) => {
     fn()
       .then(resolve)
@@ -115,7 +113,7 @@ export class YoLinkAPI {
 
   private yolinkHomeId: string;
   private yolinkLoggedIn: boolean;
-  private accessSemaphore;
+  private accessSemaphore: Semaphore;
 
   private accessTokenRefreshAt = 0.90;    // test with 0.005, production 0.90
   private accessTokenHeartbeatAt = 0.95;  // test with 0.008, production 0.95
@@ -219,7 +217,7 @@ export class YoLinkAPI {
   async getAccessToken(platform: YoLinkHomebridgePlatform):Promise<string> {
     // Infinitely retry. On failure retry after 5 seconds.  Add 5 seconds for
     // each failure with maximum of 60 seconds between each retry.
-    return String(await retryFn(platform, this.tryGetAccessToken.bind(this, platform), 0, 5000, 5000, 60000));
+    return await retryFn(platform, this.tryGetAccessToken.bind(this, platform), 0, 5000, 5000, 60000) as string;
   }
 
   async tryGetAccessToken(platform: YoLinkHomebridgePlatform): Promise<string> {
@@ -257,7 +255,7 @@ export class YoLinkAPI {
       this.yolinkLoggedIn = false;
       throw(e);
     } finally {
-      await releaseSemaphore();
+      releaseSemaphore();
     }
     return this.yolinkTokens.access_token;
   }
@@ -266,13 +264,13 @@ export class YoLinkAPI {
    * getDeviceList
    *
    */
-  async getDeviceList(platform: YoLinkHomebridgePlatform) {
+  async getDeviceList(platform: YoLinkHomebridgePlatform): Promise<YoLinkDevice[]> {
     // Infinitely retry. On failure retry after 5 seconds.  Add 5 seconds for
     // each failure with maximum of 60 seconds between each retry.
-    return await retryFn(platform, this.tryGetDeviceList.bind(this, platform), 0, 5000, 5000, 60000);
+    return await retryFn(platform, this.tryGetDeviceList.bind(this, platform), 0, 5000, 5000, 60000) as YoLinkDevice[];
   }
 
-  async tryGetDeviceList(platform: YoLinkHomebridgePlatform) {
+  async tryGetDeviceList(platform: YoLinkHomebridgePlatform): Promise<YoLinkDevice[]> {
     platform.verboseLog('YoLinkAPI.getDeviceList');
     const accessToken = await this.getAccessToken(platform);
 
