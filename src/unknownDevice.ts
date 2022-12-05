@@ -9,7 +9,7 @@
  */
 
 import { CharacteristicValue } from 'homebridge';
-import { YoLinkHomebridgePlatform } from './platform';
+import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
 /***********************************************************************
@@ -18,7 +18,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
  */
 export async function initUnknownDevice(this: YoLinkPlatformAccessory): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
 
   platform.log.warn(`YoLink device type: '${device.type}' is not supported (${device.deviceMsgName}) (initialize)`
     + platform.reportError + JSON.stringify(device));
@@ -32,7 +32,7 @@ export async function initUnknownDevice(this: YoLinkPlatformAccessory): Promise<
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
@@ -48,7 +48,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in UnknownDevice handleGet' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
   return (false);
 }
@@ -59,7 +59,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  */
 export async function mqttUnknownDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
@@ -71,6 +71,6 @@ export async function mqttUnknownDevice(this: YoLinkPlatformAccessory, message):
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttUnknownDevice' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
 }

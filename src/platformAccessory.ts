@@ -10,7 +10,7 @@
  */
 
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
-import { YoLinkHomebridgePlatform } from './platform';
+import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import Semaphore from 'semaphore-promise';
 import { initDeviceService, mqttHandler, deviceFeatures} from './deviceHandlers';
 
@@ -36,7 +36,7 @@ export class YoLinkPlatformAccessory {
     readonly accessory: PlatformAccessory,
   ) {
     Error.stackTraceLimit = 100;
-    const device = accessory.context.device;
+    const device: YoLinkDevice = accessory.context.device;
     this.deviceId = device.deviceId;
     this.deviceId2 = '';
     // Special handling if we have two devices attached to the one accessory
@@ -95,7 +95,7 @@ export class YoLinkPlatformAccessory {
    * checkDeviceState
    *
    */
-  initializeDeviceVars(platform: YoLinkHomebridgePlatform, device) {
+  initializeDeviceVars(platform: YoLinkHomebridgePlatform, device: YoLinkDevice) {
     device.data = {};
     device.deviceMsgName = `${device.name} (${device.deviceId})`;
     device.lastReportAtTime = 0;
@@ -128,7 +128,7 @@ export class YoLinkPlatformAccessory {
    * Calls to this function should be serialized with deviceSemaphore to
    * prevent sending multiple requests for the same data to the server.
    */
-  async checkDeviceState(platform: YoLinkHomebridgePlatform, device) {
+  async checkDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice) {
     try {
       platform.verboseLog(`checkDeviceState for ${device.deviceMsgName} (refresh after ${device.config.refreshAfter} seconds)`);
       const timestamp = Math.floor(new Date().getTime() / 1000);
@@ -164,7 +164,7 @@ export class YoLinkPlatformAccessory {
    * logDeviceState
    *
    */
-  logDeviceState(this: YoLinkPlatformAccessory, device, msg: string) {
+  logDeviceState(this: YoLinkPlatformAccessory, device: YoLinkDevice, msg: string) {
     // reportAtTime is the earlier of the time stamp on this message, or
     // or the time reported in the message from YoLink. We use this to
     // only log (in like mode), when we have an update.
@@ -184,13 +184,13 @@ export class YoLinkPlatformAccessory {
    * right time to force call to yolinkAPI.getDeviceState.  All this to optimize
    * performance of user experience.
    */
-  async refreshDataTimer(this: YoLinkPlatformAccessory, handleGet) {
+  async refreshDataTimer(this: YoLinkPlatformAccessory, handleGet: () => Promise<CharacteristicValue>) {
     const platform: YoLinkHomebridgePlatform = this.platform;
-    const device = this.accessory.context.device;
+    const device: YoLinkDevice = this.accessory.context.device;
 
     platform.verboseLog(`Data refresh timer for ${device.deviceMsgName} fired`);
 
-    await handleGet.bind(this)();
+    await handleGet();
     if (device.config.refreshAfter >= 60) {
       // We don't allow for updates any more frequently than once a minute.
       const nextUpdateIn = Math.max(60, (device.updateTime||0) - Math.floor(new Date().getTime() / 1000));
@@ -205,7 +205,7 @@ export class YoLinkPlatformAccessory {
    * updateBatteryInfo
    *
    */
-  updateBatteryInfo(this: YoLinkPlatformAccessory, device) {
+  updateBatteryInfo(this: YoLinkPlatformAccessory, device: YoLinkDevice) {
     const platform: YoLinkHomebridgePlatform = this.platform;
     let batteryLevel = 100;
 
@@ -236,8 +236,7 @@ export class YoLinkPlatformAccessory {
    * handleBatteryGet
    *
    */
-  async handleBatteryGet(this: YoLinkPlatformAccessory, device): Promise<CharacteristicValue> {
-    // const device = this.accessory.context.device;
+  async handleBatteryGet(this: YoLinkPlatformAccessory, device: YoLinkDevice): Promise<CharacteristicValue> {
     const platform = this.platform;
     // serialize access to device data.
     const releaseSemaphore = await device.semaphore.acquire();
@@ -250,7 +249,7 @@ export class YoLinkPlatformAccessory {
       const msg = (e instanceof Error) ? e.stack : e;
       platform.log.error('Error in handleBatteryGet' + platform.reportError + msg);
     } finally {
-      await releaseSemaphore();
+      releaseSemaphore();
     }
     return (rc);
   }
@@ -259,7 +258,7 @@ export class YoLinkPlatformAccessory {
    *
    */
 
-  async handleIdentifySet(this: YoLinkPlatformAccessory, device, value): Promise<void> {
+  async handleIdentifySet(this: YoLinkPlatformAccessory, device: YoLinkDevice, value): Promise<void> {
     const platform = this.platform;
     // serialize access to device data.
     const releaseSemaphore = await device.semaphore.acquire();
@@ -269,7 +268,7 @@ export class YoLinkPlatformAccessory {
       const msg = (e instanceof Error) ? e.stack : e;
       platform.log.error('Error in handleIdentitySet' + platform.reportError + msg);
     } finally {
-      await releaseSemaphore();
+      releaseSemaphore();
     }
   }
 
@@ -278,7 +277,7 @@ export class YoLinkPlatformAccessory {
    *
    */
   async mqttMessage(message): Promise<void> {
-    const device = this.accessory.context.device;
+    const device: YoLinkDevice = this.accessory.context.device;
     const platform = this.platform;
     try {
       if (device.data) {

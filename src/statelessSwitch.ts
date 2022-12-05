@@ -6,7 +6,7 @@
  */
 
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
-import { YoLinkHomebridgePlatform } from './platform';
+import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
 /***********************************************************************
@@ -16,7 +16,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButtons: number): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
-  const device = accessory.context.device;
+  const device: YoLinkDevice = accessory.context.device;
   // Gap in milliseconds to consider whether double press or single press...
   // I never get a value less than 625ms so selecting 800 as reasonable default.
   device.config.doublePress ??= (platform.config.doublePress ??= 800);
@@ -87,7 +87,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
  */
 async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   // handleGet is only called during initialization. Data returned always represents the last
@@ -112,7 +112,7 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in StatelessSwitch handleGet' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
   return (rc);
 }
@@ -171,7 +171,7 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
  */
 export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
@@ -239,6 +239,6 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttStatelessSwitch' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
 }

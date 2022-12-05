@@ -6,7 +6,7 @@
  */
 
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
-import { YoLinkHomebridgePlatform } from './platform';
+import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
 /***********************************************************************
@@ -16,7 +16,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 export async function initLightbulb(this: YoLinkPlatformAccessory, onState: string, setOn: string, setOff: string): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
-  const device = accessory.context.device;
+  const device: YoLinkDevice = accessory.context.device;
 
   this.setMethod = 'setState';
   this.onState = onState;
@@ -80,7 +80,7 @@ export async function initLightbulb(this: YoLinkPlatformAccessory, onState: stri
  */
 async function handleGet(this: YoLinkPlatformAccessory, mode = 'on'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
@@ -98,7 +98,7 @@ async function handleGet(this: YoLinkPlatformAccessory, mode = 'on'): Promise<Ch
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LightbulbDevice handleGet' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
   return(false);
 }
@@ -127,7 +127,7 @@ async function handleGet(this: YoLinkPlatformAccessory, mode = 'on'): Promise<Ch
  */
 async function handleSet(this: YoLinkPlatformAccessory, mode = 'on', value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
@@ -155,7 +155,7 @@ async function handleSet(this: YoLinkPlatformAccessory, mode = 'on', value: Char
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LightbulbDevice handleGet' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
 }
 
@@ -218,7 +218,7 @@ async function handleSet(this: YoLinkPlatformAccessory, mode = 'on', value: Char
  */
 export async function mqttLightbulb(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
@@ -270,6 +270,6 @@ export async function mqttLightbulb(this: YoLinkPlatformAccessory, message): Pro
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttLightbulbDevice' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
 }

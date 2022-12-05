@@ -6,7 +6,7 @@
  */
 
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';
-import { YoLinkHomebridgePlatform } from './platform';
+import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
 /***********************************************************************
@@ -16,7 +16,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
 export async function initPowerSensor(this: YoLinkPlatformAccessory): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
-  const device = accessory.context.device;
+  const device: YoLinkDevice = accessory.context.device;
   const serviceType = String(device.config.powerFailureSensorAs).toLowerCase();
 
   if (serviceType === 'contact') {
@@ -74,7 +74,7 @@ export async function initPowerSensor(this: YoLinkPlatformAccessory): Promise<vo
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   // default rc assumes that all is okay (power is up)
@@ -105,7 +105,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in Power Failure Alarm handleGet' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
   return (rc);
 }
@@ -117,7 +117,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  */
 async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
@@ -128,7 +128,7 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in OutletDevice handleGet' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
 }
 
@@ -217,7 +217,7 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
  */
 export async function mqttPowerSensor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const device = this.accessory.context.device;
+  const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
@@ -276,6 +276,6 @@ export async function mqttPowerSensor(this: YoLinkPlatformAccessory, message): P
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttPowerSensor' + platform.reportError + msg);
   } finally {
-    await releaseSemaphore();
+    releaseSemaphore();
   }
 }

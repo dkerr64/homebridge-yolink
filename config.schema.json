@@ -109,7 +109,8 @@
             "GarageDoor",
             "Finger",
             "Lock",
-            "PowerFailureAlarm"
+            "PowerFailureAlarm",
+            "Dimmer"
           ]
         },
         "default": [
@@ -142,9 +143,18 @@
             "GarageDoor",
             "Finger",
             "Lock",
-            "PowerFailureAlarm"
+            "PowerFailureAlarm",
+            "Dimmer"
           ]
         }
+      },
+      "checkNewDeviceInterval": {
+        "title": "Time in seconds between checks for added or deleted devices",
+        "type": "number",
+        "required": false,
+        "minimum": 0,
+        "maximum": 3600,
+        "description": "Time in seconds to check if a device has been added or removed from YoLink. Zero disables device update check, maximum accepted in user interface is 3600 seconds (1 hour)."
       },
       "doublePress": {
         "title": "Time in milliseconds between button presses to consider as a double-press",
@@ -322,7 +332,8 @@
             "enableExperimental",
             "allDevices",
             "excludeTypes",
-            "includeTypes"
+            "includeTypes",
+            "checkNewDeviceInterval"
           ]
         },
         {
