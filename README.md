@@ -78,6 +78,7 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
             ],
             "includeTypes": [
             ],
+            "checkNewDeviceInterval": 0,
             "enableExperimental": false,
             "doublePress": 800,
             "powerFailureSensorAs": "Outlet",
@@ -122,6 +123,7 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
   * **allDevices** *(optional)*: If set to false then only devices listed in the Devices section of the config file are loaded, and then only if the hide property is false. Defaults to true so all devices reported by YoLink are loaded (if device's *hide* property is false).
   * **excludeTypes** *(optional)*: Array of YoLink device types that will be excluded even if *allDevices* is set to true. The currently supported list of device types is *Hub, SpeakerHub, VibrationSensor, MotionSensor, LeakSensor, Manipulator, THSensor, DoorSensor, Siren, Switch, Outlet, SmartRemoter, MultiOutlet, GarageDoor, Finger, Lock* and *PowerFailureAlarm*. Defaults to exclude Hub and Speaker Hub. Note that capitalization is important and values must be entered exactly as listed here.
   * **includeTypes** *(optional)*: Array of YoLink device types that will be included even if *allDevices* is set to false. Same list of device types as above with no default.
+  * **checkNewDeviceInterval** *(optional)*: Interval (in seconds) to check for new YoLink devices added *or removed* from YoLink.  Defaults to zero (feature disabled). This feature will allow new devices to be detected and added to Homebridge/HomeKit without restarting the plugin. Also will detect when a device is deleted and remove it from Homebridge/HomeKit. Note that if a device requires config file changes then the plugin must be restarted to pick up config file changes. As this polls the YoLink server, a value less than 60 seconds is not recommended.
   * **enableExperimental** *(optional)*: If set to true, enables support for devices still considered experimental, see Device Notes below.
   * **doublePress** *(optional)*: Duration in milliseconds to trigger a double-press event on two button presses on a stateless device. Defaults to 800ms and a value of zero disables double-press feature. See notes below for YoLink FlexFob remote.
   * **powerFailureSensorAs** *(optional)*: How to represent the YoLink power failure alarm sensor in HomeKit, can be either *Outlet* or *Contact*, defaults to Outlet.
