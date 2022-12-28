@@ -213,7 +213,7 @@ export class YoLinkPlatformAccessory {
       if (device.hasBattery) {
         // Some devices wrap battery information under a 'state' object.
         // If nothing defined then assume 100%
-        batteryLevel = ((device.data.battery ?? device.data.state.battery) ?? 4) * 25;
+        batteryLevel = ((device.data?.battery ?? device.data.state?.battery) ?? 4) * 25;
         const msg = `Battery level for ${device.deviceMsgName} is: ${batteryLevel}%`;
         if (batteryLevel <= 25) {
           device.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
