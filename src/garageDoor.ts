@@ -281,69 +281,107 @@ async function resetDoorState(this: YoLinkPlatformAccessory, doorSensor: YoLinkD
  *   },
  *   "deviceId":"abcdef1234567890"
  * }
-*
+ *
+ * {
+ *   "event":"GarageDoor.Report",
+ *   "time":1673032650586,
+ *   "msgid":"1673032650584",
+ *   "data":{
+ *     "version":"060a",
+ *     "time":null,
+ *     "loraInfo":{
+ *       "signal":-70,
+ *       "gatewayId":"abcdef1234567890",
+ *       "gateways":1
+ *     }
+ *   },
+ *   "deviceId":"abcdef1234567890"
+ * }
  */
 export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
-  const event = message.event.split('.');
-  // This accessory can have DoorSensor, Finger and GarageDoor(controller) devices attached
-  // but only the DoorSensor should be sending us MQTT messages.
-  if (event[0] !== 'DoorSensor') {
-    platform.log.warn(`MQTT: ${message.event} for garage door not supported. ${platform.reportError}${JSON.stringify(message)}`);
-    return;
-  }
-  // 'device2' is the sensor device...
+  // 'device' is GarageDoor or Finger controller. 'device2' is the DoorSensor...
+  const device: YoLinkDevice = this.accessory.context.device;
   const doorSensor: YoLinkDevice = this.accessory.context.device2;
-  const batteryMsg = (doorSensor.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
-  const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
-
   // serialize access to device data.
   const releaseSemaphore = await doorSensor.semaphore.acquire();
   try {
-    clearTimeout(doorSensor.resetTimer);
-    // no longer opening or closing...
-    doorSensor.targetState = '';
-    doorSensor.updateTime = Math.floor(new Date().getTime() / 1000) + doorSensor.config.refreshAfter;
-    const mqttMessage = `MQTT: ${message.event} for device ${doorSensor.deviceMsgName}`;
-    // Battery is checked in main MQTT handler before coming here... but only for
-    // one device attached to the accessory... it only does the "controller"
-    this.updateBatteryInfo.bind(this, doorSensor)();
-    switch (event[1]) {
-      case 'Alert':
-        // falls through
-      case 'Report':
-        // falls through
-      case 'StatusChange':
-        if (doorSensor.data === undefined) {
-          // in rare conditions (error conditions returned from YoLink) data object will be undefined.
-          platform.log.warn(`Device ${doorSensor.deviceMsgName} has no data field, is device offline?`);
-          break;
+    let mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
+    const batteryMsg = (doorSensor.hasBattery && message.data?.battery) ? `, Battery: ${message.data?.battery}`: '';
+    const alertMsg = (message.data?.alertType) ? `, Alert: ${message.data?.alertType}` : '';
+    const event = message.event.split('.');
+    switch (event[0]) {
+      case 'DoorSensor':
+        clearTimeout(doorSensor.resetTimer);
+        // no longer opening or closing...
+        doorSensor.targetState = '';
+        doorSensor.updateTime = Math.floor(new Date().getTime() / 1000) + doorSensor.config.refreshAfter;
+        mqttMessage = `MQTT: ${message.event} for device ${doorSensor.deviceMsgName}`;
+        // Battery is checked in main MQTT handler before coming here... but only for
+        // one device attached to the accessory... it only does the "controller"
+        this.updateBatteryInfo.bind(this, doorSensor)();
+        switch (event[1]) {
+          case 'Alert':
+            // falls through
+          case 'Report':
+            // falls through
+          case 'StatusChange':
+            if (doorSensor.data === undefined) {
+              // in rare conditions (error conditions returned from YoLink) data object will be undefined.
+              platform.log.warn(`Device ${doorSensor.deviceMsgName} has no data field, is device offline?`);
+              break;
+            }
+            // Merge received data into existing data object
+            if (doorSensor.data.state) {
+              Object.assign(doorSensor.data.state, message.data);
+              if (!message.data.reportAt) {
+                // mqtt data does not include a report time, so merging the objects leaves current
+                // unchanged, update the time string.
+                doorSensor.data.reportAt = doorSensor.reportAtTime.toISOString();
+              }
+            }
+            this.logDeviceState(doorSensor, `Contact: ${doorSensor.data.state.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
+            this.garageService
+              .updateCharacteristic(platform.Characteristic.CurrentDoorState,
+                (message.data.state === 'open')
+                  ? platform.api.hap.Characteristic.CurrentDoorState.OPEN
+                  : platform.api.hap.Characteristic.CurrentDoorState.CLOSED);
+            this.garageService
+              .updateCharacteristic(platform.Characteristic.TargetDoorState,
+                (message.data.state === 'open')
+                  ? platform.api.hap.Characteristic.TargetDoorState.OPEN
+                  : platform.api.hap.Characteristic.TargetDoorState.CLOSED);
+            break;
+          case 'setOpenRemind':
+            // Homebridge has no equivalent and message does not carry either contact state or battery
+            // state fields, so there is nothing we can update.
+            platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
+            break;
+          default:
+            platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
         }
-        // Merge received data into existing data object
-        if (doorSensor.data.state) {
-          Object.assign(doorSensor.data.state, message.data);
-          if (!message.data.reportAt) {
-          // mqtt data does not include a report time, so merging the objects leaves current
-          // unchanged, update the time string.
-            doorSensor.data.reportAt = doorSensor.reportAtTime.toISOString();
-          }
-        }
-        this.logDeviceState(doorSensor, `Contact: ${doorSensor.data.state.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
-        this.garageService
-          .updateCharacteristic(platform.Characteristic.CurrentDoorState,
-            (message.data.state === 'open')
-              ? platform.api.hap.Characteristic.CurrentDoorState.OPEN
-              : platform.api.hap.Characteristic.CurrentDoorState.CLOSED);
-        this.garageService
-          .updateCharacteristic(platform.Characteristic.TargetDoorState,
-            (message.data.state === 'open')
-              ? platform.api.hap.Characteristic.TargetDoorState.OPEN
-              : platform.api.hap.Characteristic.TargetDoorState.CLOSED);
         break;
-      case 'setOpenRemind':
-        // Homebridge has no equivalent and message does not carry either contact state or battery
-        // state fields, so there is nothing we can update.
-        platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
+      case 'GarageDoor':
+        switch (event[1]) {
+          case 'Report':
+            // message does not carry any state state or battery fields, so there is nothing we can update.
+            platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
+            break;
+          default:
+            platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
+            break;
+        }
+        break;
+      case 'Finger':
+        switch (event[1]) {
+          case 'Report':
+            // message does not carry any state state or battery fields, so there is nothing we can update.
+            platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
+            break;
+          default:
+            platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
+            break;
+        }
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
