@@ -289,7 +289,7 @@ export class YoLinkAPI {
     const budp: yolinkBUDP = await response.json();
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
     checkBudpStatus(budp);
-    platform.log.info(`YoLinkAPI.getDeviceList found ${budp.data.devices.length} devices`);
+    platform.liteLog(`YoLinkAPI.getDeviceList found ${budp.data.devices.length} devices`);
     return budp.data.devices;
   }
 
@@ -304,7 +304,7 @@ export class YoLinkAPI {
   }
 
   async tryGetDeviceState(platform: YoLinkHomebridgePlatform, device) {
-    platform.log.info(`YoLinkAPI.getDeviceState for ${device.name} (${device.deviceId})`);
+    platform.liteLog(`YoLinkAPI.getDeviceState for ${device.name} (${device.deviceId})`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
     const bddp: yolinkBDDP = {

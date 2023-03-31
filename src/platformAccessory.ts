@@ -92,7 +92,7 @@ export class YoLinkPlatformAccessory {
   }
 
   /*********************************************************************
-   * checkDeviceState
+   * initializeDeviceVars
    *
    */
   initializeDeviceVars(platform: YoLinkHomebridgePlatform, device: YoLinkDevice) {
@@ -154,8 +154,14 @@ export class YoLinkPlatformAccessory {
         }
       }
     } catch(e) {
-      const msg = (e instanceof Error) ? e.stack : e;
-      platform.log.info('Error in checkDeviceState' + platform.reportError + msg);
+      const msg = ((e instanceof Error) ? e.stack : e ) as string;
+      const yolinkMsg = msg.substring(7, msg.indexOf(')')+1);
+      if (msg.split('YoLink API error code: ').pop()?.substring(0, 6) === '000201') {
+        // "YoLink API error code: 000201" is rather common, so don't declare a problem
+        platform.log.info(yolinkMsg + ' - retrying');
+      } else {
+        platform.log.info('Error in checkDeviceState' + platform.reportError + msg);
+      }
     }
     return(device.data);
   }
