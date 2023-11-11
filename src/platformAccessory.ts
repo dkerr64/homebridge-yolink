@@ -173,12 +173,12 @@ export class YoLinkPlatformAccessory {
   logDeviceState(this: YoLinkPlatformAccessory, device: YoLinkDevice, msg: string) {
     // reportAtTime is the earlier of the time stamp on this message, or
     // or the time reported in the message from YoLink. We use this to
-    // only log (in like mode), when we have an update.
+    // only log (in lite mode), when we have an update.
     if (device.lastReportAtTime < device.reportAtTime.getTime()) {
       device.lastReportAtTime = device.reportAtTime.getTime();
-      this.platform.log.info(`At ${device.reportAtTime.toLocaleString()}: Device state for ${device.deviceMsgName} is: ${msg}`);
+      this.platform.liteLog(`At ${device.reportAtTime.toLocaleString()}: Device state updated ${device.deviceMsgName}: ${msg}`);
     } else {
-      this.platform.liteLog(`At ${device.reportAtTime.toLocaleString()}: Device state for ${device.deviceMsgName} is: ${msg}`);
+      this.platform.liteLog(`At ${device.reportAtTime.toLocaleString()}: Device state for ${device.deviceMsgName}: ${msg}`);
     }
   }
 
