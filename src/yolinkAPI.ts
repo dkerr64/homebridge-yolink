@@ -234,7 +234,7 @@ export class YoLinkAPI {
       const timestamp = new Date().getTime();
       if (this.accessTokenExpireTime < Math.floor(timestamp/1000)) {
       // We need to get a new access token, current one has or is about to expire
-        platform.log.info('Current access token expired, or close to expiry, request new one');
+        platform.verboseLog('Current access token expired, or close to expiry, requesting new one');
         const params = new URLSearchParams();
         params.append('grant_type', 'refresh_token');
         params.append('client_id', platform.config.userAccessId);

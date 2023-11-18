@@ -21,6 +21,7 @@ import { initGarageDoor, mqttGarageDoor }               from './garageDoor';
 import { initLockDevice, mqttLockDevice }               from './lockDevice';
 import { initPowerSensor, mqttPowerSensor }             from './powerDevice';
 import { initLightbulb, mqttLightbulb }                 from './lightbulbDevice';
+import { initInfraredRemoter, mqttInfraredRemoter }     from './infraredRemoter';
 
 export const deviceFeatures = {
   Unknown:            { hasBattery: false, experimental: false },
@@ -43,6 +44,7 @@ export const deviceFeatures = {
   Lock:               { hasBattery: true },
   PowerFailureAlarm:  { hasBattery: true },
   Dimmer:             { hasBattery: false },
+  InfraredRemoter:    { hasBattery: true, experimental: true },
 };
 
 export const initDeviceService = {
@@ -66,6 +68,7 @@ export const initDeviceService = {
   Lock(this: YoLinkPlatformAccessory)               { initLockDevice.bind(this)(); },
   PowerFailureAlarm(this: YoLinkPlatformAccessory)  { initPowerSensor.bind(this)(); },
   Dimmer(this: YoLinkPlatformAccessory)             { initLightbulb.bind(this)('open', 'open', 'close'); },
+  InfraredRemoter(this: YoLinkPlatformAccessory)    { initInfraredRemoter.bind(this)(); },
 };
 
 export const mqttHandler = {
@@ -89,4 +92,5 @@ export const mqttHandler = {
   Lock(this: YoLinkPlatformAccessory, data)               { mqttLockDevice.bind(this)(data); },
   PowerFailureAlarm(this: YoLinkPlatformAccessory, data)  { mqttPowerSensor.bind(this)(data); },
   Dimmer(this: YoLinkPlatformAccessory, data)             { mqttLightbulb.bind(this)(data); },
+  InfraredRemoter(this: YoLinkPlatformAccessory, data)    { mqttInfraredRemoter.bind(this)(data); },
 };

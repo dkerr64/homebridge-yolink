@@ -92,7 +92,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.checkNewDeviceInterval ??= 0;
 
     this.log.info(`YoLink plugin for HomeBridge version ${packageJSON.version} (c) 2022 David A. Kerr${this.reportError}`);
-    this.verboseLog(`Loaded configuration:\n${JSON.stringify(this.config)}`);
+    this.verboseLog(`Loaded configuration:\n${JSON.stringify(this.config, null, 2)}`);
 
     this.yolinkAPI = new YoLinkAPI(this);
 
@@ -198,14 +198,14 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       // check that sensor and controller are in our device list
       const garageDevices = deviceList.filter(x => (x.deviceId === garage.controller || x.deviceId === garage.sensor));
       if (garageDevices.length !== 2) {
-        this.log.warn(`Garage Door must have two known devices. Ignoring this door:\n${JSON.stringify(garage)}`);
+        this.log.warn(`Garage Door must have two known devices. Ignoring this door:\n${JSON.stringify(garage, null, 2)}`);
         continue;
       }
       const controller = garageDevices.find(x => x.deviceId === garage.controller);
       const sensor = garageDevices.find(x => x.deviceId === garage.sensor);
       if (sensor?.type !== 'DoorSensor' || !(controller?.type === 'Finger' || controller?.type === 'GarageDoor')) {
         this.log.warn('Garage Door sensor must be of type \'DoorSensor\' and controller of type \'Finger\' or \'GarageDoor\' ' +
-                      `Check config file for deviceID typo. Ignoring this door:\n${JSON.stringify(garage)}`);
+                      `Check config file for deviceID typo. Ignoring this door:\n${JSON.stringify(garage, null, 2)}`);
         continue;
       }
       sensor.timeout = garage.timeout;
@@ -221,7 +221,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     // check for mistyped deviceId's in config file
     for (const [device, info] of Object.entries(this.config.devices)) {
       if (!deviceList.some(x => x.deviceId === device)) {
-        this.log.warn(`Device "${device}" does not exist in YoLink device list (${JSON.stringify(info)}). ` +
+        this.log.warn(`Device "${device}" does not exist in YoLink device list (${JSON.stringify(info, null, 2)}). ` +
                           'Check config file for deviceID typo.');
       }
     }
@@ -240,7 +240,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    * addDevice
    */
   checkAddDevice(device: YoLinkDevice) {
-    this.verboseLog(JSON.stringify(device));
+    this.verboseLog(JSON.stringify(device, null, 2));
     // Track all devices by ID
     this.knownDevices.push(device.deviceId);
     // Get the config file settings for this device (if set)

@@ -1,10 +1,9 @@
 /***********************************************************************
- * YoLink unknown device support
+ * YoLink InfraredRemoter support
  *
- * This will issue warning messages to the HomeBridge log that can then
- * be provided to author to assist in adding device support.
+ * Support for the YoLink Infrared Remoter device
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2023 David Kerr
  *
  */
 
@@ -13,14 +12,14 @@ import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import { YoLinkPlatformAccessory } from './platformAccessory';
 
 /***********************************************************************
- * initUnknownDevice
+ * initInfraredRemoter
  *
  */
-export async function initUnknownDevice(this: YoLinkPlatformAccessory): Promise<void> {
+export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
 
-  platform.log.warn(`YoLink device type: '${device.type}' is not supported (${device.deviceMsgName}) (initialize)`
+  platform.log.warn(`YoLink device type: '${device.type}' is under development (${device.deviceMsgName}) (initialize)`
     + platform.reportError + JSON.stringify(device, null, 2));
 
   this.refreshDataTimer(handleGet.bind(this));
@@ -38,7 +37,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   try {
     if (await this.checkDeviceState(platform, device)) {
 
-      platform.log.warn(`YoLink device type: '${device.type}' is not supported (${device.deviceMsgName}) (handleGet)`
+      platform.log.warn(`YoLink device type: '${device.type}' is under development (${device.deviceMsgName}) (handleGet)`
         + platform.reportError + JSON.stringify(device.data, null, 2));
 
     } else {
@@ -46,7 +45,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in UnknownDevice handleGet' + platform.reportError + msg);
+    platform.log.error('Error in InfraredRemoter handleGet' + platform.reportError + msg);
   } finally {
     releaseSemaphore();
   }
@@ -54,22 +53,22 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
 }
 
 /***********************************************************************
- * mqttUnknownDevice
+ * mqttInfraredRemoter
  *
  */
-export async function mqttUnknownDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
+export async function mqttInfraredRemoter(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
 
-    platform.log.warn(`YoLink device type: '${device.type}' is not supported (${device.deviceMsgName}) (MQTT)`
+    platform.log.warn(`YoLink device type: '${device.type}' is under development (${device.deviceMsgName}) (MQTT)`
       + platform.reportError + JSON.stringify(message, null, 2));
 
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in mqttUnknownDevice' + platform.reportError + msg);
+    platform.log.error('Error in mqttInfraredRemoter' + platform.reportError + msg);
   } finally {
     releaseSemaphore();
   }

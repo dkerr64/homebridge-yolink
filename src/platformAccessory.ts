@@ -12,7 +12,7 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import Semaphore from 'semaphore-promise';
-import { initDeviceService, mqttHandler, deviceFeatures} from './deviceHandlers';
+import { initDeviceService, mqttHandler, deviceFeatures } from './deviceHandlers';
 
 export class YoLinkPlatformAccessory {
   // public deviceService!: Service;
@@ -49,15 +49,16 @@ export class YoLinkPlatformAccessory {
     // If device type exists in our list of supported services...
     if (initDeviceService[this.deviceType]) {
       // And it is not experimental, or we are allowing experimental...
-      if ((!(deviceFeatures[this.deviceType].experimental||false) || device.config.enableExperimental)) {
+      if ((!(deviceFeatures[this.deviceType].experimental || false) || device.config.enableExperimental)) {
         // Then set accessory information...
         this.infoService = this.accessory.getService(platform.Service.AccessoryInformation) as Service;
         this.infoService
           .setCharacteristic(platform.Characteristic.Manufacturer, 'YoLink')
           .setCharacteristic(platform.Characteristic.Name, device.name)
-          .setCharacteristic(platform.Characteristic.FirmwareRevision, String(device.config.version))
-          .setCharacteristic(platform.Characteristic.Model, String(device.config.model ?? 'n/a'))
-        // YoLink does not return device serial number in the API, use deviceId instead.
+          .setCharacteristic(platform.Characteristic.FirmwareRevision, String(device.config?.version))
+          .setCharacteristic(platform.Characteristic.Model, String(device.config?.model ?? (device.modelName ?? 'n/a')))
+          .setCharacteristic(platform.Characteristic.ProductData, `deviceId: ${device.deviceId}`)
+          // YoLink does not return device serial number in the API, use deviceId instead.
           .setCharacteristic(platform.Characteristic.SerialNumber, device.deviceId);
         this.infoService
           .getCharacteristic(platform.Characteristic.Identify).onSet(this.handleIdentifySet.bind(this, device));
@@ -69,7 +70,7 @@ export class YoLinkPlatformAccessory {
         if (device.hasBattery) {
           // We use a name here because an accessory might have two batteries (e.g. GarageDoorCombo)
           device.batteryService = accessory.getService('Battery')
-                               || accessory.addService(platform.Service.Battery, 'Battery', 'battery');
+            || accessory.addService(platform.Service.Battery, 'Battery', 'battery');
           device.batteryService
             .setCharacteristic(platform.Characteristic.Name, device.name)
             .setCharacteristic(platform.Characteristic.ChargingState, platform.api.hap.Characteristic.ChargingState.NOT_CHARGEABLE)
@@ -81,14 +82,14 @@ export class YoLinkPlatformAccessory {
         initDeviceService[this.deviceType].bind(this)();
       } else {
         platform.log.warn(`Experimental device ${device.deviceMsgName} skipped. Enable experimental devices in config. `
-                        + 'Initializing as Unknown device');
+          + 'Initializing as Unknown device');
         initDeviceService['Unknown'].bind(this)();
       }
     } else {
       // We do not have support for this device yet.
       initDeviceService['Unknown'].bind(this)();
     }
-    return(this);
+    return (this);
   }
 
   /*********************************************************************
@@ -133,7 +134,7 @@ export class YoLinkPlatformAccessory {
       platform.verboseLog(`checkDeviceState for ${device.deviceMsgName} (refresh after ${device.config.refreshAfter} seconds)`);
       const timestamp = Math.floor(new Date().getTime() / 1000);
       if ((device.config.refreshAfter === 0)
-      || ((device.config.refreshAfter > 0) && (timestamp >= device.updateTime))) {
+        || ((device.config.refreshAfter > 0) && (timestamp >= device.updateTime))) {
         // If we have never retrieved data from the device, or data is older
         // than period we want to allow, then retrieve new data from the device.
         // Else return with data unchanged.
@@ -153,9 +154,9 @@ export class YoLinkPlatformAccessory {
           platform.log.error(`checkDeviceState received no data for ${device.deviceMsgName}`);
         }
       }
-    } catch(e) {
-      const msg = ((e instanceof Error) ? e.stack : e ) as string;
-      const yolinkMsg = msg.substring(7, msg.indexOf(')')+1);
+    } catch (e) {
+      const msg = ((e instanceof Error) ? e.stack : e) as string;
+      const yolinkMsg = msg.substring(7, msg.indexOf(')') + 1);
       if (msg.split('YoLink API error code: ').pop()?.substring(0, 6) === '000201') {
         // "YoLink API error code: 000201" is rather common, so don't declare a problem
         platform.log.info(yolinkMsg + ' - retrying');
@@ -163,7 +164,7 @@ export class YoLinkPlatformAccessory {
         platform.log.info('Error in checkDeviceState' + platform.reportError + msg);
       }
     }
-    return(device.data);
+    return (device.data);
   }
 
   /***********************************************************************
@@ -199,9 +200,9 @@ export class YoLinkPlatformAccessory {
     await handleGet();
     if (device.config.refreshAfter >= 60) {
       // We don't allow for updates any more frequently than once a minute.
-      const nextUpdateIn = Math.max(60, (device.updateTime||0) - Math.floor(new Date().getTime() / 1000));
+      const nextUpdateIn = Math.max(60, (device.updateTime || 0) - Math.floor(new Date().getTime() / 1000));
       platform.verboseLog(`Set data refresh timer for ${device.deviceMsgName} to run in ${nextUpdateIn} seconds`);
-      setTimeout( () => {
+      setTimeout(() => {
         this.refreshDataTimer(handleGet);
       }, nextUpdateIn * 1000);
     }
@@ -231,11 +232,11 @@ export class YoLinkPlatformAccessory {
           this.platform.verboseLog(msg);
         }
       }
-    } catch(e) {
+    } catch (e) {
       const msg = (e instanceof Error) ? e.stack : e;
       platform.log.error('Error in updateBatteryInfo' + platform.reportError + msg);
     }
-    return(batteryLevel);
+    return (batteryLevel);
   }
 
   /*********************************************************************
@@ -251,7 +252,7 @@ export class YoLinkPlatformAccessory {
       if (await this.checkDeviceState(platform, device)) {
         rc = this.updateBatteryInfo.bind(this, device)();
       }
-    } catch(e) {
+    } catch (e) {
       const msg = (e instanceof Error) ? e.stack : e;
       platform.log.error('Error in handleBatteryGet' + platform.reportError + msg);
     } finally {
@@ -270,7 +271,7 @@ export class YoLinkPlatformAccessory {
     const releaseSemaphore = await device.semaphore.acquire();
     try {
       platform.log.info(`YoLink Device: ${device.deviceMsgName} identify '${value}' (unsupported)`);
-    } catch(e) {
+    } catch (e) {
       const msg = (e instanceof Error) ? e.stack : e;
       platform.log.error('Error in handleIdentitySet' + platform.reportError + msg);
     } finally {
@@ -301,9 +302,9 @@ export class YoLinkPlatformAccessory {
         }
       } else {
         platform.log.warn(`MQTT: ${message.event} for uninitialized device ${device.deviceMsgName}`
-                           + platform.reportError + JSON.stringify(message));
+          + platform.reportError + JSON.stringify(message, null, 2));
       }
-    } catch(e) {
+    } catch (e) {
       const msg = (e instanceof Error) ? e.stack : e;
       platform.log.error('Error in mqttMessage' + platform.reportError + msg);
     }
