@@ -38,7 +38,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
     this.button[i].timestamp = 0; // used to detect double press
     if (!(this.button[i].statelessService = accessory.getService(`Button ${i + 1}`))) {
       this.button[i].statelessService = accessory
-        .addService(platform.Service.StatelessProgrammableSwitch, `Button ${i + 1}`, `button${i + 1}`)
+        .addService(platform.Service.StatelessProgrammableSwitch, `Button ${i + 1}`, `button${i + 1}`);
       this.button[i].statelessService.addCharacteristic(platform.Characteristic.ConfiguredName);
     }
     this.button[i].statelessService
