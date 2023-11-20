@@ -23,10 +23,9 @@ export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promis
   this.setMethod = 'send';
   this.irKey = [];
 
-  platform.log.warn('Initialize infrared remoter, find number of learned buttons...');
   await handleGet.bind(this)();
-  const nLearned = device.data.keys.reduce((n: number, x: boolean) => (x === true) ? n++ : n, 0);
-  platform.log.warn(`Initialize infrared remoter with ${nLearned} button${(nLearned > 1) ? 's' : ''}`);
+  const nLearned = device.data.keys.reduce((n: number, x: boolean) => (x === true) ? n + 1 : n, 0);
+  platform.verboseLog(`Initialize infrared remoter with ${nLearned} button${(nLearned > 1) ? 's' : ''}`);
 
   // serviceLabel required when multiple services of same type on one accessory
   this.serviceLabel = accessory.getService(platform.Service.ServiceLabel) || accessory.addService(platform.Service.ServiceLabel);
@@ -38,12 +37,16 @@ export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promis
   let slIndex = 1;
   device.data.keys.forEach((b: boolean, i: number) => {
     if (b) {
-      platform.log.warn(`Add switch for learned button index: ${i}`);
+      platform.verboseLog(`Add switch for learned button index: ${i}`);
       this.irKey[i] = {};
-      this.irKey[i].switchService = accessory.getService(`IR Key ${i}`)
-        || accessory.addService(platform.Service.Switch, `IR Key ${i}`, `irkey${i}`);
-      this.irKey[i].switchService.setCharacteristic(platform.Characteristic.Name, `${device.name} IR Key ${i}`);
-      this.irKey[i].switchService.setCharacteristic(platform.Characteristic.ServiceLabelIndex, slIndex++);
+      if (!(this.irKey[i].switchService = accessory.getService(`IR Key ${i}`))) {
+        this.irKey[i].switchService = accessory.addService(platform.Service.Switch, `IR Key ${i}`, `irkey${i}`);
+        this.irKey[i].switchService.addCharacteristic(platform.Characteristic.ConfiguredName);
+      }
+      this.irKey[i].switchService
+        .setCharacteristic(platform.Characteristic.Name, `${device.name} IR Key ${i}`)
+        .setCharacteristic(platform.Characteristic.ConfiguredName, `IR Key ${i}`)
+        .setCharacteristic(platform.Characteristic.ServiceLabelIndex, slIndex++);
       this.irKey[i].switchService.getCharacteristic(platform.Characteristic.On)
         .onGet(handleGet.bind(this, i))
         .onSet(handleSet.bind(this, i));
@@ -84,20 +87,25 @@ export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promis
 async function handleGet(this: YoLinkPlatformAccessory, keyNumber = -1): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
-  // serialize access to device data.
-  const releaseSemaphore = await device.semaphore.acquire();
-  try {
-    if (await this.checkDeviceState(platform, device)) {
-      const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.battery}` : '';
-      this.logDeviceState(device, `Key Number: ${keyNumber}${batteryMsg}`);
-    } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+
+  // No need to check the device for status, the "switch" is always off.
+  // Only check device if called without specific key number (to get initial settings);
+  if (keyNumber < 0) {
+    // serialize access to device data.
+    const releaseSemaphore = await device.semaphore.acquire();
+    try {
+      if (await this.checkDeviceState(platform, device)) {
+        const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.battery}` : '';
+        this.logDeviceState(device, `Key Number: ${keyNumber}${batteryMsg}`);
+      } else {
+        platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      }
+    } catch (e) {
+      const msg = (e instanceof Error) ? e.stack : e;
+      platform.log.error('Error in infrared remoter handleGet' + platform.reportError + msg);
+    } finally {
+      releaseSemaphore();
     }
-  } catch (e) {
-    const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in infrared remoter handleGet' + platform.reportError + msg);
-  } finally {
-    releaseSemaphore();
   }
   // IR Remoter buttons are always "off" as they are stateless
   return (false);
@@ -108,7 +116,10 @@ async function handleGet(this: YoLinkPlatformAccessory, keyNumber = -1): Promise
  *
  * This is an example of JSON object returned.
  *
- * { TBD }
+ * {
+ *   "key": 0,
+ *   "success": true
+ * }
  *
  */
 async function handleSet(this: YoLinkPlatformAccessory, keyNumber = -1, value: CharacteristicValue): Promise<void> {
@@ -120,7 +131,9 @@ async function handleSet(this: YoLinkPlatformAccessory, keyNumber = -1, value: C
     if (keyNumber >= 0 && value === true) {
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'key': keyNumber }, this.setMethod))?.data;
       // error will have been thrown in yolinkAPI if data not valid
-      platform.log.warn(`Send infrared key number ${keyNumber} returned:\n${JSON.stringify(data, null, 2)}`);
+      if (!data.success) {
+        platform.log.warn(`Sending IR code for key number ${keyNumber} failed with error: ${data.errorCode}`);
+      }
       // Sending IR signal is stateless, make sure that the switch is turned off after slight delay
       setTimeout(() => {
         this.irKey[keyNumber].switchService.updateCharacteristic(platform.Characteristic.On, false);

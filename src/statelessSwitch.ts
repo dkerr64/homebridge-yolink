@@ -22,29 +22,29 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   device.config.doublePress ??= (platform.config.doublePress ??= 800);
   this.button = [];
 
-  if (nButtons > 1) {
-    // serviceLabel required when multiple services of same type on one accessory
-    this.serviceLabel = accessory.getService(platform.Service.ServiceLabel)
-                   || accessory.addService(platform.Service.ServiceLabel);
-    this.serviceLabel
-      .setCharacteristic(platform.Characteristic.Name, device.name);
-    this.serviceLabel
-      .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet( () => {
-        return(this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
-      });
-  }
-  platform.verboseLog(`Initialize stateless programmable switch with ${nButtons} button${(nButtons>1)?'s':''}`);
+  // serviceLabel required when multiple services of same type on one accessory
+  this.serviceLabel = accessory.getService(platform.Service.ServiceLabel)
+    || accessory.addService(platform.Service.ServiceLabel);
+  this.serviceLabel
+    .setCharacteristic(platform.Characteristic.Name, device.name);
+  this.serviceLabel
+    .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet(() => {
+      return (this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
+    });
+
+  platform.verboseLog(`Initialize stateless programmable switch with ${nButtons} button${(nButtons > 1) ? 's' : ''}`);
   for (let i = 0; i < nButtons; i++) {
     this.button.push({});
     this.button[i].timestamp = 0; // used to detect double press
-    this.button[i].statelessService = accessory.getService(`Button ${i+1}`)
-                                   || accessory.addService(platform.Service.StatelessProgrammableSwitch, `Button ${i+1}`, `button${i+1}`);
-    this.button[i].statelessService
-      .setCharacteristic(platform.Characteristic.Name, device.name + (nButtons>1)?` Button ${i+1}`:'');
-    if (nButtons > 1) {
-      this.button[i].statelessService
-        .setCharacteristic(platform.Characteristic.ServiceLabelIndex, i+1);
+    if (!(this.button[i].statelessService = accessory.getService(`Button ${i + 1}`))) {
+      this.button[i].statelessService = accessory
+        .addService(platform.Service.StatelessProgrammableSwitch, `Button ${i + 1}`, `button${i + 1}`)
+      this.button[i].statelessService.addCharacteristic(platform.Characteristic.ConfiguredName);
     }
+    this.button[i].statelessService
+      .setCharacteristic(platform.Characteristic.Name, `${device.name} Button ${i + 1}`)
+      .setCharacteristic(platform.Characteristic.ConfiguredName, `Button ${i + 1}`)
+      .setCharacteristic(platform.Characteristic.ServiceLabelIndex, i + 1);  // Minvalue is 1
     this.button[i].statelessService
       .getCharacteristic(platform.Characteristic.ProgrammableSwitchEvent)
       .onGet(handleGet.bind(this));
@@ -53,7 +53,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   if (device.config.temperature) {
     // If requested add a service for the internal device temperature.
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
-                      || accessory.addService(platform.Service.TemperatureSensor);
+      || accessory.addService(platform.Service.TemperatureSensor);
     this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
     this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
       .onGet(handleGet.bind(this, 'thermo'));
@@ -94,8 +94,8 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
   // button action received by MQTT.
   let rc = 0;
   try {
-    if( await this.checkDeviceState(platform, device) ) {
-      switch(devSensor) {
+    if (await this.checkDeviceState(platform, device)) {
+      switch (devSensor) {
         case 'thermo':
           rc = device.data.state.devTemperature;
           break;
@@ -103,12 +103,12 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
           rc = 0;
       }
       this.logDeviceState(device, `${JSON.stringify(device.data.state.event)}, Battery: ${device.data.state.battery}, ` +
-                          `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
-                          `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
+        `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
+        `(${(device.data.state.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)`);
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in StatelessSwitch handleGet' + platform.reportError + msg);
   } finally {
@@ -178,17 +178,17 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}` : '';
     const devTempMsg = (message.data.devTemperature) ? `, DevTemp: ${message.data.devTemperature}\u00B0C ` +
-                                                                `(${(message.data.devTemperature*9/5+32).toFixed(1)}\u00B0F)` : '';
+      `(${(message.data.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)` : '';
 
     switch (event[1]) {
       case 'Report':
         platform.log.info(`${mqttMessage}`);
-        // Fall through
+      // Fall through
       case 'StatusChange':
         if (!device.data) {
-        // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+          // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`${mqttMessage} has no data field, is device offline?`);
           break;
         }
@@ -201,7 +201,7 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
         }
         this.logDeviceState(device, `${JSON.stringify(device.data.state.event)}${batteryMsg}${devTempMsg} (MQTT: ${message.event})`);
         // loop through all possible buttons...
-        for (let i=0, b=message.data.event.keyMask; b; i++, b=b>>>1) {
+        for (let i = 0, b = message.data.event.keyMask; b; i++, b = b >>> 1) {
           // if keyMask is set for this button then process the message...
           if ((b & 1) && (this.button[i])) {
             const ms = message.time - this.button[i].timestamp;
@@ -214,20 +214,20 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
                 this.button[i].statelessService.updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
                   platform.api.hap.Characteristic.ProgrammableSwitchEvent.DOUBLE_PRESS);
                 this.button[i].timeoutFn = 0;
-                platform.log.info(`${mqttMessage} button ${i+1} double press event (time between presses = ${ms}ms,`
-                                + ` threshold = ${device.config.doublePress}ms)`);
+                platform.log.info(`${mqttMessage} button ${i + 1} double press event (time between presses = ${ms}ms,`
+                  + ` threshold = ${device.config.doublePress}ms)`);
               } else {
-                this.button[i].timeoutFn = setTimeout( () => {
+                this.button[i].timeoutFn = setTimeout(() => {
                   this.button[i].statelessService.updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
                     platform.api.hap.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
-                  platform.log.info(`${mqttMessage} button ${i+1} single press event${intervalMsg}`);
+                  platform.log.info(`${mqttMessage} button ${i + 1} single press event${intervalMsg}`);
                 }, device.config.doublePress);
               }
             } else {
               // Assume LongPress
               this.button[i].statelessService.updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
                 platform.api.hap.Characteristic.ProgrammableSwitchEvent.LONG_PRESS);
-              platform.log.info(`${mqttMessage} button ${i+1} long press event`);
+              platform.log.info(`${mqttMessage} button ${i + 1} long press event`);
             }
           }
         }
@@ -235,7 +235,7 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttStatelessSwitch' + platform.reportError + msg);
   } finally {

@@ -110,7 +110,8 @@
             "Finger",
             "Lock",
             "PowerFailureAlarm",
-            "Dimmer"
+            "Dimmer",
+            "InfraredRemoter"
           ]
         },
         "default": [
@@ -144,7 +145,8 @@
             "Finger",
             "Lock",
             "PowerFailureAlarm",
-            "Dimmer"
+            "Dimmer",
+            "InfraredRemoter"
           ]
         }
       },

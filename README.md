@@ -22,7 +22,7 @@ Currently supports the following devices:
 * FlexFob Remote
 * Garage Door Controller
 * Hub and Speaker Hub
-* IR Remote ***(experimental)***
+* IR Remote / Blaster
 * Leak Sensor
 * Lock
 * Manipulator (as a valve)
@@ -193,11 +193,11 @@ Some latency has been observed between pressing a button and it being reported b
 
 The plugin recognizes these devices and registers *Accessory Information* service in Homebridge... however as hubs are not defined in HomeKit no tile is created for these. As these devices are not useful in Homebridge the *excludeTypes* field default value is set to exclude them.
 
-### IR Blaster
+### IR Remote / Blaster
 
-The YoLink IR Blaster is supported in Homebridge/Homekit as a series of switches and as a battery service. In Homebridge these are represented with multiple service tiles that all combine into the one accessory on Apple Home.
+The YoLink Infrared Remote is supported in Homebridge/Homekit as a series of switches and as a battery service. In Homebridge these are represented with multiple service tiles that all combine into the one accessory on Apple Home.
 
-Sending an IR signal is stateless and so the switch service does not remain in the on position, it automatically resets itself to off.
+Sending an IR signal is stateless and so the switch does not remain in the on position, it automatically resets itself to off.
 
 ### Leak Sensor
 

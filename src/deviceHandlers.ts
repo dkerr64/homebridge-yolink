@@ -44,7 +44,7 @@ export const deviceFeatures = {
   Lock:               { hasBattery: true },
   PowerFailureAlarm:  { hasBattery: true },
   Dimmer:             { hasBattery: false },
-  InfraredRemoter:    { hasBattery: true, experimental: true },
+  InfraredRemoter:    { hasBattery: true },
 };
 
 export const initDeviceService = {
