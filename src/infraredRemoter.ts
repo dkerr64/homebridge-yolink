@@ -120,13 +120,13 @@ async function handleSet(this: YoLinkPlatformAccessory, keyNumber = -1, value: C
     if (keyNumber >= 0 && value === true) {
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'key': keyNumber }, this.setMethod))?.data;
       // error will have been thrown in yolinkAPI if data not valid
-      this.log.warn(`Send infrared key number ${keyNumber} returned:\n${JSON.stringify(data, null, 2)}`);
+      platform.log.warn(`Send infrared key number ${keyNumber} returned:\n${JSON.stringify(data, null, 2)}`);
       // Sending IR signal is stateless, make sure that the switch is turned off after slight delay
       setTimeout(() => {
         this.irKey[keyNumber].switchService.updateCharacteristic(platform.Characteristic.On, false);
       }, 50);
     } else {
-      this.log.warn(`Cannot turn off infrared Key number ${keyNumber}, switch is stateless and always off`);
+      platform.log.warn(`Cannot turn off infrared Key number ${keyNumber}, switch is stateless and always off`);
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
