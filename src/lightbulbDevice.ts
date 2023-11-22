@@ -79,28 +79,50 @@ export async function initLightbulb(this: YoLinkPlatformAccessory, onState: stri
  * }
  */
 async function handleGet(this: YoLinkPlatformAccessory, mode = 'on'): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  handleGetBlocking.bind(this, mode)()
+    .then((v) => {
+      if (mode === 'brightness') {
+        this.lightbulbService.updateCharacteristic(this.platform.Characteristic.Brightness, v);
+      } else {
+        this.lightbulbService.updateCharacteristic(this.platform.Characteristic.On, v);
+      }
+    })
+    .catch(() => {
+      this.platform.log.error('Error in LightbulbDevice handleGet handler' + this.platform.reportError);
+    });
+  // Return current state of the device pending completion of the blocking function
+  if (mode === 'brightness') {
+    return (this.accessory.context.device.data.brightness);
+  } else {
+    return (this.accessory.context.device.data.state === this.onState);
+  }
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory, mode = 'on'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
-    if( await this.checkDeviceState(platform, device) ) {
+    if (await this.checkDeviceState(platform, device)) {
       this.logDeviceState(device, `Lightbulb: ${device.data.state}, Brightness: ${device.data.brightness}`);
       if (mode === 'brightness') {
-        return(device.data.brightness);
+        return (device.data.brightness);
       } else {
-        return(device.data.state === this.onState);
+        return (device.data.state === this.onState);
       }
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LightbulbDevice handleGet' + platform.reportError + msg);
   } finally {
     releaseSemaphore();
   }
-  return(false);
+  return (false);
 }
 
 /***********************************************************************
@@ -126,6 +148,12 @@ async function handleGet(this: YoLinkPlatformAccessory, mode = 'on'): Promise<Ch
  * }
  */
 async function handleSet(this: YoLinkPlatformAccessory, mode = 'on', value: CharacteristicValue): Promise<void> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  handleSetBlocking.bind(this, mode)(value);
+}
+
+async function handleSetBlocking(this: YoLinkPlatformAccessory, mode = 'on', value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
@@ -142,7 +170,7 @@ async function handleSet(this: YoLinkPlatformAccessory, mode = 'on', value: Char
     }
     const data = (await platform.yolinkAPI.setDeviceState(platform,
       device,
-      {'state':newState, 'brightness':newBrightness},
+      { 'state': newState, 'brightness': newBrightness },
       this.setMethod))?.data;
     // error will have been thrown in yolinkAPI if data not valid
     device.data.state = data.state;
@@ -151,7 +179,7 @@ async function handleSet(this: YoLinkPlatformAccessory, mode = 'on', value: Char
       .updateCharacteristic(platform.Characteristic.On, data.state === this.onState);
     this.lightbulbService
       .updateCharacteristic(platform.Characteristic.Brightness, data.brightness);
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LightbulbDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -224,15 +252,15 @@ export async function mqttLightbulb(this: YoLinkPlatformAccessory, message): Pro
   try {
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.method} for device ${device.deviceMsgName}`;
-    const batteryMsg = (device.hasBattery) ? `, Battery: ${message.data.battery}`: '';
+    const batteryMsg = (device.hasBattery) ? `, Battery: ${message.data.battery}` : '';
 
     switch (message.method) {
       case 'Report':
-        // falls through
+      // falls through
       case 'getState':
-        // falls through
+      // falls through
       case 'setState':
-        // falls through
+      // falls through
       case 'StatusChange':
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
@@ -242,7 +270,7 @@ export async function mqttLightbulb(this: YoLinkPlatformAccessory, message): Pro
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
         this.logDeviceState(device, `Lightbulb: ${device.data.state}, ` +
-                                    `Brightness: ${device.data.brightness}${batteryMsg} (MQTT: ${message.method})`);
+          `Brightness: ${device.data.brightness}${batteryMsg} (MQTT: ${message.method})`);
         this.lightbulbService
           .updateCharacteristic(platform.Characteristic.On,
             (message.data.state === this.onState) ? true : false);
@@ -250,15 +278,15 @@ export async function mqttLightbulb(this: YoLinkPlatformAccessory, message): Pro
           .updateCharacteristic(platform.Characteristic.Brightness, message.data.brightness);
         break;
       case 'setDelay':
-        // falls through
+      // falls through
       case 'getSchedules':
-        // falls through
+      // falls through
       case 'setSchedules':
-        // falls through
+      // falls through
       case 'setInitState':
-        // falls through
+      // falls through
       case 'setTimeZone':
-        // falls through
+      // falls through
       case 'setDeviceAttributes':
         // nothing to update in HomeKit
         this.logDeviceState(device, `Unsupported message (MQTT: ${message.method})`);
@@ -266,7 +294,7 @@ export async function mqttLightbulb(this: YoLinkPlatformAccessory, message): Pro
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttLightbulbDevice' + platform.reportError + msg);
   } finally {

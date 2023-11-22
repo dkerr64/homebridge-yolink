@@ -13,7 +13,7 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
  * initOutletDevice
  *
  */
-export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: string, setOn: string, setOff:string): Promise<void> {
+export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: string, setOn: string, setOff: string): Promise<void> {
 
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
@@ -34,7 +34,7 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
   if (this.nOutlets === 1) {
     this.outlet.push({});
     this.outlet[0].service = accessory.getService(platform.Service.Outlet)
-                          || accessory.addService(platform.Service.Outlet);
+      || accessory.addService(platform.Service.Outlet);
     this.outlet[0].service
       .setCharacteristic(platform.Characteristic.Name, device.name);
     this.outlet[0].service
@@ -45,21 +45,25 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
     // As we are adding multiple services of the same type, we need
     // a ServiceLabel service.
     this.serviceLabel = accessory.getService(platform.Service.ServiceLabel)
-                     || accessory.addService(platform.Service.ServiceLabel);
+      || accessory.addService(platform.Service.ServiceLabel);
     this.serviceLabel
       .setCharacteristic(platform.Characteristic.Name, device.name);
     this.serviceLabel
-      .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet( () => {
-        return(this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
+      .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet(() => {
+        return (this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
       });
     // Add each of the outlets (the first "outlet" may be USB ports)
     for (let i = 0; i < this.nOutlets; i++) {
       this.outlet.push({});
-      this.outlet[i].service = accessory.getService(`Outlet ${i}`)
-                            || accessory.addService(platform.Service.Outlet, `Outlet ${i}`, `outlet${i}`);
+      if (!(this.outlet[i].service = accessory.getService(`Outlet ${i}`))) {
+        this.outlet[i].service = accessory.addService(platform.Service.Outlet, `Outlet ${i}`, `outlet${i}`);
+        this.outlet[i].service.addCharacteristic(platform.Characteristic.ConfiguredName);
+      }
+
       this.outlet[i].service
         .setCharacteristic(platform.Characteristic.Name, device.name + ` Outlet ${i}`)
-        .setCharacteristic(platform.Characteristic.ServiceLabelIndex, i+1);
+        .setCharacteristic(platform.Characteristic.ConfiguredName, `Outlet ${i}`)
+        .setCharacteristic(platform.Characteristic.ServiceLabelIndex, i + 1);
       this.outlet[i].service
         .getCharacteristic(platform.Characteristic.On)
         .onGet(handleGet.bind(this, i))
@@ -117,36 +121,60 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
  * }
 
  */
-async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise<CharacteristicValue> {
+async function handleGet(this: YoLinkPlatformAccessory, outlet = -1): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  if (outlet < 0) {
+    // if called with -1 then we need to await result to find number of outlets
+    return await handleGetBlocking.bind(this, outlet)();
+  } else {
+    handleGetBlocking.bind(this, outlet)()
+      .then((v) => {
+        this.outlet[outlet].service.updateCharacteristic(this.platform.Characteristic.On, v);
+      })
+      .catch(() => {
+        this.platform.log.error(`Error in Outlet[${outlet}] handleGet handler ${this.platform.reportError}`);
+      });
+    // Return current state of the device pending completion of the blocking function
+    if (this.nOutlets === 1) {
+      return (this.accessory.context.device.data.state === this.onState);
+    } else {
+      // MultiOutlet device returns state as an array
+      return (this.accessory.context.device.data.state[outlet] === this.onState);
+    }
+  }
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory, outlet = -1): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
-    if( await this.checkDeviceState(platform, device) ) {
+    if (await this.checkDeviceState(platform, device)) {
       if (outlet < 0) {
         // if function was called with negative outlet number then we're being asked to try and
         // automatically detect the number of outlets on the device based on the returned data.
         // "ch" values start from 0 (a two outlet device is 0 and 1).
-        return(Math.max(...device.data.delays?.map(o => o.ch) ?? [0]) + 1);
+        return (Math.max(...device.data.delays?.map(o => o.ch) ?? [0]) + 1);
       }
       this.logDeviceState(device, `nOutlets: ${this.nOutlets}, Outlet (0..n-1) ${outlet}: ${device.data.state}`);
       if (this.nOutlets === 1) {
-        return(device.data.state === this.onState);
+        return (device.data.state === this.onState);
       } else { // if (outlet >= 0) {
         // MultiOutlet device returns state as an array
-        return(device.data.state[outlet] === this.onState);
+        return (device.data.state[outlet] === this.onState);
       }
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in OutletDevice handleGet' + platform.reportError + msg);
   } finally {
     releaseSemaphore();
   }
-  return(false);
+  return (false);
 }
 
 /***********************************************************************
@@ -182,6 +210,12 @@ async function handleGet(this: YoLinkPlatformAccessory, outlet: number): Promise
  *
  */
 async function handleSet(this: YoLinkPlatformAccessory, outlet: number, value: CharacteristicValue): Promise<void> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  handleSetBlocking.bind(this, outlet)(value);
+}
+
+async function handleSetBlocking(this: YoLinkPlatformAccessory, outlet: number, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
@@ -190,20 +224,20 @@ async function handleSet(this: YoLinkPlatformAccessory, outlet: number, value: C
     const newState = (value === true) ? this.setOn : this.setOff;
     if (this.nOutlets === 1) {
       // Single outlet device
-      const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
+      const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'state': newState }))?.data;
       // error will have been thrown in yolinkAPI if data not valid
       device.data.state = data.state;
       this.outlet[0].service
         .updateCharacteristic(platform.Characteristic.On, data.state === this.onState);
     } else {
       // MultiOutlet device
-      const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'chs':(1<<outlet), 'state':newState}))?.data;
+      const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'chs': (1 << outlet), 'state': newState }))?.data;
       // error will have been thrown in yolinkAPI if data not valid
       device.data.state[outlet] = data.state[outlet];
       this.outlet[outlet].service
         .updateCharacteristic(platform.Characteristic.On, data.state[outlet] === this.onState);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in OutletDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -297,14 +331,14 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
 
     switch (event[1]) {
       case 'Report':
-        // falls through
+      // falls through
       case 'getState':
-        // falls through
+      // falls through
       case 'setState':
-        // falls through
+      // falls through
       case 'StatusChange':
         if (!device.data) {
-        // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+          // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           break;
         }
@@ -322,15 +356,15 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
         }
         break;
       case 'setDelay':
-        // falls through
+      // falls through
       case 'getSchedules':
-        // falls through
+      // falls through
       case 'setSchedules':
-        // falls through
+      // falls through
       case 'setInitState':
-        // falls through
+      // falls through
       case 'setTimeZone':
-        // falls through
+      // falls through
       case 'powerReport':
         // nothing to update in HomeKit
         this.logDeviceState(device, `Unsupported message (MQTT: ${message.event})`);
@@ -338,7 +372,7 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttOutletDevice' + platform.reportError + msg);
   } finally {

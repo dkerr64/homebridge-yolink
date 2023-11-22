@@ -123,6 +123,11 @@ async function handleGet(this: YoLinkPlatformAccessory, keyNumber = -1): Promise
  *
  */
 async function handleSet(this: YoLinkPlatformAccessory, keyNumber = -1, value: CharacteristicValue): Promise<void> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  handleSetBlocking.bind(this, keyNumber)(value);
+}
+async function handleSetBlocking(this: YoLinkPlatformAccessory, keyNumber = -1, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.

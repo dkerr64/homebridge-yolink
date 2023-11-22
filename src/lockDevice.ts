@@ -24,7 +24,7 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
   this.setUnlock = 'unlock';
 
   this.lockService = accessory.getService(platform.Service.LockMechanism)
-                  || accessory.addService(platform.Service.LockMechanism);
+    || accessory.addService(platform.Service.LockMechanism);
   this.lockService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.lockService.getCharacteristic(platform.Characteristic.LockCurrentState)
     .onGet(handleGet.bind(this, 'current'));
@@ -35,27 +35,27 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
   // Lock Management is a no-op for us, but according to Apple documentation
   // implementation of it is mandatory. So we will implement as no-op!
   this.lockMgmtServer = accessory.getService(platform.Service.LockManagement)
-                     || accessory.addService(platform.Service.LockManagement);
+    || accessory.addService(platform.Service.LockManagement);
   this.lockMgmtServer.getCharacteristic(platform.Characteristic.Version)
-    .onGet( () => {
+    .onGet(() => {
       platform.verboseLog('Lock Management Version characteristic onGet called');
       // return '1.0' as required by Apple specification docs.
-      return('1.0');
+      return ('1.0');
     });
   this.lockMgmtServer.getCharacteristic(platform.Characteristic.LockControlPoint)
-    .onSet( (value: CharacteristicValue) => {
+    .onSet((value: CharacteristicValue) => {
       platform.verboseLog(`Lock Management LockControlPoint onSet called with '${value}'`);
       return;
     });
 
   // Door Bell service...
   this.doorBellService = accessory.getService(platform.Service.Doorbell)
-                      || accessory.addService(platform.Service.Doorbell);
+    || accessory.addService(platform.Service.Doorbell);
   this.doorBellService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.doorBellService.getCharacteristic(platform.Characteristic.ProgrammableSwitchEvent)
-    .onGet( () => {
+    .onGet(() => {
       platform.verboseLog('Lock door bell onGet called');
-      return(platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+      return (platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
     });
 
   // Call get handler to initialize data fields to current state and set
@@ -88,6 +88,28 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
  *
  */
 async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  handleGetBlocking.bind(this, requested)()
+    .then((v) => {
+      if (requested === 'current') {
+        this.lockService.updateCharacteristic(this.platform.Characteristic.LockCurrentState, v);
+      } else {
+        this.lockService.updateCharacteristic(this.platform.Characteristic.LockTargetState, v);
+      }
+    })
+    .catch(() => {
+      this.platform.log.error(`Error in LockDevice handleGet [${requested}] ${this.platform.reportError}`);
+    });
+  // Return current state of the device pending completion of the blocking function
+  if (requested === 'current') {
+    return (3); // (3 = unknown)
+  } else {
+    return ((this.accessory.context.device.data.state === this.lockedState) ? 1 : 0);
+  }
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory, requested = 'current'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
@@ -95,15 +117,15 @@ async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): 
   let rc = (requested === 'current') ? 3 : 0;
   // rc 0 = unsecured, 1 = secured, (and for current state only... 2 = jammed, 3 = unknown)
   try {
-    if( await this.checkDeviceState(platform, device) ) {
-      const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.battery}`: '';
+    if (await this.checkDeviceState(platform, device)) {
+      const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.battery}` : '';
       this.logDeviceState(device, `Lock: ${device.data.state}${batteryMsg}`);
       rc = (device.data.state === this.lockedState) ? 1 : 0;
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
 
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LockDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -136,19 +158,25 @@ async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): 
  *
  */
 async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  handleSetBlocking.bind(this)(value);
+}
+
+async function handleSetBlocking(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
     const newState = (value === 1) ? this.setLock : this.setUnlock;
-    const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}, this.setMethod))?.data;
+    const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'state': newState }, this.setMethod))?.data;
     // error will have been thrown in yolinkAPI if data not valid
     device.data.state = data.state;
     // Set the current state to the new state as reported by response from YoLink
     this.lockService
       .updateCharacteristic(platform.Characteristic.LockCurrentState, (data.state === this.lockedState) ? 1 : 0);
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LockDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -294,21 +322,21 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}` : '';
     const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
 
     switch (event[1]) {
       case 'Report':
-        // falls through
+      // falls through
       case 'getState':
-        // falls through
+      // falls through
       case 'setState':
-        // falls through
+      // falls through
       case 'Alert':
-        // falls through
+      // falls through
       case 'StatusChange':
         if (!device.data) {
-        // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+          // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           break;
         }
@@ -330,15 +358,15 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
             (message.data.state === this.lockedState) ? 1 : 0);
         break;
       case 'getUsers':
-        // falls through
+      // falls through
       case 'addPassword':
-        // falls through
+      // falls through
       case 'delPassword':
-        // falls through
+      // falls through
       case 'updatePassword':
-        // falls through
+      // falls through
       case 'clearPassword':
-        // falls through
+      // falls through
       case 'addTemporaryPWD':
         // Homebridge has no equivalent and message does not carry either lock state or battery
         // state fields, so there is nothing we can update.
@@ -347,7 +375,7 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttLockDevice' + platform.reportError + msg);
   } finally {
