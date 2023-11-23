@@ -64,7 +64,7 @@ export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promis
   });
 
   // timer to regularly update the data... really only to monitor battery level.
-  this.refreshDataTimer(handleGet.bind(this, -1));
+  await this.refreshDataTimer(handleGet.bind(this, -1));
 }
 
 /***********************************************************************

@@ -76,7 +76,8 @@ export class YoLinkPlatformAccessory {
             .setCharacteristic(platform.Characteristic.ChargingState, platform.api.hap.Characteristic.ChargingState.NOT_CHARGEABLE)
             .setCharacteristic(platform.Characteristic.BatteryLevel, 100);
           device.batteryService
-            .getCharacteristic(platform.Characteristic.BatteryLevel).onGet(this.handleBatteryGet.bind(this, device));
+            .getCharacteristic(platform.Characteristic.BatteryLevel)
+            .onGet(this.handleBatteryGet.bind(this, device));
         }
         // And finally call the device specific initialization...
         initDeviceService[this.deviceType].bind(this)();
@@ -250,6 +251,18 @@ export class YoLinkPlatformAccessory {
    *
    */
   async handleBatteryGet(this: YoLinkPlatformAccessory, device: YoLinkDevice): Promise<CharacteristicValue> {
+    // wrapping the semaphone blocking function so that we return to Homebridge immediately
+    // even if semaphore not available.
+    const platform: YoLinkHomebridgePlatform = this.platform;
+    this.handleBatteryGetBlocking.bind(this, device)()
+      .then((v) => {
+        device.batteryService.updateCharacteristic(platform.Characteristic.BatteryLevel, v);
+      });
+    // Return current state of the device pending completion of the blocking function
+    return (this.updateBatteryInfo.bind(this, device)());
+  }
+
+  async handleBatteryGetBlocking(this: YoLinkPlatformAccessory, device: YoLinkDevice): Promise<CharacteristicValue> {
     const platform = this.platform;
     // serialize access to device data.
     const releaseSemaphore = await device.semaphore.acquire();
@@ -266,11 +279,11 @@ export class YoLinkPlatformAccessory {
     }
     return (rc);
   }
+
   /*********************************************************************
    * handleIdentifySet
    *
    */
-
   async handleIdentifySet(this: YoLinkPlatformAccessory, device: YoLinkDevice, value): Promise<void> {
     const platform = this.platform;
     // serialize access to device data.

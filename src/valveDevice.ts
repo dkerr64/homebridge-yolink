@@ -27,9 +27,10 @@ export async function initValveDevice(this: YoLinkPlatformAccessory): Promise<vo
     .onGet(handleInUse.bind(this));
   this.valveService.getCharacteristic(platform.Characteristic.ValveType)
     .onGet(handleType.bind(this));
+
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
+  await this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
 }
 
 /***********************************************************************

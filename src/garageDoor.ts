@@ -54,7 +54,7 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
 
   await this.refreshDataTimer(handleGetBlocking.bind(this, doorSensor));
   // above must await because we use doorSensor in handleGet for doorController
-  this.refreshDataTimer(handleGetBlocking.bind(this, doorController));
+  await this.refreshDataTimer(handleGetBlocking.bind(this, doorController));
 }
 
 /***********************************************************************

@@ -60,7 +60,7 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
 
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGetBlocking.bind(this));
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************
@@ -100,9 +100,7 @@ async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): 
       }
     });
   // Return current state of the device pending completion of the blocking function
-  return ((requested === 'current')
-    ? 3 // 0 = unsecured, 1 = secured, (and for current state only... 2 = jammed, 3 = unknown)
-    : (this.accessory.context.device.data.state === this.lockedState) ? 1 : 0);
+  return ((this.accessory.context.device.data.state === this.lockedState) ? 1 : 0);
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, requested = 'current'): Promise<CharacteristicValue> {

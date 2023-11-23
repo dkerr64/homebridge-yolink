@@ -31,9 +31,10 @@ export async function initLightbulb(this: YoLinkPlatformAccessory, onState: stri
   this.lightbulbService.getCharacteristic(platform.Characteristic.Brightness)
     .onGet(handleGet.bind(this, 'brightness'))
     .onSet(handleSet.bind(this, 'brightness'));
+
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGetBlocking.bind(this, 'on'));
+  await this.refreshDataTimer(handleGetBlocking.bind(this, 'on'));
 }
 
 /***********************************************************************

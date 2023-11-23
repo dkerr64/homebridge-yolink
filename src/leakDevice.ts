@@ -37,7 +37,7 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
 
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this));
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************
@@ -61,6 +61,25 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
  *  }
  */
 async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  const device: YoLinkDevice = this.accessory.context.device;
+  handleGetBlocking.bind(this, devSensor)()
+    .then((v) => {
+      if (devSensor === 'thermo') {
+        this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
+      } else {
+        this.leakService.updateCharacteristic(platform.Characteristic.LeakDetected, v);
+      }
+    });
+  // Return current state of the device pending completion of the blocking function
+  return ((devSensor === 'thermo')
+    ? device.data.state.devTemperature
+    : (device.data.state.state === 'alert'));
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.

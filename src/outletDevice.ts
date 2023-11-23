@@ -81,7 +81,7 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
   }
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGetBlocking.bind(this, 0));
+  await this.refreshDataTimer(handleGetBlocking.bind(this, 0));
 }
 
 /***********************************************************************

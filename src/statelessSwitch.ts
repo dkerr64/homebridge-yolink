@@ -67,7 +67,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   }
 
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGetBlocking.bind(this));
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************

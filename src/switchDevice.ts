@@ -33,7 +33,7 @@ export async function initSwitchDevice(this: YoLinkPlatformAccessory, onState, s
     .onSet(handleSet.bind(this));
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this));
+  await this.refreshDataTimer(handleGet.bind(this));
 }
 
 /***********************************************************************

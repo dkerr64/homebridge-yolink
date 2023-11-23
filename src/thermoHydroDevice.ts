@@ -43,7 +43,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   }
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
+  await this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
 }
 
 /***********************************************************************

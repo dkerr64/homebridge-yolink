@@ -44,7 +44,7 @@ export async function initPowerSensor(this: YoLinkPlatformAccessory): Promise<vo
 
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGetBlocking.bind(this));
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************
