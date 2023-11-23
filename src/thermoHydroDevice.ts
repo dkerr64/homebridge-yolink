@@ -24,7 +24,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   } else {
     // Not trying to hide the thermometer service.
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
-                      || accessory.addService(platform.Service.TemperatureSensor);
+      || accessory.addService(platform.Service.TemperatureSensor);
     this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name);
     this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
       .onGet(handleGet.bind(this, 'thermo'));
@@ -36,14 +36,14 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   } else {
     // Not trying to hide the hydrometer service.
     this.hydroService = accessory.getService(platform.Service.HumiditySensor)
-                     || accessory.addService(platform.Service.HumiditySensor);
+      || accessory.addService(platform.Service.HumiditySensor);
     this.hydroService.setCharacteristic(platform.Characteristic.Name, device.name);
     this.hydroService.getCharacteristic(platform.Characteristic.CurrentRelativeHumidity)
       .onGet(handleGet.bind(this, 'hydro'));
   }
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this, 'both'));
+  this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
 }
 
 /***********************************************************************
@@ -90,6 +90,25 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
  *  }
  */
 async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  const device: YoLinkDevice = this.accessory.context.device;
+  handleGetBlocking.bind(this, sensor)()
+    .then((v) => {
+      if (sensor === 'hydro') {
+        this.hydroService!.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, v);
+      } else {
+        this.thermoService!.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
+      }
+    });
+  // Return current state of the device pending completion of the blocking function
+  return ((sensor === 'hydro')
+    ? device.data.state.humidity
+    : device.data.state.temperature);
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'thermo'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
@@ -98,8 +117,8 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Prom
   try {
     if (await this.checkDeviceState(platform, device) && device.data.online) {
       this.logDeviceState(device, `Temperature ${device.data.state.temperature}\u00B0C ` +
-                          `(${(device.data.state.temperature*9/5+32).toFixed(1)}\u00B0F), Humidity ${device.data.state.humidity}, ` +
-                          `Battery: ${device.data.state.battery} (Requested: ${sensor})`);
+        `(${(device.data.state.temperature * 9 / 5 + 32).toFixed(1)}\u00B0F), Humidity ${device.data.state.humidity}, ` +
+        `Battery: ${device.data.state.battery} (Requested: ${sensor})`);
       if (this.thermoService) {
         this.thermoService
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
@@ -127,7 +146,7 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Prom
           .updateCharacteristic(platform.Characteristic.StatusFault, true);
       }
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in ThermoHydroDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -209,15 +228,15 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}` : '';
     const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
 
     switch (event[1]) {
       case 'Alert':
-        // I can see no way in HomeKit documentation for a thermo/hydro sensor
-        // to generate an alert.  I think bounds testing / alerting all has to be
-        // handled within HomeKit.
-        // falls through
+      // I can see no way in HomeKit documentation for a thermo/hydro sensor
+      // to generate an alert.  I think bounds testing / alerting all has to be
+      // handled within HomeKit.
+      // falls through
       case 'Report':
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
@@ -234,8 +253,8 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
           device.data.reportAt = device.reportAtTime.toISOString();
         }
         this.logDeviceState(device, `Temperature ${device.data.state.temperature}\u00B0C ` +
-                                              `(${(device.data.state.temperature*9/5+32).toFixed(1)}\u00B0F), `+
-                                    `Humidity ${device.data.state.humidity}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
+          `(${(device.data.state.temperature * 9 / 5 + 32).toFixed(1)}\u00B0F), ` +
+          `Humidity ${device.data.state.humidity}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
         if (this.thermoService) {
           this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
         }
@@ -253,7 +272,7 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttThermoHydroDevice' + platform.reportError + msg);
   } finally {

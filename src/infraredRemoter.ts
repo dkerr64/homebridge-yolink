@@ -39,9 +39,19 @@ export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promis
     if (b) {
       platform.verboseLog(`Add switch for learned button index: ${i}`);
       this.irKey[i] = {};
-      if (!(this.irKey[i].switchService = accessory.getService(`IR Key ${i}`))) {
-        this.irKey[i].switchService = accessory.addService(platform.Service.Switch, `IR Key ${i}`, `irkey${i}`);
+      this.irKey[i].switchService = accessory.getService(`IR Key ${i}`)
+        || accessory.addService(platform.Service.Switch, `IR Key ${i}`, `irkey${i}`);
+      // Add ServiceLabelIndex and ConfiguredName.  Need try/catch to suppress error if
+      // characteristic is already added (which will be the case if restored from cache)
+      try {
+        this.irKey[i].switchService.addCharacteristic(platform.Characteristic.ServiceLabelIndex);
+      } catch (e) {
+        // Ignore
+      }
+      try {
         this.irKey[i].switchService.addCharacteristic(platform.Characteristic.ConfiguredName);
+      } catch (e) {
+        // Ignore
       }
       this.irKey[i].switchService
         .setCharacteristic(platform.Characteristic.Name, `${device.name} IR Key ${i}`)
@@ -54,7 +64,7 @@ export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promis
   });
 
   // timer to regularly update the data... really only to monitor battery level.
-  this.refreshDataTimer(handleGet.bind(this));
+  this.refreshDataTimer(handleGet.bind(this, -1));
 }
 
 /***********************************************************************
@@ -87,7 +97,6 @@ export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promis
 async function handleGet(this: YoLinkPlatformAccessory, keyNumber = -1): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
-
   // No need to check the device for status, the "switch" is always off.
   // Only check device if called without specific key number (to get initial settings);
   if (keyNumber < 0) {
@@ -127,6 +136,7 @@ async function handleSet(this: YoLinkPlatformAccessory, keyNumber = -1, value: C
   // even if semaphore not available.
   handleSetBlocking.bind(this, keyNumber)(value);
 }
+
 async function handleSetBlocking(this: YoLinkPlatformAccessory, keyNumber = -1, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
@@ -150,6 +160,9 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, keyNumber = -1, 
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in SwitchDevice handleGet' + platform.reportError + msg);
   } finally {
+    // Avoid flooding YoLink device with rapid succession of requests.
+    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+    await sleep(250);
     releaseSemaphore();
   }
 }

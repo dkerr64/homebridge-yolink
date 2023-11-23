@@ -22,12 +22,12 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
   // Need to do some initialization of the second device attached to the
   // accessory.  The first device is handled in the main platformAccessory class.
   this.deviceId2 = doorSensor.deviceId;
-
+  this.currentState = undefined;
   this.initializeDeviceVars(platform, doorSensor);
 
   if (doorSensor.hasBattery) {
     doorSensor.batteryService = accessory.getService('Battery 2')
-                             || accessory.addService(platform.Service.Battery, 'Battery 2', 'battery2');
+      || accessory.addService(platform.Service.Battery, 'Battery 2', 'battery2');
     doorSensor.batteryService
       .setCharacteristic(platform.Characteristic.Name, doorSensor.name)
       .setCharacteristic(platform.Characteristic.ChargingState, platform.api.hap.Characteristic.ChargingState.NOT_CHARGEABLE)
@@ -37,7 +37,7 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
   }
 
   this.garageService = accessory.getService(platform.Service.GarageDoorOpener)
-                    || accessory.addService(platform.Service.GarageDoorOpener);
+    || accessory.addService(platform.Service.GarageDoorOpener);
   this.garageService.setCharacteristic(platform.Characteristic.Name, doorController.name);
   this.garageService
     .getCharacteristic(platform.Characteristic.CurrentDoorState)
@@ -48,13 +48,13 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
     .onSet(handleSet.bind(this, doorController));
   this.garageService
     .getCharacteristic(platform.Characteristic.ObstructionDetected)
-    .onGet( () => {
-      return(false);
+    .onGet(() => {
+      return (false);
     });
 
-  await this.refreshDataTimer(handleGet.bind(this, doorSensor));
+  await this.refreshDataTimer(handleGetBlocking.bind(this, doorSensor));
   // above must await because we use doorSensor in handleGet for doorController
-  this.refreshDataTimer(handleGet.bind(this, doorController));
+  this.refreshDataTimer(handleGetBlocking.bind(this, doorController));
 }
 
 /***********************************************************************
@@ -77,14 +77,26 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
  * }
  *
  */
-async function handleGet(this: YoLinkPlatformAccessory, device: YoLinkDevice, needSemaphore = true): Promise<CharacteristicValue> {
+async function handleGet(this: YoLinkPlatformAccessory, device: YoLinkDevice): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  handleGetBlocking.bind(this, device, true)()
+    .then((v) => {
+      this.garageService!.updateCharacteristic(platform.Characteristic.CurrentDoorState, v);
+    });
+  // Return current state of the device pending completion of the blocking function
+  return (this.currentState);
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory, device: YoLinkDevice, needSemaphore = true): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const doorSensor: YoLinkDevice = this.accessory.context.device2;
   // serialize access to device data. This function can be called with parameter that
   // indicates whether semaphore is needed... this allows for nesting with another
   // function that already holds the semaphore.
   // eslint-disable-next-line brace-style
-  const releaseSemaphore = (needSemaphore) ? await device.semaphore.acquire() : function() { return; };
+  const releaseSemaphore = (needSemaphore) ? await device.semaphore.acquire() : function () { return; };
   let rc = platform.api.hap.Characteristic.CurrentDoorState.CLOSED;
   try {
     if (await this.checkDeviceState(platform, device)) {
@@ -114,19 +126,20 @@ async function handleGet(this: YoLinkPlatformAccessory, device: YoLinkDevice, ne
         // return value for target state must be open or closed, not opening or closing.
         // 0=open, 1=closed, 2=opening, 3=closing, 4=stopped(not used)
         rc = (rc > 1) ? rc - 2 : rc;
-        this.logDeviceState(device, `Garage Door or Finger: ${(device.data.battery)?'Battery: '+device.data.battery:''}, rc: ${rc}`);
+        this.logDeviceState(device, `Garage Door or Finger: ${(device.data.battery) ? 'Battery: ' + device.data.battery : ''}, rc: ${rc}`);
       } else {
         this.logDeviceState(device, `Sensor: ${device.data.state.state}, Battery: ${device.data.state.battery}, rc: ${rc}`);
       }
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in GarageDoor handleGet' + platform.reportError + msg);
   } finally {
     releaseSemaphore();
   }
+  this.currentState = rc;
   return (rc);
 }
 
@@ -176,7 +189,7 @@ async function handleSet(this: YoLinkPlatformAccessory, device: YoLinkDevice, va
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const doorState = await handleGet.bind(this)(doorSensor);
+    const doorState = await handleGetBlocking.bind(this)(doorSensor);
     // 0=open, 1=closed, 2=opening, 3=closing, 4=stopped(not used)
     if (value === 0 && (doorState === 0 || doorState === 2)) {
       platform.log.warn(`Request to open garage door (${device.deviceMsgName}) ignored, door already open or opening`);
@@ -200,10 +213,13 @@ async function handleSet(this: YoLinkPlatformAccessory, device: YoLinkDevice, va
       platform.verboseLog(`Set garage door timer for ${doorSensor.timeout} seconds with targetState '${doorSensor.targetState}'`);
       doorSensor.resetTimer = setTimeout(resetDoorState.bind(this, doorSensor, doorSensor.targetState), doorSensor.timeout * 1000);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in GarageDoor handleGet' + platform.reportError + msg);
   } finally {
+    // Avoid flooding YoLink device with rapid succession of requests.
+    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+    await sleep(250);
     releaseSemaphore();
   }
 }
@@ -220,10 +236,10 @@ async function resetDoorState(this: YoLinkPlatformAccessory, doorSensor: YoLinkD
     platform.verboseLog(`Garage Door Timer fired, targetState: ${targetState}, doorSensor targetState: ${doorSensor.targetState}`);
     if (targetState === 'open' && doorSensor.targetState === 'open') {
       platform.log.warn(`Garage door open (${doorSensor.deviceMsgName}) did not complete in time, ` +
-                        `reset state to ${doorSensor.data.state.state}`);
+        `reset state to ${doorSensor.data.state.state}`);
     } else if (targetState === 'closed' && doorSensor.targetState === 'closed') {
       platform.log.warn(`Garage door close (${doorSensor.deviceMsgName}) did not complete in time, ` +
-                        `reset state to ${doorSensor.data.state.state}`);
+        `reset state to ${doorSensor.data.state.state}`);
     }
     // no longer opening or closing...
     doorSensor.targetState = '';
@@ -231,8 +247,8 @@ async function resetDoorState(this: YoLinkPlatformAccessory, doorSensor: YoLinkD
     // things have got out-of-sync.
     doorSensor.updateTime = Math.floor(new Date().getTime() / 1000);
     this.garageService
-      .updateCharacteristic(platform.Characteristic.CurrentDoorState, await handleGet.bind(this, doorSensor, false)());
-  } catch(e) {
+      .updateCharacteristic(platform.Characteristic.CurrentDoorState, await handleGetBlocking.bind(this, doorSensor, false)());
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in GarageDoor resetDoorState' + platform.reportError + msg);
   } finally {
@@ -307,7 +323,7 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
   const releaseSemaphore = await doorSensor.semaphore.acquire();
   try {
     let mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
-    const batteryMsg = (doorSensor.hasBattery && message.data?.battery) ? `, Battery: ${message.data?.battery}`: '';
+    const batteryMsg = (doorSensor.hasBattery && message.data?.battery) ? `, Battery: ${message.data?.battery}` : '';
     const alertMsg = (message.data?.alertType) ? `, Alert: ${message.data?.alertType}` : '';
     const event = message.event.split('.');
     switch (event[0]) {
@@ -322,9 +338,9 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
         this.updateBatteryInfo.bind(this, doorSensor)();
         switch (event[1]) {
           case 'Alert':
-            // falls through
+          // falls through
           case 'Report':
-            // falls through
+          // falls through
           case 'StatusChange':
             if (doorSensor.data === undefined) {
               // in rare conditions (error conditions returned from YoLink) data object will be undefined.
@@ -386,7 +402,7 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttGarageDoor' + platform.reportError + msg);
   } finally {

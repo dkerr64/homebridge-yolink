@@ -29,7 +29,7 @@ export async function initValveDevice(this: YoLinkPlatformAccessory): Promise<vo
     .onGet(handleType.bind(this));
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this, 'both'));
+  this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
 }
 
 /***********************************************************************
@@ -55,13 +55,32 @@ export async function initValveDevice(this: YoLinkPlatformAccessory): Promise<vo
  *  }
  */
 async function handleGet(this: YoLinkPlatformAccessory, request = 'Active'): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  const device: YoLinkDevice = this.accessory.context.device;
+  handleGetBlocking.bind(this, request)()
+    .then((v) => {
+      if (request === 'Active') {
+        this.valveService.updateCharacteristic(platform.Characteristic.Active, v);
+      } else {
+        this.valveService.updateCharacteristic(platform.Characteristic.InUse, v);
+      }
+    });
+  // Return current state of the device pending completion of the blocking function
+  return ((device.data.state === 'open')
+    ? platform.api.hap.Characteristic.Active.ACTIVE
+    : platform.api.hap.Characteristic.Active.INACTIVE);
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory, request = 'Active'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   let rc = platform.api.hap.Characteristic.Active.INACTIVE;
   try {
-    if( await this.checkDeviceState(platform, device)) {
+    if (await this.checkDeviceState(platform, device)) {
       this.valveService
         // YoLink manipulator data does not return a 'online' value.  We will assume that if
         // we got this far then it is working normally...
@@ -75,7 +94,7 @@ async function handleGet(this: YoLinkPlatformAccessory, request = 'Active'): Pro
       this.valveService
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in ValveDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -114,7 +133,7 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   const releaseSemaphore = await device.semaphore.acquire();
   try {
     const newState = (value === platform.api.hap.Characteristic.Active.ACTIVE) ? 'open' : 'close';
-    const data = (await platform.yolinkAPI.setDeviceState(platform, device, {'state':newState}))?.data;
+    const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'state': newState }))?.data;
     // error will have been thrown in yolinkAPI if data not valid
     device.data.state = data.state;
     this.valveService
@@ -122,10 +141,13 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
         ? platform.api.hap.Characteristic.Active.ACTIVE : platform.api.hap.Characteristic.Active.INACTIVE)
       .updateCharacteristic(platform.Characteristic.InUse, (data.state === 'open')
         ? platform.api.hap.Characteristic.InUse.IN_USE : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in ValveDevice handleSet' + platform.reportError + msg);
   } finally {
+    // Avoid flooding YoLink device with rapid succession of requests.
+    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+    await sleep(250);
     releaseSemaphore();
   }
 }
@@ -196,12 +218,12 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
 
     switch (event[1]) {
       case 'Report':
-        // falls through
+      // falls through
       case 'getState':
-        // falls through
+      // falls through
       case 'setState':
         if (!device.data) {
-        // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+          // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           this.valveService.updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
@@ -221,7 +243,7 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttValveDevice' + platform.reportError + msg);
   } finally {

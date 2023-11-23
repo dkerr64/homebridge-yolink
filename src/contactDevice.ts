@@ -22,9 +22,10 @@ export async function initContactSensor(this: YoLinkPlatformAccessory): Promise<
   this.contactService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.contactService.getCharacteristic(platform.Characteristic.ContactSensorState)
     .onGet(handleGet.bind(this));
+
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this));
+  this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************
@@ -51,6 +52,21 @@ export async function initContactSensor(this: YoLinkPlatformAccessory): Promise<
  * state may be "open", "closed", or "error"
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  const device: YoLinkDevice = this.accessory.context.device;
+  handleGetBlocking.bind(this)()
+    .then((v) => {
+      this.hydroService!.updateCharacteristic(platform.Characteristic.ContactSensorState, v);
+    });
+  // Return current state of the device pending completion of the blocking function
+  return ((device.data?.state?.state === 'closed')
+    ? platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED
+    : platform.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED);
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
@@ -71,7 +87,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in ContactDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -133,14 +149,14 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}` : '';
     const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
 
     switch (event[1]) {
       case 'Alert':
-        // falls through
+      // falls through
       case 'Report':
-        // falls through
+      // falls through
       case 'StatusChange':
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
@@ -174,7 +190,7 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttContactSensor' + platform.reportError + msg);
   } finally {

@@ -57,7 +57,7 @@ type yolinkAccessTokens = {
  * retryFn
  *
  */
-function retryFn(platform: YoLinkHomebridgePlatform, fn, retriesLeft = 5, interval = 2000, intervalInc = 2000, intervalMax = 10000) {
+function retryFn(platform: YoLinkHomebridgePlatform, fn, retriesLeft = 5, interval = 15000, intervalInc = 15000, intervalMax = 60000) {
   return new Promise((resolve, reject) => {
     fn()
       .then(resolve)
@@ -153,9 +153,9 @@ export class YoLinkAPI {
    *
    */
   async login(platform: YoLinkHomebridgePlatform) {
-    // Infinitely retry. On failure retry after 5 seconds.  Add 5 seconds for
+    // Infinitely retry. On failure retry after 15 seconds.  Add 15 seconds for
     // each failure with maximum of 60 seconds between each retry.
-    await retryFn(platform, this.tryLogin.bind(this, platform), 0, 5000, 5000, 60000);
+    await retryFn(platform, this.tryLogin.bind(this, platform), 0, 15000, 15000, 60000);
   }
 
   async tryLogin(platform: YoLinkHomebridgePlatform) {
@@ -215,9 +215,9 @@ export class YoLinkAPI {
    *
    */
   async getAccessToken(platform: YoLinkHomebridgePlatform):Promise<string> {
-    // Infinitely retry. On failure retry after 5 seconds.  Add 5 seconds for
+    // Infinitely retry. On failure retry after 15 seconds.  Add 15 seconds for
     // each failure with maximum of 60 seconds between each retry.
-    return await retryFn(platform, this.tryGetAccessToken.bind(this, platform), 0, 5000, 5000, 60000) as string;
+    return await retryFn(platform, this.tryGetAccessToken.bind(this, platform), 0, 15000, 15000, 60000) as string;
   }
 
   async tryGetAccessToken(platform: YoLinkHomebridgePlatform): Promise<string> {
@@ -265,9 +265,9 @@ export class YoLinkAPI {
    *
    */
   async getDeviceList(platform: YoLinkHomebridgePlatform): Promise<YoLinkDevice[]> {
-    // Infinitely retry. On failure retry after 5 seconds.  Add 5 seconds for
+    // Infinitely retry. On failure retry after 15 seconds.  Add 15 seconds for
     // each failure with maximum of 60 seconds between each retry.
-    return await retryFn(platform, this.tryGetDeviceList.bind(this, platform), 0, 5000, 5000, 60000) as YoLinkDevice[];
+    return await retryFn(platform, this.tryGetDeviceList.bind(this, platform), 0, 15000, 15000, 60000) as YoLinkDevice[];
   }
 
   async tryGetDeviceList(platform: YoLinkHomebridgePlatform): Promise<YoLinkDevice[]> {
@@ -298,9 +298,9 @@ export class YoLinkAPI {
    *
    */
   async getDeviceState(platform: YoLinkHomebridgePlatform, device): Promise<yolinkBUDP> {
-    // Retry 10 times. On failure retry after 2 seconds.  Add 2 seconds for
-    // each failure with maximum of 10 seconds between each retry.
-    return await retryFn(platform, this.tryGetDeviceState.bind(this, platform, device), 10, 2000, 2000, 10000) as yolinkBUDP;
+    // Retry 10 times. On failure retry after 15 seconds.  Add 15 seconds for
+    // each failure with maximum of 60 seconds between each retry.
+    return await retryFn(platform, this.tryGetDeviceState.bind(this, platform, device), 10, 15000, 15000, 60000) as yolinkBUDP;
   }
 
   async tryGetDeviceState(platform: YoLinkHomebridgePlatform, device) {

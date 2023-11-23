@@ -26,7 +26,7 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
   if (device.config.temperature) {
     // If requested add a service for the internal device temperature.
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
-                      || accessory.addService(platform.Service.TemperatureSensor);
+      || accessory.addService(platform.Service.TemperatureSensor);
     this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
     this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
       .onGet(handleGet.bind(this, 'thermo'));
@@ -37,7 +37,7 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
 
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this));
+  this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************
@@ -80,6 +80,25 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
  *  }
  */
 async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  const device: YoLinkDevice = this.accessory.context.device;
+  handleGetBlocking.bind(this, devSensor)()
+    .then((v) => {
+      if (devSensor === 'thermo') {
+        this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
+      } else {
+        this.motionService.updateCharacteristic(platform.Characteristic.MotionDetected, v);
+      }
+    });
+  // Return current state of the device pending completion of the blocking function
+  return ((devSensor === 'thermo')
+    ? device.data.state.devTemperature
+    : (device.data.state.state === 'alert'));
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
@@ -90,7 +109,7 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
       this.motionService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      switch(devSensor) {
+      switch (devSensor) {
         case 'thermo':
           rc = device.data.state.devTemperature;
           break;
@@ -98,15 +117,15 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
           rc = device.data.state.state === 'alert';
       }
       this.logDeviceState(device, `Motion: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
-                          `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
-                          `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
+        `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
+        `(${(device.data.state.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)`);
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
       this.motionService
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in MotionDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -171,16 +190,16 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}` : '';
     const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
     const devTempMsg = (message.data.devTemperature) ? `, DevTemp: ${message.data.devTemperature}\u00B0C ` +
-                                                                `(${(message.data.devTemperature*9/5+32).toFixed(1)}\u00B0F)` : '';
+      `(${(message.data.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)` : '';
 
     switch (event[1]) {
       case 'Alert':
-        // falls through
+      // falls through
       case 'Report':
-        // falls through
+      // falls through
       case 'StatusChange':
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
@@ -200,7 +219,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
         this.logDeviceState(device, `Motion: ${device.data.state.state}${alertMsg}${batteryMsg}${devTempMsg} (MQTT: ${message.event})`);
         this.motionService
           .updateCharacteristic(platform.Characteristic.MotionDetected,
-            (message.data.state === 'alert') ? true : false )
+            (message.data.state === 'alert') ? true : false)
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
         break;
@@ -215,7 +234,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttMotionSensor' + platform.reportError + msg);
   } finally {

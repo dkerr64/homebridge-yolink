@@ -160,6 +160,12 @@ export class YoLinkPlatformAccessory {
       if (msg.split('YoLink API error code: ').pop()?.substring(0, 6) === '000201') {
         // "YoLink API error code: 000201" is rather common, so don't declare a problem
         platform.log.info(yolinkMsg + ' - retrying');
+      } else if (msg.split('YoLink API error code: ').pop()?.substring(0, 6) === '010301') {
+        // "YoLink API error code: 010301" is rather common, so don't declare a problem
+        platform.log.info(yolinkMsg + ' - retrying');
+      } else if (msg.split('YoLink API error code: ').pop()?.substring(0, 6) === '020104') {
+        // "YoLink API error code: 020104" is rather common, so don't declare a problem
+        platform.log.info(yolinkMsg + ' - retrying');
       } else {
         platform.log.info('Error in checkDeviceState' + platform.reportError + msg);
       }

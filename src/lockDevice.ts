@@ -60,7 +60,7 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
 
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this));
+  this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************
@@ -90,23 +90,19 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
 async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): Promise<CharacteristicValue> {
   // wrapping the semaphone blocking function so that we return to Homebridge immediately
   // even if semaphore not available.
+  const platform: YoLinkHomebridgePlatform = this.platform;
   handleGetBlocking.bind(this, requested)()
     .then((v) => {
       if (requested === 'current') {
-        this.lockService.updateCharacteristic(this.platform.Characteristic.LockCurrentState, v);
+        this.lockService.updateCharacteristic(platform.Characteristic.LockCurrentState, v);
       } else {
-        this.lockService.updateCharacteristic(this.platform.Characteristic.LockTargetState, v);
+        this.lockService.updateCharacteristic(platform.Characteristic.LockTargetState, v);
       }
-    })
-    .catch(() => {
-      this.platform.log.error(`Error in LockDevice handleGet [${requested}] ${this.platform.reportError}`);
     });
   // Return current state of the device pending completion of the blocking function
-  if (requested === 'current') {
-    return (3); // (3 = unknown)
-  } else {
-    return ((this.accessory.context.device.data.state === this.lockedState) ? 1 : 0);
-  }
+  return ((requested === 'current')
+    ? 3 // 0 = unsecured, 1 = secured, (and for current state only... 2 = jammed, 3 = unknown)
+    : (this.accessory.context.device.data.state === this.lockedState) ? 1 : 0);
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, requested = 'current'): Promise<CharacteristicValue> {
@@ -180,6 +176,9 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, value: Character
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LockDevice handleGet' + platform.reportError + msg);
   } finally {
+    // Avoid flooding YoLink device with rapid succession of requests.
+    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+    await sleep(250);
     releaseSemaphore();
   }
 }

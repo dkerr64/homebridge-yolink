@@ -36,10 +36,14 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   for (let i = 0; i < nButtons; i++) {
     this.button.push({});
     this.button[i].timestamp = 0; // used to detect double press
-    if (!(this.button[i].statelessService = accessory.getService(`Button ${i + 1}`))) {
-      this.button[i].statelessService = accessory
-        .addService(platform.Service.StatelessProgrammableSwitch, `Button ${i + 1}`, `button${i + 1}`);
+    this.button[i].statelessService = accessory.getService(`Button ${i + 1}`)
+      || accessory.addService(platform.Service.StatelessProgrammableSwitch, `Button ${i + 1}`, `button${i + 1}`);
+    // Add ConfiguredName.  Need try/catch to suppress error if characteristic
+    // is already added (which will be the case if restored from cache)
+    try {
       this.button[i].statelessService.addCharacteristic(platform.Characteristic.ConfiguredName);
+    } catch (e) {
+      // Ignore
     }
     this.button[i].statelessService
       .setCharacteristic(platform.Characteristic.Name, `${device.name} Button ${i + 1}`)
@@ -63,7 +67,7 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   }
 
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this));
+  this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************
@@ -86,6 +90,23 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
  * }
  */
 async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  const device: YoLinkDevice = this.accessory.context.device;
+  handleGetBlocking.bind(this, devSensor)()
+    .then((v) => {
+      if (devSensor === 'thermo') {
+        this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
+      }
+    });
+  // Return current state of the device pending completion of the blocking function
+  return ((devSensor === 'thermo')
+    ? device.data.state.devTemperature
+    : 0);
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.

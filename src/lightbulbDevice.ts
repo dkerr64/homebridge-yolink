@@ -33,7 +33,7 @@ export async function initLightbulb(this: YoLinkPlatformAccessory, onState: stri
     .onSet(handleSet.bind(this, 'brightness'));
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this, 'on'));
+  this.refreshDataTimer(handleGetBlocking.bind(this, 'on'));
 }
 
 /***********************************************************************
@@ -81,23 +81,19 @@ export async function initLightbulb(this: YoLinkPlatformAccessory, onState: stri
 async function handleGet(this: YoLinkPlatformAccessory, mode = 'on'): Promise<CharacteristicValue> {
   // wrapping the semaphone blocking function so that we return to Homebridge immediately
   // even if semaphore not available.
+  const platform: YoLinkHomebridgePlatform = this.platform;
   handleGetBlocking.bind(this, mode)()
     .then((v) => {
       if (mode === 'brightness') {
-        this.lightbulbService.updateCharacteristic(this.platform.Characteristic.Brightness, v);
+        this.lightbulbService.updateCharacteristic(platform.Characteristic.Brightness, v);
       } else {
-        this.lightbulbService.updateCharacteristic(this.platform.Characteristic.On, v);
+        this.lightbulbService.updateCharacteristic(platform.Characteristic.On, v);
       }
-    })
-    .catch(() => {
-      this.platform.log.error('Error in LightbulbDevice handleGet handler' + this.platform.reportError);
     });
   // Return current state of the device pending completion of the blocking function
-  if (mode === 'brightness') {
-    return (this.accessory.context.device.data.brightness);
-  } else {
-    return (this.accessory.context.device.data.state === this.onState);
-  }
+  return ((mode === 'brightness')
+    ? this.accessory.context.device.data.brightness
+    : (this.accessory.context.device.data.state === this.onState));
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, mode = 'on'): Promise<CharacteristicValue> {
@@ -183,6 +179,9 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, mode = 'on', val
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LightbulbDevice handleGet' + platform.reportError + msg);
   } finally {
+    // Avoid flooding YoLink device with rapid succession of requests.
+    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+    await sleep(250);
     releaseSemaphore();
   }
 }

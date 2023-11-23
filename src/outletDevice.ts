@@ -27,7 +27,7 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
 
   if (device.type === 'MultiOutlet') {
     // if number of outlets set in config file then use that
-    this.nOutlets = device.config.nOutlets ?? (await handleGet.bind(this)(-1));
+    this.nOutlets = device.config.nOutlets ?? (await handleGetBlocking.bind(this)(-1));
     platform.log.info(`Device ${device.deviceMsgName} has ${this.nOutlets} outlets`);
   }
 
@@ -55,11 +55,20 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
     // Add each of the outlets (the first "outlet" may be USB ports)
     for (let i = 0; i < this.nOutlets; i++) {
       this.outlet.push({});
-      if (!(this.outlet[i].service = accessory.getService(`Outlet ${i}`))) {
-        this.outlet[i].service = accessory.addService(platform.Service.Outlet, `Outlet ${i}`, `outlet${i}`);
-        this.outlet[i].service.addCharacteristic(platform.Characteristic.ConfiguredName);
+      this.outlet[i].service = accessory.getService(`Outlet ${i}`)
+        || accessory.addService(platform.Service.Outlet, `Outlet ${i}`, `outlet${i}`);
+      // Add ServiceLabelIndex and ConfiguredName.  Need try/catch to suppress error if
+      // characteristic is already added (which will be the case if restored from cache)
+      try {
+        this.outlet[i].service.addCharacteristic(platform.Characteristic.ServiceLabelIndex);
+      } catch (e) {
+        // Ignore
       }
-
+      try {
+        this.outlet[i].service.addCharacteristic(platform.Characteristic.ConfiguredName);
+      } catch (e) {
+        // Ignore
+      }
       this.outlet[i].service
         .setCharacteristic(platform.Characteristic.Name, device.name + ` Outlet ${i}`)
         .setCharacteristic(platform.Characteristic.ConfiguredName, `Outlet ${i}`)
@@ -72,7 +81,7 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
   }
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  this.refreshDataTimer(handleGet.bind(this, 0));
+  this.refreshDataTimer(handleGetBlocking.bind(this, 0));
 }
 
 /***********************************************************************
@@ -124,25 +133,15 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
 async function handleGet(this: YoLinkPlatformAccessory, outlet = -1): Promise<CharacteristicValue> {
   // wrapping the semaphone blocking function so that we return to Homebridge immediately
   // even if semaphore not available.
-  if (outlet < 0) {
-    // if called with -1 then we need to await result to find number of outlets
-    return await handleGetBlocking.bind(this, outlet)();
-  } else {
-    handleGetBlocking.bind(this, outlet)()
-      .then((v) => {
-        this.outlet[outlet].service.updateCharacteristic(this.platform.Characteristic.On, v);
-      })
-      .catch(() => {
-        this.platform.log.error(`Error in Outlet[${outlet}] handleGet handler ${this.platform.reportError}`);
-      });
-    // Return current state of the device pending completion of the blocking function
-    if (this.nOutlets === 1) {
-      return (this.accessory.context.device.data.state === this.onState);
-    } else {
-      // MultiOutlet device returns state as an array
-      return (this.accessory.context.device.data.state[outlet] === this.onState);
-    }
-  }
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  handleGetBlocking.bind(this, outlet)()
+    .then((v) => {
+      this.outlet[outlet].service.updateCharacteristic(platform.Characteristic.On, v);
+    });
+  // Return current state of the device pending completion of the blocking function
+  return ((this.nOutlets === 1)
+    ? this.accessory.context.device.data.state === this.onState
+    : this.accessory.context.device.data.state[outlet] === this.onState);
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, outlet = -1): Promise<CharacteristicValue> {
@@ -241,6 +240,9 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, outlet: number, 
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in OutletDevice handleGet' + platform.reportError + msg);
   } finally {
+    // Avoid flooding YoLink device with rapid succession of requests.
+    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+    await sleep(250);
     releaseSemaphore();
   }
 }

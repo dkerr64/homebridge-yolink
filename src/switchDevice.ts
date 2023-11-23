@@ -89,8 +89,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   const releaseSemaphore = await device.semaphore.acquire();
   let rc = false;
   try {
-    if( await this.checkDeviceState(platform, device) ) {
-      const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.battery}`: '';
+    if (await this.checkDeviceState(platform, device)) {
+      const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.battery}` : '';
       this.logDeviceState(device, `Switch: ${device.data.state}${batteryMsg}`);
       if (device.data.state === this.onState) {
         rc = true;
@@ -99,7 +99,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
     }
 
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in SwitchDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -153,7 +153,8 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
       device.data.state = 'toggle';
       this.switchService.updateCharacteristic(platform.Characteristic.On, true);
     }
-    const data = (await platform.yolinkAPI.setDeviceState(platform, device, (newState)?{'state':newState}:undefined, this.setMethod))?.data;
+    const data = (await platform.yolinkAPI.setDeviceState(platform, device,
+      (newState) ? { 'state': newState } : undefined, this.setMethod))?.data;
     // error will have been thrown in yolinkAPI if data not valid
     device.data.state = data.state;
     if (this.onState === 'toggle') {
@@ -166,10 +167,13 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
       this.switchService
         .updateCharacteristic(platform.Characteristic.On, (data.state === this.onState) ? true : false);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in SwitchDevice handleGet' + platform.reportError + msg);
   } finally {
+    // Avoid flooding YoLink device with rapid succession of requests.
+    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+    await sleep(250);
     releaseSemaphore();
   }
 }
@@ -225,18 +229,18 @@ export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): 
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery) ? `, Battery: ${message.data.battery}`: '';
+    const batteryMsg = (device.hasBattery) ? `, Battery: ${message.data.battery}` : '';
 
     switch (event[1]) {
       case 'Report':
-        // falls through
+      // falls through
       case 'getState':
-        // falls through
+      // falls through
       case 'setState':
-        // falls through
+      // falls through
       case 'StatusChange':
         if (!device.data) {
-        // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+          // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           break;
         }
@@ -248,13 +252,13 @@ export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): 
             (message.data.state === this.onState) ? true : false);
         break;
       case 'setDelay':
-        // falls through
+      // falls through
       case 'getSchedules':
-        // falls through
+      // falls through
       case 'setSchedules':
-        // falls through
+      // falls through
       case 'setInitState':
-        // falls through
+      // falls through
       case 'setTimeZone':
         // nothing to update in HomeKit
         this.logDeviceState(device, `Unsupported message (MQTT: ${message.event})`);
@@ -262,7 +266,7 @@ export async function mqttSwitchDevice(this: YoLinkPlatformAccessory, message): 
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttSwitchDevice' + platform.reportError + msg);
   } finally {
