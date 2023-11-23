@@ -63,6 +63,7 @@ function retryFn(platform: YoLinkHomebridgePlatform, fn, retriesLeft = 5, interv
       .then(resolve)
       .catch((e) => {
         if ((retriesLeft === 1) || (String(e.cause).startsWith('FATAL:'))) {
+          platform.log.warn(`Retry for ${fn.name} aborted, too many errors`);
           reject(e);
           return;
         }
@@ -84,7 +85,7 @@ function checkHttpStatus(response) {
   throw (new Error(response.statusText));
 }
 
-function checkBudpStatus(budp, device: YoLinkDevice | undefined = undefined) {
+function checkBudpStatus(platform: YoLinkHomebridgePlatform, budp, device: YoLinkDevice | undefined = undefined) {
   const devName = device ? `${device.name} (${device.deviceId}) ` : '';
   if (!budp) {
     throw (new Error(`${devName}YoLink API error: BUDP undefined or null`));
@@ -93,6 +94,13 @@ function checkBudpStatus(budp, device: YoLinkDevice | undefined = undefined) {
     throw (new Error(`${devName}YoLink API error: ${budp.msg}`));
   }
   if (budp.code && budp.code !== '000000') {
+    if ((budp.code === '000201') || (budp.code === '010301') || (budp.code === '020104')) {
+      // Common errors from YoLink API that I want user to see.
+      platform.log.warn(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`);
+    } else {
+      // Unexpected error?
+      platform.log.error(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`);
+    }
     throw (new Error(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`));
   }
   return true;
@@ -178,7 +186,7 @@ export class YoLinkAPI {
     checkHttpStatus(response);
     this.yolinkTokens = await response.json();
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(this.yolinkTokens));
-    checkBudpStatus(this.yolinkTokens);
+    checkBudpStatus(platform, this.yolinkTokens);
     this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp / 1000);
     this.yolinkLoggedIn = true;
 
@@ -199,7 +207,7 @@ export class YoLinkAPI {
     checkHttpStatus(response);
     const budp: yolinkBUDP = await response.json();
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
-    checkBudpStatus(budp);
+    checkBudpStatus(platform, budp);
     this.yolinkHomeId = budp.data.id;
 
     if (this.accessTokenHeartbeat) {
@@ -249,7 +257,7 @@ export class YoLinkAPI {
         checkHttpStatus(response);
         this.yolinkTokens = await response.json();
         platform.verboseLog('RECEIVED:\n' + JSON.stringify(this.yolinkTokens));
-        checkBudpStatus(this.yolinkTokens);
+        checkBudpStatus(platform, this.yolinkTokens);
         this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp / 1000);
       }
     } catch (e) {
@@ -294,7 +302,7 @@ export class YoLinkAPI {
     checkHttpStatus(response);
     const budp: yolinkBUDP = await response.json();
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
-    checkBudpStatus(budp);
+    checkBudpStatus(platform, budp);
     platform.liteLog(`YoLinkAPI.getDeviceList found ${budp.data.devices.length} devices`);
     return budp.data.devices;
   }
@@ -331,7 +339,7 @@ export class YoLinkAPI {
     checkHttpStatus(response);
     budp = await response.json();
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
-    checkBudpStatus(budp, device);
+    checkBudpStatus(platform, budp, device);
     return budp;
   }
 
@@ -339,14 +347,26 @@ export class YoLinkAPI {
    * setDeviceState
    *
    */
-  async setDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice, state, method = 'setState'): Promise<yolinkBUDP> {
+  async setDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice, state, method = 'setState')
+    : Promise<yolinkBUDP | undefined> {
+    try {
+      return await this.trySetDeviceState.bind(this)(platform, device, state, method);
+    } catch (e) {
+      const msg = ((e instanceof Error) ? e.stack : e) as string;
+      const errCode = msg.split('YoLink API error code: ').pop()?.substring(0, 6);
+      if (!((errCode === '000201') || (errCode === '010301') || (errCode === '020104'))) {
+        // ignore common errors, will have been logged already.
+        platform.log.error('Error in setDeviceState' + platform.reportError + msg);
+      }
+      return (undefined);
+    }
     // Retry 10 times. On failure retry after 10 seconds.  Add 10 seconds for
     // each failure with maximum of 30 seconds between each retry.
-    return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state, method),
-      10, 10000, 10000, 30000) as yolinkBUDP;
+    // return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state, method),
+    //  1, 10000, 10000, 30000) as yolinkBUDP;
   }
 
-  async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state, method = 'setState') {
+  async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state, method = 'setState'): Promise<yolinkBUDP> {
     platform.log.info(`YoLinkAPI.setDeviceState for ${device.name} (${device.deviceId}): ${JSON.stringify(state)}`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
@@ -371,7 +391,7 @@ export class YoLinkAPI {
     checkHttpStatus(response);
     budp = await response.json();
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
-    checkBudpStatus(budp, device);
+    checkBudpStatus(platform, budp, device);
     return budp;
   }
 
@@ -416,8 +436,8 @@ export class YoLinkAPI {
       });
     });
 
-    this.mqttClient.on('message', (topic, message) => {
-      platform.verboseLog(`MQTT message: ${topic}\n${message.toString()}`);
+    this.mqttClient.on('message', (topic, message: Buffer) => {
+      platform.verboseLog(`MQTT message: ${topic}\n${JSON.stringify(JSON.parse(message.toString()), null, 2)}`);
       msgCallback(message);
     });
 

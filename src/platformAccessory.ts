@@ -158,17 +158,12 @@ export class YoLinkPlatformAccessory {
     } catch (e) {
       const msg = ((e instanceof Error) ? e.stack : e) as string;
       const yolinkMsg = msg.substring(7, msg.indexOf(')') + 1);
-      if (msg.split('YoLink API error code: ').pop()?.substring(0, 6) === '000201') {
-        // "YoLink API error code: 000201" is rather common, so don't declare a problem
-        platform.log.info(yolinkMsg + ' - retrying');
-      } else if (msg.split('YoLink API error code: ').pop()?.substring(0, 6) === '010301') {
-        // "YoLink API error code: 010301" is rather common, so don't declare a problem
-        platform.log.info(yolinkMsg + ' - retrying');
-      } else if (msg.split('YoLink API error code: ').pop()?.substring(0, 6) === '020104') {
-        // "YoLink API error code: 020104" is rather common, so don't declare a problem
-        platform.log.info(yolinkMsg + ' - retrying');
+      const errCode = msg.split('YoLink API error code: ').pop()?.substring(0, 6);
+      if ((errCode === '000201') ||(errCode === '010301')|| (errCode === '000201')) {
+        // "YoLink API error code are rather common, so don't declare a problem
+        platform.liteLog(yolinkMsg + ' - retrying');
       } else {
-        platform.log.info('Error in checkDeviceState' + platform.reportError + msg);
+        platform.log.warn('Error in checkDeviceState' + platform.reportError + msg);
       }
     }
     return (device.data);

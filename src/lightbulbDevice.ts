@@ -169,13 +169,17 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, mode = 'on', val
       device,
       { 'state': newState, 'brightness': newBrightness },
       this.setMethod))?.data;
-    // error will have been thrown in yolinkAPI if data not valid
-    device.data.state = data.state;
-    device.data.brightness = data.brightness;
-    this.lightbulbService
-      .updateCharacteristic(platform.Characteristic.On, data.state === this.onState);
-    this.lightbulbService
-      .updateCharacteristic(platform.Characteristic.Brightness, data.brightness);
+    if (data) {
+      device.data.state = data.state;
+      device.data.brightness = data.brightness;
+    }
+    // Calling updateCharacteristic within set handler seems to fail, new value is not accepted.  Workaround is
+    // to request the update after short delay (say 50ms) to allow homebridge/homekit to complete the set handler.
+    setTimeout(() => {
+      this.lightbulbService
+        .updateCharacteristic(platform.Characteristic.On, device.data.state === this.onState)
+        .updateCharacteristic(platform.Characteristic.Brightness, device.data.brightness);
+    }, 50);
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LightbulbDevice handleGet' + platform.reportError + msg);

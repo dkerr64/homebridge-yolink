@@ -155,8 +155,9 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
     }
     const data = (await platform.yolinkAPI.setDeviceState(platform, device,
       (newState) ? { 'state': newState } : undefined, this.setMethod))?.data;
-    // error will have been thrown in yolinkAPI if data not valid
-    device.data.state = data.state;
+    if (data) {
+      device.data.state = data.state;
+    }
     if (this.onState === 'toggle') {
       // Set state to off after 1 second
       setTimeout(() => {
@@ -164,8 +165,11 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
         this.switchService.updateCharacteristic(platform.Characteristic.On, false);
       }, 1000);
     } else {
-      this.switchService
-        .updateCharacteristic(platform.Characteristic.On, (data.state === this.onState) ? true : false);
+      // Calling updateCharacteristic within set handler seems to fail, new value is not accepted.  Workaround is
+      // to request the update after short delay (say 50ms) to allow homebridge/homekit to complete the set handler.
+      setTimeout(() => {
+        this.switchService.updateCharacteristic(platform.Characteristic.On, device.data.state === this.onState);
+      }, 50);
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;

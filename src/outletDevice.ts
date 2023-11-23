@@ -224,21 +224,29 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, outlet: number, 
     if (this.nOutlets === 1) {
       // Single outlet device
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'state': newState }))?.data;
-      // error will have been thrown in yolinkAPI if data not valid
-      device.data.state = data.state;
-      this.outlet[0].service
-        .updateCharacteristic(platform.Characteristic.On, data.state === this.onState);
+      if (data) {
+        device.data.state = data.state;
+      }
+      // Calling updateCharacteristic within set handler seems to fail, new value is not accepted.  Workaround is
+      // to request the update after short delay (say 50ms) to allow homebridge/homekit to complete the set handler.
+      setTimeout(() => {
+        this.outlet[0].service.updateCharacteristic(platform.Characteristic.On, device.data.state === this.onState);
+      }, 50);
     } else {
       // MultiOutlet device
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'chs': (1 << outlet), 'state': newState }))?.data;
-      // error will have been thrown in yolinkAPI if data not valid
-      device.data.state[outlet] = data.state[outlet];
-      this.outlet[outlet].service
-        .updateCharacteristic(platform.Characteristic.On, data.state[outlet] === this.onState);
+      if (data) {
+        device.data.state[outlet] = data.state[outlet];
+      }
+      // Calling updateCharacteristic within set handler seems to fail, new value is not accepted.  Workaround is
+      // to request the update after short delay (say 50ms) to allow homebridge/homekit to complete the set handler.
+      setTimeout(() => {
+        this.outlet[outlet].service.updateCharacteristic(platform.Characteristic.On, device.data.state[outlet] === this.onState);
+      }, 50);
     }
   } catch (e) {
-    const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in OutletDevice handleGet' + platform.reportError + msg);
+    const msg = ((e instanceof Error) ? e.stack : e) as string;
+    platform.log.error('Error in OutletDevice handleSet' + platform.reportError + msg);
   } finally {
     // Avoid flooding YoLink device with rapid succession of requests.
     const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));

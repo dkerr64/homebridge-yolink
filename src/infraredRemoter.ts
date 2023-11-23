@@ -145,9 +145,10 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, keyNumber = -1, 
   try {
     if (keyNumber >= 0 && value === true) {
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'key': keyNumber }, this.setMethod))?.data;
-      // error will have been thrown in yolinkAPI if data not valid
-      if (!data.success) {
-        platform.log.warn(`Sending IR code for key number ${keyNumber} failed with error: ${data.errorCode}`);
+      if (data) {
+        if (!data.success) {
+          platform.log.warn(`Sending IR code for key number ${keyNumber} failed with error: ${data.errorCode}`);
+        }
       }
       // Sending IR signal is stateless, make sure that the switch is turned off after slight delay
       setTimeout(() => {

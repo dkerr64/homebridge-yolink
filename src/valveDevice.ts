@@ -135,13 +135,18 @@ async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicVal
   try {
     const newState = (value === platform.api.hap.Characteristic.Active.ACTIVE) ? 'open' : 'close';
     const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'state': newState }))?.data;
-    // error will have been thrown in yolinkAPI if data not valid
-    device.data.state = data.state;
-    this.valveService
-      .updateCharacteristic(platform.Characteristic.Active, (data.state === 'open')
-        ? platform.api.hap.Characteristic.Active.ACTIVE : platform.api.hap.Characteristic.Active.INACTIVE)
-      .updateCharacteristic(platform.Characteristic.InUse, (data.state === 'open')
-        ? platform.api.hap.Characteristic.InUse.IN_USE : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
+    if (data) {
+      device.data.state = data.state;
+    }
+    // Calling updateCharacteristic within set handler seems to fail, new value is not accepted.  Workaround is
+    // to request the update after short delay (say 50ms) to allow homebridge/homekit to complete the set handler.
+    setTimeout(() => {
+      this.valveService
+        .updateCharacteristic(platform.Characteristic.Active, (device.data.state === 'open')
+          ? platform.api.hap.Characteristic.Active.ACTIVE : platform.api.hap.Characteristic.Active.INACTIVE)
+        .updateCharacteristic(platform.Characteristic.InUse, (device.data.state === 'open')
+          ? platform.api.hap.Characteristic.InUse.IN_USE : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
+    }, 50);
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in ValveDevice handleSet' + platform.reportError + msg);

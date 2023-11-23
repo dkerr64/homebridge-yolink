@@ -165,11 +165,16 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, value: Character
   try {
     const newState = (value === 1) ? this.setLock : this.setUnlock;
     const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'state': newState }, this.setMethod))?.data;
-    // error will have been thrown in yolinkAPI if data not valid
-    device.data.state = data.state;
+    if (data) {
+      device.data.state = data.state;
+    }
     // Set the current state to the new state as reported by response from YoLink
-    this.lockService
-      .updateCharacteristic(platform.Characteristic.LockCurrentState, (data.state === this.lockedState) ? 1 : 0);
+    // Calling updateCharacteristic within set handler seems to fail, new value is not accepted.  Workaround is
+    // to request the update after short delay (say 50ms) to allow homebridge/homekit to complete the set handler.
+    setTimeout(() => {
+      this.lockService
+        .updateCharacteristic(platform.Characteristic.LockCurrentState, (device.data.state === this.lockedState) ? 1 : 0);
+    }, 50);
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LockDevice handleGet' + platform.reportError + msg);
