@@ -12,6 +12,19 @@
 
 Pull requests and/or other offers of development assistance gratefully received.
 
+>[!NOTE]
+>YoLink have implemented rate limits on their cloud servers that impact any application that uses their published User Access Credentials (UAC) API, including this plugin.  The current rate limits are 100 requests within a 5 minute period and 6 requests to the same device within one minute. If you have many (more than 10) YoLink devices you are likely to run into these limits and see *warning* messages in the Homebridge log.  Possible warning message include these:  
+>
+>`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 000201 Can't connect to Device (Dimmer.getState)`  
+>`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 020104 Device is busy, try again later. (Dimmer.setState)`  
+>`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 010301 Access denied due to reaching limits,Please have a retry later. (MultiOutlet.getState)`  
+>
+> `000201` errors are common during plugin initialization if you have more than 10 devices.  The plugin will retry every 60 seconds to connect and obtain initial device status. This is normally successful after a few retries.  
+> `020104` errors occur when you send more than 6 requests to the same device within one minute. You are likely to run into this with Dimmer switches, IR remote/blaster, and multi-outlet power strips where you may need to send multiple requests.  
+> `010301` errors occur when the plugin sends more than 100 requests to YoLink cloud servers within 5 minutes.  
+>
+> YoLink devices cannot be controlled locally, all requests go through YoLink cloud servers, so there is no workaround to these rate limits. See also *network resiliency* section below.
+
 ## Features
 
 Currently supports the following devices:
@@ -265,9 +278,11 @@ If you have a device not supported by the plugin then useful information will be
 
 Various strategies are employed in an attempt to handle an unstable network. If a failure occurs at any point while accessing the network then the plugin will attempt to reconnect.
 
-For login and retrieving access tokens the plugin will retry indefinitely with 5 second initial delay, increasing by 5 seconds for each repeated attempt to a maximum of 60 seconds between retries. If the network goes down, then this should ensure that the connection to YoLink is reestablished within 60 seconds of network recovery.
+For login and retrieving access tokens the plugin will retry indefinitely with 15 second initial delay, increasing by 15 seconds for each repeated attempt to a maximum of 60 seconds between retries. If the network goes down, then this should ensure that the connection to YoLink is reestablished within 60 seconds of network recovery.
 
-For getting or setting device information the plugin will retry a maximum of 10 times before giving up. The initial retry delay is 2 seconds, incrementing by 2 seconds each time with a maximum interval of 10 seconds. After all attempts it will fail with a message to log, but this will not terminate the plugin.
+For getting device information the plugin will retry a maximum of 30 times before giving up. The initial retry delay is 30 seconds, incrementing by 30 seconds each time with a maximum interval of 60 seconds. After all attempts it will fail with a message to log, but this will not terminate the plugin.
+
+For setting device state (e.g. turning an outlet on or off) the plugin does not attempt to retry but will issue a warning to log.  This is necessary because attempting to retry will slow down Homebridge and/or potentially cause a backlog of *setState* requests that can take some time to clear because of YoLink cloud server rate limits.
 
 The MQTT callback will attempt to reconnect, if necessary with login / access token retrieval that follow the above procedure.
 
