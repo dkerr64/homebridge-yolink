@@ -33,7 +33,7 @@ export async function initSwitchDevice(this: YoLinkPlatformAccessory, onState, s
     .onSet(handleSet.bind(this));
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  await this.refreshDataTimer(handleGet.bind(this));
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************
@@ -83,6 +83,18 @@ export async function initSwitchDevice(this: YoLinkPlatformAccessory, onState, s
  *
  */
 async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  const platform: YoLinkHomebridgePlatform = this.platform;
+  handleGetBlocking.bind(this)()
+    .then((v) => {
+      this.switchService.updateCharacteristic(platform.Characteristic.On, v);
+    });
+  // Return current state of the device pending completion of the blocking function
+  return (this.accessory.context.device.data.state === this.onState);
+}
+
+async function handleGetBlocking(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
@@ -143,6 +155,12 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
  *
  */
 async function handleSet(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
+  // wrapping the semaphone blocking function so that we return to Homebridge immediately
+  // even if semaphore not available.
+  handleSetBlocking.bind(this)(value);
+}
+
+async function handleSetBlocking(this: YoLinkPlatformAccessory, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
