@@ -97,9 +97,9 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Prom
   handleGetBlocking.bind(this, sensor)()
     .then((v) => {
       if (sensor === 'hydro') {
-        this.hydroService!.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, v);
+        this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, v);
       } else {
-        this.thermoService!.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
+        this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
       }
     });
   // Return current state of the device pending completion of the blocking function
@@ -267,10 +267,10 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
         break;
       case 'DataRecord':
         // No equivalent for this in HomeKit
-        platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
+        platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
         break;
       default:
-        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message, null, 2));
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;

@@ -136,7 +136,9 @@ async function handleGet(this: YoLinkPlatformAccessory, outlet = -1): Promise<Ch
   const platform: YoLinkHomebridgePlatform = this.platform;
   handleGetBlocking.bind(this, outlet)()
     .then((v) => {
-      this.outlet[outlet].service.updateCharacteristic(platform.Characteristic.On, v);
+      if (outlet >= 0) {
+        this.outlet[outlet].service.updateCharacteristic(platform.Characteristic.On, v);
+      }
     });
   // Return current state of the device pending completion of the blocking function
   return ((this.nOutlets === 1)
@@ -380,7 +382,7 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
         this.logDeviceState(device, `Unsupported message (MQTT: ${message.event})`);
         break;
       default:
-        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message, null, 2));
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;

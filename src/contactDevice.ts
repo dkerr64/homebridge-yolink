@@ -58,7 +58,7 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   const device: YoLinkDevice = this.accessory.context.device;
   handleGetBlocking.bind(this)()
     .then((v) => {
-      this.hydroService!.updateCharacteristic(platform.Characteristic.ContactSensorState, v);
+      this.contactService.updateCharacteristic(platform.Characteristic.ContactSensorState, v);
     });
   // Return current state of the device pending completion of the blocking function
   return ((device.data?.state?.state === 'closed')
@@ -185,10 +185,10 @@ export async function mqttContactSensor(this: YoLinkPlatformAccessory, message):
       case 'setOpenRemind':
         // Homebridge has no equivalent and message does not carry either contact state or battery
         // state fields, so there is nothing we can update.
-        platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
+        platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
         break;
       default:
-        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message, null, 2));
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;

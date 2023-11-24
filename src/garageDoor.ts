@@ -83,7 +83,7 @@ async function handleGet(this: YoLinkPlatformAccessory, device: YoLinkDevice): P
   const platform: YoLinkHomebridgePlatform = this.platform;
   handleGetBlocking.bind(this, device, true)()
     .then((v) => {
-      this.garageService!.updateCharacteristic(platform.Characteristic.CurrentDoorState, v);
+      this.garageService.updateCharacteristic(platform.Characteristic.CurrentDoorState, v);
     });
   // Return current state of the device pending completion of the blocking function
   return (this.currentState);
@@ -371,20 +371,20 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
           case 'setOpenRemind':
             // Homebridge has no equivalent and message does not carry either contact state or battery
             // state fields, so there is nothing we can update.
-            platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
+            platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
             break;
           default:
-            platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
+            platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message, null, 2));
         }
         break;
       case 'GarageDoor':
         switch (event[1]) {
           case 'Report':
             // message does not carry any state state or battery fields, so there is nothing we can update.
-            platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
+            platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
             break;
           default:
-            platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
+            platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message, null, 2));
             break;
         }
         break;
@@ -392,15 +392,15 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
         switch (event[1]) {
           case 'Report':
             // message does not carry any state state or battery fields, so there is nothing we can update.
-            platform.liteLog(mqttMessage + ' ' + JSON.stringify(message));
+            platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
             break;
           default:
-            platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
+            platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message, null, 2));
             break;
         }
         break;
       default:
-        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message, null, 2));
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;

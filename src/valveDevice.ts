@@ -228,6 +228,9 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
       case 'getState':
       // falls through
       case 'setState':
+      // falls through
+      case 'StatusChange':
+        // falls through
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
@@ -247,7 +250,7 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
         break;
       default:
-        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
+        platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message, null, 2));
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
