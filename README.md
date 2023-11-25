@@ -6,11 +6,13 @@
 
 *Unofficial* plugin for YoLink. I wrote this plugin to integrate the YoLink devices that I own. This is implemented by building on the Homebridge platform plugin template and the [YoLink API.](http://doc.yosmart.com)
 
-**Warning** this plugin is new and not fully tested for all devices.
+This plugin is new and not fully tested for all devices. Pull requests and/or other offers of development assistance gratefully received.
 
-**Warning** this plugin is not intended to provide safety or security services. For critical applications use YoLink's own services and in particular consider their device-to-device capability. For example, do not rely on Homebridge or HomeKit to turn off a main water supply in a leak detection -- use YoLink device-to-device.
+>[!IMPORTANT]
+>This plugin is not intended to provide safety or security services. For critical applications use YoLink's own services and in particular consider their device-to-device capability. For example, do not rely on Homebridge or HomeKit to turn off a main water supply in a leak detection -- use YoLink device-to-device.
 
-Pull requests and/or other offers of development assistance gratefully received.
+>[!NOTE]
+>YoLink devices with a model name that ends in -EC are not currently supported. This is a limitation of the YoLink User Access Credentials (UAC) API.
 
 >[!NOTE]
 >YoLink have implemented rate limits on their cloud servers that impact any application that uses their published User Access Credentials (UAC) API, including this plugin.  The current rate limits are 100 requests within a 5 minute period and 6 requests to the same device within one minute. If you have many (more than 10) YoLink devices you are likely to run into these limits and see *warning* messages in the Homebridge log.  Possible warning message include these:  
