@@ -11,7 +11,6 @@
 
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
-import Semaphore from 'semaphore-promise';
 import { initDeviceService, mqttHandler, deviceFeatures } from './deviceHandlers';
 
 export class YoLinkPlatformAccessory {
@@ -111,11 +110,8 @@ export class YoLinkPlatformAccessory {
     device.updateTime = Math.floor(new Date().getTime() / 1000);
     // set time of last log message to way back when...
     device.reportAtTime = new Date(0);
-    // We need to serialize requests to YoLink API for each device.  Multiple threads
-    // can request state updates for a device at the same time.  This would not be good,
-    // so we need a semaphore to make sure we don't send a 2nd request to the same
-    // device before prior one has completed.
-    device.semaphore = new Semaphore();
+    // Using the platform semaphore rather than per-device to fix YoLink 000201 errors.
+    device.semaphore = platform.yolinkRequestSemaphore;
     // GarageDoor specific...
     device.timeout ??= 45;
     // targetState used to track if garage door has been requested to open or close

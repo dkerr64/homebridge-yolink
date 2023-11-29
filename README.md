@@ -15,13 +15,11 @@ This plugin is new and not fully tested for all devices. Pull requests and/or ot
 >YoLink devices with a model name that ends in -EC are not currently supported. This is a limitation of the YoLink User Access Credentials (UAC) API.
 
 >[!NOTE]
->YoLink have implemented rate limits on their cloud servers that impact any application that uses their published User Access Credentials (UAC) API, including this plugin.  The current rate limits are 100 requests within a 5 minute period and 6 requests to the same device within one minute. If you have many (more than 10) YoLink devices you are likely to run into these limits and see *warning* messages in the Homebridge log.  Possible warning message include these:  
+>YoLink have implemented rate limits on their cloud servers that impact any application that uses their published User Access Credentials (UAC) API, including this plugin.  The current rate limits are 100 requests within a 5 minute period and 6 requests to the same device within one minute. If you have certain YoLink devices you are likely to run into these limits and see *warning* messages in the Homebridge log.  Possible warning message include these:  
 >
->`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 000201 Can't connect to Device (Dimmer.getState)`  
 >`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 020104 Device is busy, try again later. (Dimmer.setState)`  
 >`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 010301 Access denied due to reaching limits,Please have a retry later. (MultiOutlet.getState)`  
 >
-> `000201` errors are common during plugin initialization if you have more than 10 devices.  The plugin will retry every 60 seconds to connect and obtain initial device status. This is normally successful after a few retries.  
 > `020104` errors occur when you send more than 6 requests to the same device within one minute. You are likely to run into this with Dimmer switches, IR remote/blaster, and multi-outlet power strips where you may need to send multiple requests.  
 > `010301` errors occur when the plugin sends more than 100 requests to YoLink cloud servers within 5 minutes.  
 >

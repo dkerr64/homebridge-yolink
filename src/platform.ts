@@ -8,7 +8,8 @@
  * This class is the main constructor for the plugin.
  */
 
-import { API,
+import {
+  API,
   DynamicPlatformPlugin,
   Logger,
   PlatformAccessory,
@@ -17,7 +18,8 @@ import { API,
   Characteristic,
 } from 'homebridge';
 
-import { PLATFORM_NAME,
+import {
+  PLATFORM_NAME,
   PLUGIN_NAME,
   YOLINK_MQTT_PORT,
   YOLINK_API_URL,
@@ -55,7 +57,12 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   private readonly knownDevices: string[] = [];
   private readonly addDeviceSemaphore = new Semaphore();
 
-  public yolinkAPI: YoLinkAPI;
+  public readonly yolinkAPI: YoLinkAPI;
+  // We need to serialize requests to YoLink API.  Multiple threads can request state
+  // updates for a device at the same time.  This would not be good, so we need a
+  // semaphore to make sure we don't send a 2nd request before prior one has completed.
+  // using a global semaphore rather than per-device to fix YoLink 000201 errors.
+  public readonly yolinkRequestSemaphore = new Semaphore();
 
   public reportError = '\nPlease report all bugs at ' + packageJSON.bugs.url + '\n';
 
@@ -78,7 +85,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.verboseLog = this.makeBoolean(this.config.verboseLog, false);
     this.config.liteLog = this.makeBoolean(this.config.liteLog, true);
     this.config.allDevices = this.makeBoolean(this.config.allDevices, true);
-    this.config.excludeTypes ??= [ 'Hub', 'SpeakerHub' ];
+    this.config.excludeTypes ??= ['Hub', 'SpeakerHub'];
     this.config.includeTypes ??= [];
     this.config.enableExperimental = this.makeBoolean(this.config.enableExperimental, false);
     this.config.deviceTemperatures = this.makeBoolean(this.config.deviceTemperatures, false);
@@ -160,7 +167,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       await this.yolinkAPI.login(this);
       await this.registerDevices();
       await this.registerMqtt();
-    } catch(e) {
+    } catch (e) {
       const msg = (e instanceof Error) ? e.stack : e;
       this.log.error('Fatal error during YoLink plugin initialization:\n' + msg);
     }
@@ -205,7 +212,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       const sensor = garageDevices.find(x => x.deviceId === garage.sensor);
       if (sensor?.type !== 'DoorSensor' || !(controller?.type === 'Finger' || controller?.type === 'GarageDoor')) {
         this.log.warn('Garage Door sensor must be of type \'DoorSensor\' and controller of type \'Finger\' or \'GarageDoor\' ' +
-                      `Check config file for deviceID typo. Ignoring this door:\n${JSON.stringify(garage, null, 2)}`);
+          `Check config file for deviceID typo. Ignoring this door:\n${JSON.stringify(garage, null, 2)}`);
         continue;
       }
       sensor.timeout = garage.timeout;
@@ -222,17 +229,17 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     for (const [device, info] of Object.entries(this.config.devices)) {
       if (!deviceList.some(x => x.deviceId === device)) {
         this.log.warn(`Device "${device}" does not exist in YoLink device list (${JSON.stringify(info, null, 2)}). ` +
-                          'Check config file for deviceID typo.');
+          'Check config file for deviceID typo.');
       }
     }
 
     // Add an interval timer to check if device has been added or removed
     if (this.config.checkNewDeviceInterval > 0) {
       this.log.info(`Setting interval timer to check for new devices every ${this.config.checkNewDeviceInterval} seconds`);
-      setInterval( async () => {
+      setInterval(async () => {
         this.liteLog(`Check new devices timer fired, next check in ${this.config.checkNewDeviceInterval} seconds`);
         await this.checkNewDevice();
-      }, this.config.checkNewDeviceInterval * 1000 );
+      }, this.config.checkNewDeviceInterval * 1000);
     }
   }
 
@@ -262,9 +269,9 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
 
     // Now add the device...
     if (skip || garage) {
-      if (existingAccessory){
-        this.log.warn(`Remove accessory from cache as ${(garage)?'device assigned to garage door':'config \'hide=true\''}` +
-                      `for: ${existingAccessory.displayName} (${device.deviceId})`);
+      if (existingAccessory) {
+        this.log.warn(`Remove accessory from cache as ${(garage) ? 'device assigned to garage door' : 'config \'hide=true\''}` +
+          `for: ${existingAccessory.displayName} (${device.deviceId})`);
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
       } else {
         if (garage) {
@@ -282,7 +289,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    * addDevice
    */
   addDevice(device: YoLinkDevice, uuid: string, existingAccessory: PlatformAccessory | undefined,
-    device2: YoLinkDevice | undefined = undefined) : PlatformAccessory {
+    device2: YoLinkDevice | undefined = undefined): PlatformAccessory {
     if (existingAccessory) {
       // update existing accessory
       this.verboseLog(`Restoring accessory from cache: ${existingAccessory.displayName} (${device.deviceId})`);
@@ -290,7 +297,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       existingAccessory.context.device2 = device2;
       this.api.updatePlatformAccessories([existingAccessory]);
       this.deviceAccessories.push(new YoLinkPlatformAccessory(this, existingAccessory));
-      return(existingAccessory);
+      return (existingAccessory);
     } else {
       // create a new accessory
       this.log.info(`Adding new accessory: ${device.name} (${device.deviceId})`);
@@ -299,7 +306,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       accessory.context.device2 = device2;
       this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       this.deviceAccessories.push(new YoLinkPlatformAccessory(this, accessory));
-      return(accessory);
+      return (accessory);
     }
   }
 
@@ -309,7 +316,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   removeDeletedDevices(deviceList: YoLinkDevice[]) {
     // Remove accessories from cache if they are no longer in list of
     // devices retrieved from YoLink.
-    for (let i = this.accessories.length-1; i>=0; i--) {
+    for (let i = this.accessories.length - 1; i >= 0; i--) {
       const accessory = this.accessories[i];
       const device: YoLinkDevice = accessory.context.device;
       if (!deviceList.some(x => x.deviceId === device.deviceId)) {
@@ -347,11 +354,11 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
           }
         }
       }
-      return(true);
-    } catch(e) {
+      return (true);
+    } catch (e) {
       const msg = (e instanceof Error) ? e.stack : e;
       this.log.error(`Fatal error checkNewDevices:\n${msg}`);
-      return(false);
+      return (false);
     } finally {
       releaseSemaphore();
     }
