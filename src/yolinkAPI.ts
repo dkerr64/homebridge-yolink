@@ -312,9 +312,9 @@ export class YoLinkAPI {
    *
    */
   async getDeviceState(platform: YoLinkHomebridgePlatform, device): Promise<yolinkBUDP> {
-    // Retry 30 times. On failure retry after 30 seconds.  Add 30 seconds for
+    // Retry 30 times. On failure retry after 5 seconds.  Add 5 seconds for
     // each failure with maximum of 60 seconds between each retry.
-    return await retryFn(platform, this.tryGetDeviceState.bind(this, platform, device), 30, 30000, 30000, 60000) as yolinkBUDP;
+    return await retryFn(platform, this.tryGetDeviceState.bind(this, platform, device), 30, 5000, 5000, 60000) as yolinkBUDP;
   }
 
   async tryGetDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice) {

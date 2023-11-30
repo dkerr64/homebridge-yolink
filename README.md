@@ -17,13 +17,15 @@ This plugin is new and not fully tested for all devices. Pull requests and/or ot
 >[!NOTE]
 >YoLink have implemented rate limits on their cloud servers that impact any application that uses their published User Access Credentials (UAC) API, including this plugin.  The current rate limits are 100 requests within a 5 minute period and 6 requests to the same device within one minute. If you have certain YoLink devices you are likely to run into these limits and see *warning* messages in the Homebridge log.  Possible warning message include these:  
 >
+>`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 000201 Can't connect to Device (Dimmer.getState)`  
 >`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 020104 Device is busy, try again later. (Dimmer.setState)`  
 >`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 010301 Access denied due to reaching limits,Please have a retry later. (MultiOutlet.getState)`  
 >
+> `000201` errors indicate that the LoRa radio channel is busy so the YoLink hub is unable to connect to the device.  The more devices you have the more likely this is to occur. The plugin will retry the request, which is normally successful after a few retries.  
 > `020104` errors occur when you send more than 6 requests to the same device within one minute. You are likely to run into this with Dimmer switches, IR remote/blaster, and multi-outlet power strips where you may need to send multiple requests.  
 > `010301` errors occur when the plugin sends more than 100 requests to YoLink cloud servers within 5 minutes.  
 >
-> YoLink devices cannot be controlled locally, all requests go through YoLink cloud servers, so there is no workaround to these rate limits. See also *network resiliency* section below.
+> YoLink devices cannot be controlled locally, all requests go through YoLink cloud servers, so there is no workaround to the rate limits. See also *network resiliency* section below.
 
 ## Features
 

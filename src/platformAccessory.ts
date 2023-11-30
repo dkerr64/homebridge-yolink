@@ -193,15 +193,14 @@ export class YoLinkPlatformAccessory {
     const platform: YoLinkHomebridgePlatform = this.platform;
     const device: YoLinkDevice = this.accessory.context.device;
 
-    platform.verboseLog(`Data refresh timer for ${device.deviceMsgName} fired`);
-
     await handleGet();
+    platform.log.info(`Device initialized: ${device.deviceMsgName}`);
     if (device.config.refreshAfter >= 60) {
       // We don't allow for updates any more frequently than once a minute.
       const nextUpdateIn = Math.max(60, (device.updateTime || 0) - Math.floor(new Date().getTime() / 1000));
-      platform.verboseLog(`Set data refresh timer for ${device.deviceMsgName} to run in ${nextUpdateIn} seconds`);
-      setTimeout(() => {
-        this.refreshDataTimer(handleGet);
+      platform.verboseLog(`Set data refresh timer for ${device.deviceMsgName} to run every ${nextUpdateIn} seconds`);
+      setInterval(async () => {
+        await handleGet();
       }, nextUpdateIn * 1000);
     }
   }

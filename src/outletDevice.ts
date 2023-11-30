@@ -28,7 +28,7 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
   if (device.type === 'MultiOutlet') {
     // if number of outlets set in config file then use that
     this.nOutlets = device.config.nOutlets ?? (await handleGetBlocking.bind(this)(-1));
-    platform.log.info(`Device ${device.deviceMsgName} has ${this.nOutlets} outlets`);
+    platform.verboseLog(`Device ${device.deviceMsgName} has ${this.nOutlets} outlets`);
   }
 
   if (this.nOutlets === 1) {
