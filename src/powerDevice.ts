@@ -21,6 +21,11 @@ export async function initPowerSensor(this: YoLinkPlatformAccessory): Promise<vo
 
   this.currentState = undefined;
 
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
+
+  // Once we have initial data, setup all the Homebridge handlers
   if (serviceType === 'contact') {
     // In case it was previously set as outlet, remove it...
     accessory.removeService(accessory.getService(platform.Service.Outlet)!);
@@ -41,10 +46,6 @@ export async function initPowerSensor(this: YoLinkPlatformAccessory): Promise<vo
       .onGet(handleGet.bind(this))
       .onSet(handleSet.bind(this));
   }
-
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************

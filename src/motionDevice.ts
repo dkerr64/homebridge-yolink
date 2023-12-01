@@ -18,6 +18,11 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
   const accessory: PlatformAccessory = this.accessory;
   const device: YoLinkDevice = accessory.context.device;
 
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
+
+  // Once we have initial data, setup all the Homebridge handlers
   this.motionService = accessory.getService(platform.Service.MotionSensor) || accessory.addService(platform.Service.MotionSensor);
   this.motionService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.motionService.getCharacteristic(platform.Characteristic.MotionDetected)
@@ -34,10 +39,6 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
     // If not requested then remove it if it already exists.
     accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
   }
-
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************

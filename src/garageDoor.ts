@@ -25,6 +25,14 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
   this.currentState = undefined;
   this.initializeDeviceVars(platform, doorSensor);
 
+
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this, doorSensor));
+  // above must await because we use doorSensor in handleGet for doorController
+  await this.refreshDataTimer(handleGetBlocking.bind(this, doorController));
+
+  // Once we have initial data, setup all the Homebridge handlers
   if (doorSensor.hasBattery) {
     doorSensor.batteryService = accessory.getService('Battery 2')
       || accessory.addService(platform.Service.Battery, 'Battery 2', 'battery2');
@@ -51,10 +59,6 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
     .onGet(() => {
       return (false);
     });
-
-  await this.refreshDataTimer(handleGetBlocking.bind(this, doorSensor));
-  // above must await because we use doorSensor in handleGet for doorController
-  await this.refreshDataTimer(handleGetBlocking.bind(this, doorController));
 }
 
 /***********************************************************************

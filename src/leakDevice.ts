@@ -18,6 +18,11 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
   const accessory: PlatformAccessory = this.accessory;
   const device: YoLinkDevice = accessory.context.device;
 
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
+
+  // Once we have initial data, setup all the Homebridge handlers
   this.leakService = accessory.getService(platform.Service.LeakSensor) || accessory.addService(platform.Service.LeakSensor);
   this.leakService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.leakService.getCharacteristic(platform.Characteristic.LeakDetected)
@@ -26,7 +31,7 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
   if (device.config.temperature) {
     // If requested add a service for the internal device temperature.
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
-                      || accessory.addService(platform.Service.TemperatureSensor);
+      || accessory.addService(platform.Service.TemperatureSensor);
     this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
     this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
       .onGet(handleGet.bind(this, 'thermo'));
@@ -34,10 +39,6 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
     // If not requested then remove it if it already exists.
     accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
   }
-
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this));
 }
 
 /***********************************************************************
@@ -90,7 +91,7 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
       this.leakService
         .updateCharacteristic(platform.Characteristic.StatusActive, true)
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      switch(devSensor) {
+      switch (devSensor) {
         case 'thermo':
           rc = device.data.state.devTemperature;
           break;
@@ -100,15 +101,15 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
           }
       }
       this.logDeviceState(device, `Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
-                          `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
-                          `(${(device.data.state.devTemperature*9/5+32).toFixed(1)}\u00B0F)`);
+        `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
+        `(${(device.data.state.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)`);
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
       this.leakService
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in LeakDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -151,19 +152,19 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}`: '';
+    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}` : '';
     const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
     const devTempMsg = (message.data.devTemperature) ? `, DevTemp: ${message.data.devTemperature}\u00B0C ` +
-                                                                `(${(message.data.devTemperature*9/5+32).toFixed(1)}\u00B0F)` : '';
+      `(${(message.data.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)` : '';
 
     switch (event[1]) {
       case 'Alert':
-        // falls through
+      // falls through
       case 'StatusChange':
-        // falls through
+      // falls through
       case 'Report':
         if (!device.data) {
-        // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+          // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
           this.leakService.updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
@@ -189,7 +190,7 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttLeakSensor' + platform.reportError + msg);
   } finally {

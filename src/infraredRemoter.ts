@@ -27,6 +27,9 @@ export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promis
   const nLearned = device.data.keys.reduce((n: number, x: boolean) => (x === true) ? n + 1 : n, 0);
   platform.verboseLog(`Initialize infrared remoter with ${nLearned} button${(nLearned > 1) ? 's' : ''}`);
 
+  // timer to regularly update the data... really only to monitor battery level.
+  await this.refreshDataTimer(handleGet.bind(this, -1));
+
   // serviceLabel required when multiple services of same type on one accessory
   this.serviceLabel = accessory.getService(platform.Service.ServiceLabel) || accessory.addService(platform.Service.ServiceLabel);
   this.serviceLabel.setCharacteristic(platform.Characteristic.Name, device.name);
@@ -62,9 +65,6 @@ export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promis
         .onSet(handleSet.bind(this, i));
     }
   });
-
-  // timer to regularly update the data... really only to monitor battery level.
-  await this.refreshDataTimer(handleGet.bind(this, -1));
 }
 
 /***********************************************************************

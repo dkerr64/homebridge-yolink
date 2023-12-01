@@ -18,6 +18,11 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   const accessory: PlatformAccessory = this.accessory;
   const device: YoLinkDevice = accessory.context.device;
 
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
+
+  // Once we have initial data, setup all the Homebridge handlers
   if (String(device.config.hide).toLowerCase() === 'thermo') {
     platform.log.info(`Hide Thermometer service because config.[${device.deviceId}].hide is set to "thermo"`);
     accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
@@ -41,9 +46,6 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
     this.hydroService.getCharacteristic(platform.Characteristic.CurrentRelativeHumidity)
       .onGet(handleGet.bind(this, 'hydro'));
   }
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
 }
 
 /***********************************************************************

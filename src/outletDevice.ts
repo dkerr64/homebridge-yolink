@@ -31,6 +31,11 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
     platform.verboseLog(`Device ${device.deviceMsgName} has ${this.nOutlets} outlets`);
   }
 
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this, 0));
+
+  // Once we have initial data, setup all the Homebridge handlers
   if (this.nOutlets === 1) {
     this.outlet.push({});
     this.outlet[0].service = accessory.getService(platform.Service.Outlet)
@@ -79,9 +84,6 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
         .onSet(handleSet.bind(this, i));
     }
   }
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this, 0));
 }
 
 /***********************************************************************
