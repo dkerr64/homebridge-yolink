@@ -227,13 +227,6 @@
                   "default": "",
                   "description":"This will override the device name returned by YoLink for display in the Homebridge accessories page"
                 },
-                "model": {
-                  "title": "Device Model Number",
-                  "type": "string",
-                  "required": false,
-                  "default": "",
-                  "description": "Model number is not available from the YoLink API so you can optionally add text here for Homebridge / HomeKit"      
-                },
                 "refreshAfter": {
                   "title": "Refresh time for data from YoLink server (override global setting)",
                   "type": "number",
@@ -361,7 +354,6 @@
                     "devices[].deviceId",
                     "devices[].config.hide",
                     "devices[].config.name",
-                    "devices[].config.model",
                     "devices[].config.refreshAfter",
                     "devices[].config.doublePress",
                     "devices[].config.nOutlets",

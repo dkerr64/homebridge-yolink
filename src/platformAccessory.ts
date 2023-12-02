@@ -55,7 +55,7 @@ export class YoLinkPlatformAccessory {
           .setCharacteristic(platform.Characteristic.Manufacturer, 'YoLink')
           .setCharacteristic(platform.Characteristic.Name, device.name)
           .setCharacteristic(platform.Characteristic.FirmwareRevision, String(device.config?.version))
-          .setCharacteristic(platform.Characteristic.Model, String(device.config?.model ?? (device.modelName ?? 'n/a')))
+          .setCharacteristic(platform.Characteristic.Model, String(device.modelName ?? 'n/a'))
           .setCharacteristic(platform.Characteristic.ProductData, `deviceId: ${device.deviceId}`)
           // YoLink does not return device serial number in the API, use deviceId instead.
           .setCharacteristic(platform.Characteristic.SerialNumber, device.deviceId);
@@ -98,7 +98,7 @@ export class YoLinkPlatformAccessory {
    */
   initializeDeviceVars(platform: YoLinkHomebridgePlatform, device: YoLinkDevice) {
     device.data = {};
-    device.deviceMsgName = `${device.name} (${device.deviceId})`;
+    device.deviceMsgName = `${device.name} / ${device.modelName} (${device.deviceId})`;
     device.lastReportAtTime = 0;
     device.config.refreshAfter ??= platform.config.refreshAfter;
     device.config.enableExperimental = platform.makeBoolean(device.config.enableExperimental, platform.config.enableExperimental);

@@ -105,7 +105,6 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
                     "config": {
                         "hide": true,
                         "name": "YoLink Hub",
-                        "model": "YS1603-UC",
                         "refreshAfter": 14500,
                         "doublePress": 800,
                         "nOutlets": 5,
@@ -152,7 +151,6 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
   * **config** *(optional)*: Object with settings specific for this device:
     * **hide** *(optional)*: Hide this device from Homebridge/HomeKit. You might want to do this to suppress the "device not supported" warning message in the log. Defaults to false. See Device Notes below for Thermometer / Hydrometer for settings specific to that device.
     * **name** *(optional)*: Override the name provided by YoLink for the device, this is what is shown in the Homebridge UI accessories page.
-    * **model** *(optional)*: YoLink does not provide device model number when requesting device information. If you want to keep a record of that and show it in the Homebridge accessories setting page then you can set it here, for example the original YoLink leak sensor has a model number of "YS7903-UC". This is a purely cosmetic setting with no functional purpose.
     * **refreshAfter** *(optional)*: Device specific override of global *refreshAfter*, see above. Defaults to global setting.
     * **doublePress** *(optional)*: Device specific override of global *doublePress*, see above. Defaults to global setting.
     * **nOutlets** *(optional)*: For power strip or multi-outlet devices, number of controllable outlets. See device notes below.
