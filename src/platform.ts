@@ -246,7 +246,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   }
 
   /*********************************************************************
-   * addDevice
+   * checkAddDevice
    */
   checkAddDevice(device: YoLinkDevice) {
     this.verboseLog(JSON.stringify(device, null, 2));
@@ -255,6 +255,8 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     // Get the config file settings for this device (if set)
     device.config = this.config.devices[device.deviceId] ?? {};
     device.name = device.config.name ?? device.name;
+    device.deviceMsgName = `${device.modelName} (${device.deviceId}) ${device.name}`;
+
     // If device is assigned to a garage door then hide it as we will
     // handle those as special case.
     const garage = this.config.garageDoors?.some(x => (x.sensor === device.deviceId || x.controller === device.deviceId));
@@ -272,14 +274,14 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     // Now add the device...
     if (skip || garage) {
       if (existingAccessory) {
-        this.log.warn(`Remove accessory from cache as ${(garage) ? 'device assigned to garage door' : 'config \'hide=true\''}` +
-          `for: ${existingAccessory.displayName} (${device.deviceId})`);
+        this.log.warn(`[${device.deviceMsgName}] Remove accessory from cache as ${(garage)
+          ? 'device assigned to garage door' : 'config \'hide=true\''}`);
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
       } else {
         if (garage) {
-          this.log.info(`[${device.modelName} (${device.deviceId}) ${device.name}] Assigned to a garage door`);
+          this.log.info(`[${device.deviceMsgName}] Assigned to a garage door`);
         } else {
-          this.log.info(`[${device.modelName} (${device.deviceId}) ${device.name}] Not registering device as config 'hide=true'`);
+          this.log.info(`[${device.deviceMsgName}] Not registering device as config 'hide=true'`);
         }
       }
     } else {
@@ -294,7 +296,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     device2: YoLinkDevice | undefined = undefined): PlatformAccessory {
     if (existingAccessory) {
       // update existing accessory
-      this.verboseLog(`Restoring accessory from cache: ${existingAccessory.displayName} (${device.deviceId})`);
+      this.verboseLog(`[${device.deviceMsgName}] Restoring accessory from cache`);
       existingAccessory.context.device = device;
       existingAccessory.context.device2 = device2;
       this.api.updatePlatformAccessories([existingAccessory]);
@@ -302,7 +304,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       return (existingAccessory);
     } else {
       // create a new accessory
-      this.log.info(`[${device.modelName} (${device.deviceId}) ${device.name}] Adding new accessory`);
+      this.log.info(`[${device.deviceMsgName}] Adding new accessory`);
       const accessory = new this.api.platformAccessory(device.name, uuid);
       accessory.context.device = device;
       accessory.context.device2 = device2;

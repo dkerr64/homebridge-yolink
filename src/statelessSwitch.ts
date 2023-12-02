@@ -130,11 +130,11 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
         `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
         `(${(device.data.state.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)`);
     } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in StatelessSwitch handleGet' + platform.reportError + msg);
+    platform.log.error(`[${device.deviceMsgName}] Error in StatelessSwitch handleGet` + platform.reportError + msg);
   } finally {
     releaseSemaphore();
   }

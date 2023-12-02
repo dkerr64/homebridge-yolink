@@ -108,11 +108,11 @@ async function handleGet(this: YoLinkPlatformAccessory, keyNumber = -1): Promise
         const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.battery}` : '';
         this.logDeviceState(device, `Key Number: ${keyNumber}${batteryMsg}`);
       } else {
-        platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+        platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
       }
     } catch (e) {
       const msg = (e instanceof Error) ? e.stack : e;
-      platform.log.error('Error in infrared remoter handleGet' + platform.reportError + msg);
+      platform.log.error(`[${device.deviceMsgName}] Error in infrared remoter handleGet` + platform.reportError + msg);
     } finally {
       releaseSemaphore();
     }
@@ -148,19 +148,19 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, keyNumber = -1, 
       const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'key': keyNumber }, this.setMethod))?.data;
       if (data) {
         if (!data.success) {
-          platform.log.warn(`Sending IR code for key number ${keyNumber} failed with error: ${data.errorCode}`);
+          platform.log.warn(`[${device.deviceMsgName}] Sending IR code for key ${keyNumber} failed with error: ${data.errorCode}`);
         }
       }
       // Sending IR signal is stateless, make sure that the switch is turned off after slight delay
       setTimeout(() => {
         this.irKey[keyNumber].switchService.updateCharacteristic(platform.Characteristic.On, false);
-      }, 500);
+      }, 300);
     } else {
-      platform.log.warn(`Cannot turn off infrared Key number ${keyNumber}, switch is stateless and always off`);
+      platform.log.warn(`[${device.deviceMsgName}] Cannot turn off infrared Key ${keyNumber}, switch is stateless and always off`);
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in SwitchDevice handleGet' + platform.reportError + msg);
+    platform.log.error(`[${device.deviceMsgName}] Error in SwitchDevice handleGet` + platform.reportError + msg);
   } finally {
     // Avoid flooding YoLink device with rapid succession of requests.
     const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));

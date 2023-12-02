@@ -318,7 +318,7 @@ export class YoLinkAPI {
   }
 
   async tryGetDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice) {
-    platform.liteLog(`YoLinkAPI.getDeviceState for ${device.name} (${device.deviceId})`);
+    platform.liteLog(`[${device.deviceMsgName}] YoLinkAPI.getDeviceState`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
     const bddp: yolinkBDDP = {

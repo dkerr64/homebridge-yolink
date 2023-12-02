@@ -98,7 +98,6 @@ export class YoLinkPlatformAccessory {
    */
   initializeDeviceVars(platform: YoLinkHomebridgePlatform, device: YoLinkDevice) {
     device.data = {};
-    device.deviceMsgName = `${device.modelName} (${device.deviceId}) ${device.name}`;
     device.lastReportAtTime = 0;
     device.config.refreshAfter ??= platform.config.refreshAfter;
     device.config.enableExperimental = platform.makeBoolean(device.config.enableExperimental, platform.config.enableExperimental);
@@ -148,7 +147,7 @@ export class YoLinkPlatformAccessory {
           this.updateBatteryInfo.bind(this, device)();
         } else {
           device.data = undefined;
-          platform.log.error(`checkDeviceState received no data for ${device.deviceMsgName}`);
+          platform.log.error(`[${device.deviceMsgName}] checkDeviceState received no data`);
         }
       }
     } catch (e) {
