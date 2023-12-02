@@ -18,27 +18,30 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
   const accessory: PlatformAccessory = this.accessory;
   const device: YoLinkDevice = accessory.context.device;
 
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this));
-
-  // Once we have initial data, setup all the Homebridge handlers
-  this.motionService = accessory.getService(platform.Service.MotionSensor) || accessory.addService(platform.Service.MotionSensor);
+  this.motionService = accessory.getService(platform.Service.MotionSensor)
+    || accessory.addService(platform.Service.MotionSensor);
   this.motionService.setCharacteristic(platform.Characteristic.Name, device.name);
-  this.motionService.getCharacteristic(platform.Characteristic.MotionDetected)
-    .onGet(handleGet.bind(this));
 
   if (device.config.temperature) {
     // If requested add a service for the internal device temperature.
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
       || accessory.addService(platform.Service.TemperatureSensor);
     this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
-    this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
-      .onGet(handleGet.bind(this, 'thermo'));
   } else {
     // If not requested then remove it if it already exists.
     accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
   }
+
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
+
+  // Once we have initial data, setup all the Homebridge handlers
+  this.motionService.getCharacteristic(platform.Characteristic.MotionDetected)
+    .onGet(handleGet.bind(this));
+  this.thermoService?.getCharacteristic(platform.Characteristic.CurrentTemperature)
+    .onGet(handleGet.bind(this, 'thermo'));
+
 }
 
 /***********************************************************************

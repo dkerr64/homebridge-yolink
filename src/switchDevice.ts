@@ -27,13 +27,15 @@ export async function initSwitchDevice(this: YoLinkPlatformAccessory, onState, s
     this.setMethod = 'toggle';
   }
 
+  this.switchService = accessory.getService(platform.Service.Switch)
+    || accessory.addService(platform.Service.Switch);
+  this.switchService.setCharacteristic(platform.Characteristic.Name, device.name);
+
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
   await this.refreshDataTimer(handleGetBlocking.bind(this));
 
   // Once we have initial data, setup all the Homebridge handlers
-  this.switchService = accessory.getService(platform.Service.Switch) || accessory.addService(platform.Service.Switch);
-  this.switchService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.switchService.getCharacteristic(platform.Characteristic.On)
     .onGet(handleGet.bind(this))
     .onSet(handleSet.bind(this));

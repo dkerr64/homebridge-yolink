@@ -18,13 +18,15 @@ export async function initContactSensor(this: YoLinkPlatformAccessory): Promise<
   const accessory: PlatformAccessory = this.accessory;
   const device: YoLinkDevice = accessory.context.device;
 
+  this.contactService = accessory.getService(platform.Service.ContactSensor)
+    || accessory.addService(platform.Service.ContactSensor);
+  this.contactService.setCharacteristic(platform.Characteristic.Name, device.name);
+
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
   await this.refreshDataTimer(handleGetBlocking.bind(this));
 
   // Once we have initial data, setup all the Homebridge handlers
-  this.contactService = accessory.getService(platform.Service.ContactSensor) || accessory.addService(platform.Service.ContactSensor);
-  this.contactService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.contactService.getCharacteristic(platform.Characteristic.ContactSensorState)
     .onGet(handleGet.bind(this));
 }

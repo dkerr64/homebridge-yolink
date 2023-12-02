@@ -18,11 +18,6 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   const accessory: PlatformAccessory = this.accessory;
   const device: YoLinkDevice = accessory.context.device;
 
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
-
-  // Once we have initial data, setup all the Homebridge handlers
   if (String(device.config.hide).toLowerCase() === 'thermo') {
     platform.log.info(`Hide Thermometer service because config.[${device.deviceId}].hide is set to "thermo"`);
     accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
@@ -31,8 +26,6 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
       || accessory.addService(platform.Service.TemperatureSensor);
     this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name);
-    this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
-      .onGet(handleGet.bind(this, 'thermo'));
   }
 
   if (String(device.config.hide).toLowerCase() === 'hydro') {
@@ -43,9 +36,17 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
     this.hydroService = accessory.getService(platform.Service.HumiditySensor)
       || accessory.addService(platform.Service.HumiditySensor);
     this.hydroService.setCharacteristic(platform.Characteristic.Name, device.name);
-    this.hydroService.getCharacteristic(platform.Characteristic.CurrentRelativeHumidity)
-      .onGet(handleGet.bind(this, 'hydro'));
   }
+
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
+
+  // Once we have initial data, setup all the Homebridge handlers
+  this.thermoService?.getCharacteristic(platform.Characteristic.CurrentTemperature)
+    .onGet(handleGet.bind(this, 'thermo'));
+  this.hydroService?.getCharacteristic(platform.Characteristic.CurrentRelativeHumidity)
+    .onGet(handleGet.bind(this, 'hydro'));
 }
 
 /***********************************************************************

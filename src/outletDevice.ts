@@ -31,30 +31,19 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
     platform.verboseLog(`Device ${device.deviceMsgName} has ${this.nOutlets} outlets`);
   }
 
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this, 0));
-
-  // Once we have initial data, setup all the Homebridge handlers
   if (this.nOutlets === 1) {
     this.outlet.push({});
     this.outlet[0].service = accessory.getService(platform.Service.Outlet)
       || accessory.addService(platform.Service.Outlet);
-    this.outlet[0].service
-      .setCharacteristic(platform.Characteristic.Name, device.name);
-    this.outlet[0].service
-      .getCharacteristic(platform.Characteristic.On)
-      .onGet(handleGet.bind(this, 0))
-      .onSet(handleSet.bind(this, 0));
+    this.outlet[0].service.setCharacteristic(platform.Characteristic.Name, device.name);
   } else {
     // As we are adding multiple services of the same type, we need
     // a ServiceLabel service.
     this.serviceLabel = accessory.getService(platform.Service.ServiceLabel)
       || accessory.addService(platform.Service.ServiceLabel);
-    this.serviceLabel
-      .setCharacteristic(platform.Characteristic.Name, device.name);
-    this.serviceLabel
-      .getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet(() => {
+    this.serviceLabel.setCharacteristic(platform.Characteristic.Name, device.name);
+    this.serviceLabel.getCharacteristic(platform.Characteristic.ServiceLabelNamespace)
+      .onGet(() => {
         return (this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
       });
     // Add each of the outlets (the first "outlet" may be USB ports)
@@ -78,11 +67,18 @@ export async function initOutletDevice(this: YoLinkPlatformAccessory, onState: s
         .setCharacteristic(platform.Characteristic.Name, device.name + ` Outlet ${i}`)
         .setCharacteristic(platform.Characteristic.ConfiguredName, `Outlet ${i}`)
         .setCharacteristic(platform.Characteristic.ServiceLabelIndex, i + 1);
-      this.outlet[i].service
-        .getCharacteristic(platform.Characteristic.On)
-        .onGet(handleGet.bind(this, i))
-        .onSet(handleSet.bind(this, i));
     }
+  }
+
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this, 0));
+
+  // Once we have initial data, setup all the Homebridge handlers
+  for (let i = 0; i < this.nOutlets; i++) {
+    this.outlet[i].service.getCharacteristic(platform.Characteristic.On)
+      .onGet(handleGet.bind(this, i))
+      .onSet(handleSet.bind(this, i));
   }
 }
 

@@ -22,11 +22,6 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
   device.config.doublePress ??= (platform.config.doublePress ??= 800);
   this.button = [];
 
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this));
-
-  // Once we have initial data, setup all the Homebridge handlers
   // serviceLabel required when multiple services of same type on one accessory
   this.serviceLabel = accessory.getService(platform.Service.ServiceLabel)
     || accessory.addService(platform.Service.ServiceLabel);
@@ -64,12 +59,18 @@ export async function initStatelessSwitch(this: YoLinkPlatformAccessory, nButton
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
       || accessory.addService(platform.Service.TemperatureSensor);
     this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
-    this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
-      .onGet(handleGet.bind(this, 'thermo'));
   } else {
     // If not requested then remove it if it already exists.
     accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
   }
+
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
+
+  // Once we have initial data, setup all the Homebridge handlers
+  this.thermoService?.getCharacteristic(platform.Characteristic.CurrentTemperature)
+    .onGet(handleGet.bind(this, 'thermo'));
 }
 
 /***********************************************************************

@@ -33,9 +33,10 @@ export async function initInfraredRemoter(this: YoLinkPlatformAccessory): Promis
   // serviceLabel required when multiple services of same type on one accessory
   this.serviceLabel = accessory.getService(platform.Service.ServiceLabel) || accessory.addService(platform.Service.ServiceLabel);
   this.serviceLabel.setCharacteristic(platform.Characteristic.Name, device.name);
-  this.serviceLabel.getCharacteristic(platform.Characteristic.ServiceLabelNamespace).onGet(() => {
-    return (this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
-  });
+  this.serviceLabel.getCharacteristic(platform.Characteristic.ServiceLabelNamespace)
+    .onGet(() => {
+      return (this.platform.Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS);
+    });
 
   let slIndex = 1;
   device.data.keys.forEach((b: boolean, i: number) => {
@@ -153,7 +154,7 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, keyNumber = -1, 
       // Sending IR signal is stateless, make sure that the switch is turned off after slight delay
       setTimeout(() => {
         this.irKey[keyNumber].switchService.updateCharacteristic(platform.Characteristic.On, false);
-      }, 50);
+      }, 500);
     } else {
       platform.log.warn(`Cannot turn off infrared Key number ${keyNumber}, switch is stateless and always off`);
     }

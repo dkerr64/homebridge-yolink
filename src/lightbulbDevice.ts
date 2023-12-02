@@ -23,13 +23,15 @@ export async function initLightbulb(this: YoLinkPlatformAccessory, onState: stri
   this.setOn = setOn;
   this.setOff = setOff;
 
+  this.lightbulbService = accessory.getService(platform.Service.Lightbulb)
+    || accessory.addService(platform.Service.Lightbulb);
+  this.lightbulbService.setCharacteristic(platform.Characteristic.Name, device.name);
+
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
   await this.refreshDataTimer(handleGetBlocking.bind(this, 'on'));
 
   // Once we have initial data, setup all the Homebridge handlers
-  this.lightbulbService = accessory.getService(platform.Service.Lightbulb) || accessory.addService(platform.Service.Lightbulb);
-  this.lightbulbService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.lightbulbService.getCharacteristic(platform.Characteristic.On)
     .onGet(handleGet.bind(this, 'on'))
     .onSet(handleSet.bind(this, 'on'));

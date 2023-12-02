@@ -25,6 +25,22 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
   this.currentState = undefined;
   this.initializeDeviceVars(platform, doorSensor);
 
+  if (doorSensor.hasBattery) {
+    doorSensor.batteryService = accessory.getService('Battery 2')
+      || accessory.addService(platform.Service.Battery, 'Battery 2', 'battery2');
+    doorSensor.batteryService
+      .setCharacteristic(platform.Characteristic.Name, doorSensor.name)
+      .setCharacteristic(platform.Characteristic.ChargingState, platform.api.hap.Characteristic.ChargingState.NOT_CHARGEABLE)
+      .setCharacteristic(platform.Characteristic.BatteryLevel, 100);
+  }
+
+  this.garageService = accessory.getService(platform.Service.GarageDoorOpener)
+    || accessory.addService(platform.Service.GarageDoorOpener);
+  this.garageService.setCharacteristic(platform.Characteristic.Name, doorController.name);
+  this.garageService.getCharacteristic(platform.Characteristic.ObstructionDetected)
+    .onGet(() => {
+      return (false);
+    });
 
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
@@ -33,32 +49,13 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
   await this.refreshDataTimer(handleGetBlocking.bind(this, doorController));
 
   // Once we have initial data, setup all the Homebridge handlers
-  if (doorSensor.hasBattery) {
-    doorSensor.batteryService = accessory.getService('Battery 2')
-      || accessory.addService(platform.Service.Battery, 'Battery 2', 'battery2');
-    doorSensor.batteryService
-      .setCharacteristic(platform.Characteristic.Name, doorSensor.name)
-      .setCharacteristic(platform.Characteristic.ChargingState, platform.api.hap.Characteristic.ChargingState.NOT_CHARGEABLE)
-      .setCharacteristic(platform.Characteristic.BatteryLevel, 100);
-    doorSensor.batteryService
-      .getCharacteristic(platform.Characteristic.BatteryLevel).onGet(this.handleBatteryGet.bind(this, doorSensor));
-  }
-
-  this.garageService = accessory.getService(platform.Service.GarageDoorOpener)
-    || accessory.addService(platform.Service.GarageDoorOpener);
-  this.garageService.setCharacteristic(platform.Characteristic.Name, doorController.name);
-  this.garageService
-    .getCharacteristic(platform.Characteristic.CurrentDoorState)
+  doorSensor.batteryService?.getCharacteristic(platform.Characteristic.BatteryLevel)
+    .onGet(this.handleBatteryGet.bind(this, doorSensor));
+  this.garageService.getCharacteristic(platform.Characteristic.CurrentDoorState)
     .onGet(handleGet.bind(this, doorSensor));
-  this.garageService
-    .getCharacteristic(platform.Characteristic.TargetDoorState)
+  this.garageService.getCharacteristic(platform.Characteristic.TargetDoorState)
     .onGet(handleGet.bind(this, doorController))
     .onSet(handleSet.bind(this, doorController));
-  this.garageService
-    .getCharacteristic(platform.Characteristic.ObstructionDetected)
-    .onGet(() => {
-      return (false);
-    });
 }
 
 /***********************************************************************

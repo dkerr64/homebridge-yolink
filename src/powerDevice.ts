@@ -21,11 +21,6 @@ export async function initPowerSensor(this: YoLinkPlatformAccessory): Promise<vo
 
   this.currentState = undefined;
 
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this));
-
-  // Once we have initial data, setup all the Homebridge handlers
   if (serviceType === 'contact') {
     // In case it was previously set as outlet, remove it...
     accessory.removeService(accessory.getService(platform.Service.Outlet)!);
@@ -33,8 +28,6 @@ export async function initPowerSensor(this: YoLinkPlatformAccessory): Promise<vo
     this.contactService = accessory.getService(platform.Service.ContactSensor)
       || accessory.addService(platform.Service.ContactSensor);
     this.contactService.setCharacteristic(platform.Characteristic.Name, device.name);
-    this.contactService.getCharacteristic(platform.Characteristic.ContactSensorState)
-      .onGet(handleGet.bind(this));
   } else {
     // In case it was previously set as contact, remove it...
     accessory.removeService(accessory.getService(platform.Service.ContactSensor)!);
@@ -42,10 +35,18 @@ export async function initPowerSensor(this: YoLinkPlatformAccessory): Promise<vo
     this.outletService = accessory.getService(platform.Service.Outlet)
       || accessory.addService(platform.Service.Outlet);
     this.outletService.setCharacteristic(platform.Characteristic.Name, device.name);
-    this.outletService.getCharacteristic(platform.Characteristic.On)
-      .onGet(handleGet.bind(this))
-      .onSet(handleSet.bind(this));
   }
+
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
+
+  // Once we have initial data, setup all the Homebridge handlers
+  this.contactService?.getCharacteristic(platform.Characteristic.ContactSensorState)
+    .onGet(handleGet.bind(this));
+  this.outletService?.getCharacteristic(platform.Characteristic.On)
+    .onGet(handleGet.bind(this))
+    .onSet(handleSet.bind(this));
 }
 
 /***********************************************************************

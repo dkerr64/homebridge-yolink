@@ -18,13 +18,15 @@ export async function initValveDevice(this: YoLinkPlatformAccessory): Promise<vo
   const accessory: PlatformAccessory = this.accessory;
   const device: YoLinkDevice = accessory.context.device;
 
+  this.valveService = accessory.getService(platform.Service.Valve)
+    || accessory.addService(platform.Service.Valve);
+  this.valveService.setCharacteristic(platform.Characteristic.Name, device.name);
+
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
   await this.refreshDataTimer(handleGetBlocking.bind(this, 'both'));
 
   // Once we have initial data, setup all the Homebridge handlers
-  this.valveService = accessory.getService(platform.Service.Valve) || accessory.addService(platform.Service.Valve);
-  this.valveService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.valveService.getCharacteristic(platform.Characteristic.Active)
     .onGet(handleGet.bind(this))
     .onSet(handleSet.bind(this));

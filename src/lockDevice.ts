@@ -31,11 +31,6 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
   this.lockService = accessory.getService(platform.Service.LockMechanism)
     || accessory.addService(platform.Service.LockMechanism);
   this.lockService.setCharacteristic(platform.Characteristic.Name, device.name);
-  this.lockService.getCharacteristic(platform.Characteristic.LockCurrentState)
-    .onGet(handleGet.bind(this, 'current'));
-  this.lockService.getCharacteristic(platform.Characteristic.LockTargetState)
-    .onGet(handleGet.bind(this, 'target'))
-    .onSet(handleSet.bind(this));
 
   // Lock Management is a no-op for us, but according to Apple documentation
   // implementation of it is mandatory. So we will implement as no-op!
@@ -62,6 +57,17 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
       platform.verboseLog('Lock door bell onGet called');
       return (platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
     });
+
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
+
+  // Once we have initial data, setup all the Homebridge handlers
+  this.lockService.getCharacteristic(platform.Characteristic.LockCurrentState)
+    .onGet(handleGet.bind(this, 'current'));
+  this.lockService.getCharacteristic(platform.Characteristic.LockTargetState)
+    .onGet(handleGet.bind(this, 'target'))
+    .onSet(handleSet.bind(this));
 }
 
 /***********************************************************************
