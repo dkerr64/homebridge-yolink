@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink Platform Accessory class
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2023 David Kerr
  *
  * Based on https://github.com/homebridge/homebridge-plugin-template
  *
@@ -81,7 +81,7 @@ export class YoLinkPlatformAccessory {
         // And finally call the device specific initialization...
         initDeviceService[this.deviceType].bind(this)();
       } else {
-        platform.log.warn(`Experimental device ${device.deviceMsgName} skipped. Enable experimental devices in config. `
+        platform.log.warn(`[${device.deviceMsgName}] Experimental device skipped. Enable experimental devices in config. `
           + 'Initializing as Unknown device');
         initDeviceService['Unknown'].bind(this)();
       }
@@ -98,7 +98,7 @@ export class YoLinkPlatformAccessory {
    */
   initializeDeviceVars(platform: YoLinkHomebridgePlatform, device: YoLinkDevice) {
     device.data = {};
-    device.deviceMsgName = `${device.name} / ${device.modelName} (${device.deviceId})`;
+    device.deviceMsgName = `${device.modelName} (${device.deviceId}) ${device.name}`;
     device.lastReportAtTime = 0;
     device.config.refreshAfter ??= platform.config.refreshAfter;
     device.config.enableExperimental = platform.makeBoolean(device.config.enableExperimental, platform.config.enableExperimental);
@@ -128,7 +128,7 @@ export class YoLinkPlatformAccessory {
    */
   async checkDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice) {
     try {
-      platform.verboseLog(`checkDeviceState for ${device.deviceMsgName} (refresh after ${device.config.refreshAfter} seconds)`);
+      platform.verboseLog(`[${device.deviceMsgName}] checkDeviceState (refresh after ${device.config.refreshAfter} seconds)`);
       const timestamp = Math.floor(new Date().getTime() / 1000);
       if ((device.config.refreshAfter === 0)
         || ((device.config.refreshAfter > 0) && (timestamp >= device.updateTime))) {
@@ -175,9 +175,9 @@ export class YoLinkPlatformAccessory {
     // only log (in lite mode), when we have an update.
     if (device.lastReportAtTime < device.reportAtTime.getTime()) {
       device.lastReportAtTime = device.reportAtTime.getTime();
-      this.platform.liteLog(`At ${device.reportAtTime.toLocaleString()}: Device state updated ${device.deviceMsgName}: ${msg}`);
+      this.platform.liteLog(`[${device.deviceMsgName}] At ${device.reportAtTime.toLocaleString()}: Device state updated: ${msg}`);
     } else {
-      this.platform.liteLog(`At ${device.reportAtTime.toLocaleString()}: Device state for ${device.deviceMsgName}: ${msg}`);
+      this.platform.liteLog(`[${device.deviceMsgName}] At ${device.reportAtTime.toLocaleString()}: Device state: ${msg}`);
     }
   }
 
@@ -218,7 +218,7 @@ export class YoLinkPlatformAccessory {
         // Some devices wrap battery information under a 'state' object.
         // If nothing defined then assume 100%
         batteryLevel = ((device.data?.battery ?? device.data.state?.battery) ?? 4) * 25;
-        const msg = `Battery level for ${device.deviceMsgName} is: ${batteryLevel}%`;
+        const msg = `[${device.deviceMsgName}] Battery level: ${batteryLevel}%`;
         if (batteryLevel <= 25) {
           device.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
             platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
@@ -279,7 +279,7 @@ export class YoLinkPlatformAccessory {
     // serialize access to device data.
     const releaseSemaphore = await device.semaphore.acquire();
     try {
-      platform.log.info(`YoLink Device: ${device.deviceMsgName} identify '${value}' (unsupported)`);
+      platform.log.info(`[${device.deviceMsgName}] YoLink Device: '${value}' (unsupported)`);
     } catch (e) {
       const msg = (e instanceof Error) ? e.stack : e;
       platform.log.error('Error in handleIdentitySet' + platform.reportError + msg);

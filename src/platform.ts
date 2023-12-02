@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink Homebridge Platform class
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2023 David Kerr
  *
  * Based on https://github.com/homebridge/homebridge-plugin-template
  *
@@ -40,6 +40,8 @@ export type YoLinkDevice = {
   token: string;
   type: string;
   parentDeviceId: string;
+  modelName: string;
+  deviceMsgName: string;
   semaphore: Semaphore;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
@@ -98,7 +100,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL;
     this.config.checkNewDeviceInterval ??= 0;
 
-    this.log.info(`YoLink plugin for HomeBridge version ${packageJSON.version} (c) 2022 David A. Kerr${this.reportError}`);
+    this.log.info(`YoLink plugin for HomeBridge version ${packageJSON.version} (c) 2022-2023 David A. Kerr${this.reportError}`);
     this.verboseLog(`Loaded configuration:\n${JSON.stringify(this.config, null, 2)}`);
 
     this.yolinkAPI = new YoLinkAPI(this);
@@ -275,9 +277,9 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
       } else {
         if (garage) {
-          this.log.info(`Device ${device.name} (${device.deviceId}) assigned to a garage door`);
+          this.log.info(`[${device.modelName} (${device.deviceId}) ${device.name}] Assigned to a garage door`);
         } else {
-          this.log.info(`Not registering device ${device.name} (${device.deviceId}) as config 'hide=true'`);
+          this.log.info(`[${device.modelName} (${device.deviceId}) ${device.name}] Not registering device as config 'hide=true'`);
         }
       }
     } else {
@@ -300,7 +302,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       return (existingAccessory);
     } else {
       // create a new accessory
-      this.log.info(`Adding new accessory: ${device.name} (${device.deviceId})`);
+      this.log.info(`[${device.modelName} (${device.deviceId}) ${device.name}] Adding new accessory`);
       const accessory = new this.api.platformAccessory(device.name, uuid);
       accessory.context.device = device;
       accessory.context.device2 = device2;

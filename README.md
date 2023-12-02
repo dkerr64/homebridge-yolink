@@ -296,7 +296,7 @@ Many log messages carry two timestamps. The first is current time and is logged 
 
 ## License
 
-(c) Copyright 2022 David A. Kerr
+(c) Copyright 2022-2023 David A. Kerr
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this program except in compliance with the License. You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 

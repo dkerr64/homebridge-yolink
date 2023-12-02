@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink temperature / humidity sensor device support
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2023 David Kerr
  *
  */
 
@@ -19,7 +19,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   const device: YoLinkDevice = accessory.context.device;
 
   if (String(device.config.hide).toLowerCase() === 'thermo') {
-    platform.log.info(`Hide Thermometer service because config.[${device.deviceId}].hide is set to "thermo"`);
+    platform.log.info(`[${device.deviceMsgName}] Hide Thermometer service because config.[${device.deviceId}].hide is set to "thermo"`);
     accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
   } else {
     // Not trying to hide the thermometer service.
@@ -29,7 +29,7 @@ export async function initThermoHydroDevice(this: YoLinkPlatformAccessory): Prom
   }
 
   if (String(device.config.hide).toLowerCase() === 'hydro') {
-    platform.log.info(`Hide Hydrometer service because config.[${device.deviceId}].hide is set to "hydro"`);
+    platform.log.info(`[${device.deviceMsgName}] Hide Hydrometer service because config.[${device.deviceId}].hide is set to "hydro"`);
     accessory.removeService(accessory.getService(platform.Service.HumiditySensor)!);
   } else {
     // Not trying to hide the hydrometer service.

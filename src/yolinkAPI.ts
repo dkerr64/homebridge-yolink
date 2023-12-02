@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink API class
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2023 David Kerr
  *
  * Based on documentation at http://doc.yosmart.com
  *
@@ -86,7 +86,7 @@ function checkHttpStatus(response) {
 }
 
 function checkBudpStatus(platform: YoLinkHomebridgePlatform, budp, device: YoLinkDevice | undefined = undefined) {
-  const devName = device ? `${device.name} (${device.deviceId}) ` : '';
+  const devName = device ? `[${device.deviceMsgName}] ` : '';
   if (!budp) {
     throw (new Error(`${devName}YoLink API error: BUDP undefined or null`));
   }
@@ -367,7 +367,7 @@ export class YoLinkAPI {
   }
 
   async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state, method = 'setState'): Promise<yolinkBUDP> {
-    platform.log.info(`YoLinkAPI.setDeviceState for ${device.name} (${device.deviceId}): ${JSON.stringify(state)}`);
+    platform.log.info(`[${device.deviceMsgName}] YoLinkAPI.setDeviceState: ${JSON.stringify(state)}`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
     const bddp: yolinkBDDP = {

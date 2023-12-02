@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink outlet and multi-outlet device support
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2023 David Kerr
  *
  */
 
@@ -349,7 +349,7 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
       case 'StatusChange':
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
-          platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
+          platform.log.warn(`[${device.deviceMsgName}] Device has no data field, is device offline?`);
           break;
         }
         // Merge received data into existing data object
