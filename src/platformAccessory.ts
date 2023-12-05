@@ -73,7 +73,7 @@ export class YoLinkPlatformAccessory {
           device.batteryService
             .setCharacteristic(platform.Characteristic.Name, device.name)
             .setCharacteristic(platform.Characteristic.ChargingState, platform.api.hap.Characteristic.ChargingState.NOT_CHARGEABLE)
-            .setCharacteristic(platform.Characteristic.BatteryLevel, 100);
+            .setCharacteristic(platform.Characteristic.BatteryLevel, 0);
           device.batteryService
             .getCharacteristic(platform.Characteristic.BatteryLevel)
             .onGet(this.handleBatteryGet.bind(this, device));
@@ -210,13 +210,13 @@ export class YoLinkPlatformAccessory {
    */
   updateBatteryInfo(this: YoLinkPlatformAccessory, device: YoLinkDevice) {
     const platform: YoLinkHomebridgePlatform = this.platform;
-    let batteryLevel = 100;
+    let batteryLevel = 0;
 
     try {
       if (device.hasBattery) {
         // Some devices wrap battery information under a 'state' object.
-        // If nothing defined then assume 100%
-        batteryLevel = ((device.data?.battery ?? device.data.state?.battery) ?? 4) * 25;
+        // If nothing defined then assume 0%
+        batteryLevel = ((device.data?.battery ?? device.data.state?.battery) ?? 0) * 25;
         const msg = `[${device.deviceMsgName}] Battery level: ${batteryLevel}%`;
         if (batteryLevel <= 25) {
           device.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
@@ -255,7 +255,7 @@ export class YoLinkPlatformAccessory {
     const platform = this.platform;
     // serialize access to device data.
     const releaseSemaphore = await device.semaphore.acquire();
-    let rc = 100;
+    let rc = 0;
     try {
       if (await this.checkDeviceState(platform, device)) {
         rc = this.updateBatteryInfo.bind(this, device)();
