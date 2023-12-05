@@ -105,7 +105,7 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
     });
   // Return current state of the device pending completion of the blocking function
   return ((devSensor === 'thermo')
-    ? device.data.state.devTemperature
+    ? (device.data?.state?.devTemperature ?? -270)
     : 0);
 }
 
@@ -116,7 +116,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
   const releaseSemaphore = await device.semaphore.acquire();
   // handleGet is only called during initialization. Data returned always represents the last
   // button action received by MQTT.
-  let rc = 0;
+  // 'main' or 'thermo' use -270 as the minimum accepted value for default
+  let rc = (devSensor === 'main') ? 0 : -270;
   try {
     if (await this.checkDeviceState(platform, device)) {
       switch (devSensor) {

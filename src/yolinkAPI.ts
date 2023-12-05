@@ -93,7 +93,11 @@ function checkBudpStatus(platform: YoLinkHomebridgePlatform, budp, device: YoLin
   if (budp.state && budp.state === 'error') {
     throw (new Error(`${devName}YoLink API error: ${budp.msg}`));
   }
-  if (budp.code && budp.code !== '000000') {
+  if (!budp.code) {
+    // If no return code part of the packet then can return now without further checking.
+    return true;
+  }
+  if (budp.code !== '000000') {
     if ((budp.code === '000201') || (budp.code === '010301') || (budp.code === '020104')) {
       // Common errors from YoLink API that I want user to see.
       platform.log.warn(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`);
@@ -102,6 +106,8 @@ function checkBudpStatus(platform: YoLinkHomebridgePlatform, budp, device: YoLin
       platform.log.error(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`);
     }
     throw (new Error(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`));
+  } else if (!budp.data) {
+    platform.log.warn(`${devName}Successful YoLink API call but no data field:\n${JSON.stringify(budp, null, 2)}`);
   }
   return true;
 }

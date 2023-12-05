@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink motion and vibration sensor device support.
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2023 David Kerr
  *
  */
 
@@ -98,8 +98,8 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
     });
   // Return current state of the device pending completion of the blocking function
   return ((devSensor === 'thermo')
-    ? device.data.state.devTemperature
-    : (device.data.state.state === 'alert'));
+    ? (device.data?.state?.devTemperature ?? -270)
+    : ((device.data?.state?.state === 'alert') ?? false));
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
@@ -107,7 +107,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
-  let rc = (devSensor === 'main') ? false : 0;
+  // 'main' or 'thermo' use -270 as the minimum accepted value for default
+  let rc = (devSensor === 'main') ? false : -270;
   try {
     if (await this.checkDeviceState(platform, device) && device.data.online) {
       this.motionService
@@ -124,7 +125,7 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
         `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
         `(${(device.data.state.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)`);
     } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
       this.motionService
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
@@ -208,7 +209,9 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
-          this.motionService.updateCharacteristic(platform.Characteristic.StatusFault, true);
+          this.motionService
+            .updateCharacteristic(platform.Characteristic.StatusActive, false)
+            .updateCharacteristic(platform.Characteristic.StatusFault, true);
           break;
         }
         // if we received a message then device must be online

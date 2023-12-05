@@ -12,20 +12,7 @@ This plugin is new and not fully tested for all devices. Pull requests and/or ot
 >This plugin is not intended to provide safety or security services. For critical applications use YoLink's own services and in particular consider their device-to-device capability. For example, do not rely on Homebridge or HomeKit to turn off a main water supply in a leak detection -- use YoLink device-to-device.
 
 >[!NOTE]
->YoLink devices with a model name that ends in -EC are not currently supported. This is a limitation of the YoLink User Access Credentials (UAC) API.
-
->[!NOTE]
->YoLink have implemented rate limits on their cloud servers that impact any application that uses their published User Access Credentials (UAC) API, including this plugin.  The current rate limits are 100 requests within a 5 minute period and 6 requests to the same device within one minute. If you have certain YoLink devices you are likely to run into these limits and see *warning* messages in the Homebridge log.  Possible warning message include these:  
->
->`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 000201 Can't connect to Device (Dimmer.getState)`  
->`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 020104 Device is busy, try again later. (Dimmer.setState)`  
->`[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 010301 Access denied due to reaching limits,Please have a retry later. (MultiOutlet.getState)`  
->
-> `000201` errors indicate that the LoRa radio channel is busy so the YoLink hub is unable to connect to the device.  The more devices you have the more likely this is to occur. The plugin will retry the request, which is normally successful after a few retries.  
-> `020104` errors occur when you send more than 6 requests to the same device within one minute. You are likely to run into this with Dimmer switches, IR remote/blaster, and multi-outlet power strips where you may need to send multiple requests.  
-> `010301` errors occur when the plugin sends more than 100 requests to YoLink cloud servers within 5 minutes.  
->
-> YoLink devices cannot be controlled locally, all requests go through YoLink cloud servers, so there is no workaround to the rate limits. See also *network resiliency* section below.
+>YoLink have implemented rate limits on their cloud servers that impact any application that uses their published User Access Credentials (UAC) API, including this plugin.  See discussion in *network resiliency* section below.
 
 ## Features
 
@@ -127,8 +114,8 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
 * **Platform Properties**
   * **name** *(required)*: Platform name, set to 'YoLink'.
   * **platform** *(required)*: Platform identifier, set to 'YoLink'.
-  * **tokenURL** *(required)*: YoLink's authentication server URL.
-  * **apiURL** *(required)*: YoLink's API server URL.
+  * **tokenURL** *(required)*: YoLink's authentication server URL, see *API URLs* section below.
+  * **apiURL** *(required)*: YoLink's API server URL, see *API URLs* section below.
   * **mqttPort** *(optional)*: MQTT port at the YoLink API server, defaults to 8003.
   * **userAccessId** *(required)*: Obtain from the YoLink app on your mobile device... Settings->Account->Advanced Settings->User Access Credentials. If none exist use the (+) button to request credentials be generated for you. Copy down the UAID (user access ID) and Secret Key.
   * **secretKey** *(required)*: Secret key obtained as described above.
@@ -161,6 +148,20 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
   * **controller** *(required)*: string representing the *deviceID* of the controlling device (activates door open or close). Must be a *GarageDoor* or *Finger* type device.
   * **sensor** *(required)*: string representing the *deviceID* of the sensor device (reports if door open or closed). Must be a *DoorSensor* type device.
   * **timeout** *(optional)*: time in seconds after which the door status is reset to 'open' or 'closed' after activating the controller if no report has been received from the door sensor. Defaults to 45 seconds.
+
+## API URLs
+
+The default YoLink cloud server URLs are:
+* **tokenURL**: "https://api.yosmart.com/open/yolink/token"
+* **apiURL**: "https://api.yosmart.com/open/yolink/v2/api"
+These work for devices shipped in the USA wih model names ending in `-UC`. In other countries you may receive devices with model names ending in `-EC` and you must change the URLs to:
+* **tokenURL**: "https://api-eu.yosmart.com/open/yolink/token"
+* **apiURL**: "https://api-eu.yosmart.com/open/yolink/v2/api"
+
+If you see an error message in the log similar to the following then you are likely using the wrong server URLs
+```log
+[YS7805-UC (abcdef1234567890) Motion] Device offline or other error
+```
 
 ## MQTT
 
@@ -278,9 +279,21 @@ If you have a device not supported by the plugin then useful information will be
 
 Various strategies are employed in an attempt to handle an unstable network. If a failure occurs at any point while accessing the network then the plugin will attempt to reconnect.
 
+YoLink have implemented rate limits on their cloud servers that impact any application that uses their published User Access Credentials (UAC) API, including this plugin.  The current rate limits are 100 requests within a 5 minute period and 6 requests to the same device within one minute. If you have certain YoLink devices you are likely to run into these limits and see *warning* messages in the Homebridge log.  Possible warning message include these:  
+
+```log
+[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 000201 Can't connect to Device (Dimmer.getState)
+[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 020104 Device is busy, try again later. (Dimmer.setState)
+[YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 010301 Access denied due to reaching limits,Please have a retry later. (MultiOutlet.getState)
+```
+`000201` errors indicate that the LoRa radio channel is busy so the YoLink hub is unable to connect to the device.  The more devices you have the more likely this is to occur. The plugin will retry the request, which is normally successful after a few retries.  
+`020104` errors occur when you send more than 6 requests to the same device within one minute. You are likely to run into this with Dimmer switches, IR remote/blaster, and multi-outlet power strips where you may need to send multiple requests.  
+`010301` errors occur when the plugin sends more than 100 requests to YoLink cloud servers within 5 minutes.  
+
+YoLink devices cannot be controlled locally, all requests go through YoLink cloud servers, so there is no workaround to the rate limits.
 For login and retrieving access tokens the plugin will retry indefinitely with 15 second initial delay, increasing by 15 seconds for each repeated attempt to a maximum of 60 seconds between retries. If the network goes down, then this should ensure that the connection to YoLink is reestablished within 60 seconds of network recovery.
 
-For getting device information the plugin will retry a maximum of 30 times before giving up. The initial retry delay is 30 seconds, incrementing by 30 seconds each time with a maximum interval of 60 seconds. After all attempts it will fail with a message to log, but this will not terminate the plugin.
+For getting device information the plugin will retry a maximum of 30 times before giving up. The initial retry delay is 5 seconds, incrementing by 5 seconds each time with a maximum interval of 60 seconds. After all attempts it will fail with a message to log, but this will not terminate the plugin.
 
 For setting device state (e.g. turning an outlet on or off) the plugin does not attempt to retry but will issue a warning to log.  This is necessary because attempting to retry will slow down Homebridge and/or potentially cause a backlog of *setState* requests that can take some time to clear because of YoLink cloud server rate limits.
 

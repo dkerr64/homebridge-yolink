@@ -79,8 +79,8 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
     });
   // Return current state of the device pending completion of the blocking function
   return ((devSensor === 'thermo')
-    ? device.data.state.devTemperature
-    : (device.data.state.state === 'alert'));
+    ? (device.data?.state?.devTemperature ?? -270)
+    : ((device.data?.state?.state === 'alert') ?? false));
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
@@ -88,7 +88,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
-  let rc = (devSensor === 'main') ? platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED : 0;
+  // 'main' or 'thermo' use -270 as the minimum accepted value for default
+  let rc = (devSensor === 'main') ? platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED : -270;
   try {
     if (await this.checkDeviceState(platform, device) && device.data.online) {
       this.leakService

@@ -107,8 +107,8 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'thermo'): Prom
     });
   // Return current state of the device pending completion of the blocking function
   return ((sensor === 'hydro')
-    ? device.data.state.humidity
-    : device.data.state.temperature);
+    ? (device.data?.state?.humidity ?? 0)
+    : (device.data?.state?.temperature ?? -270));
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'thermo'): Promise<CharacteristicValue> {
@@ -116,7 +116,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'thermo
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
-  let rc = NaN;
+  // 'hydro' or 'thermo' use -270 as the minimum accepted value for temperature default
+  let rc = (sensor === 'hydro') ? 0 : -270;
   try {
     if (await this.checkDeviceState(platform, device) && device.data.online) {
       this.logDeviceState(device, `Temperature ${device.data.state.temperature}\u00B0C ` +

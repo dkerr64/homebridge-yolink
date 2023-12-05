@@ -24,6 +24,12 @@
         "type": "string",
         "required": true,
         "default": "https://api.yosmart.com/open/yolink/token",
+        "typeahead": {
+          "source": [
+            "https://api.yosmart.com/open/yolink/token",
+            "https://api-eu.yosmart.com/open/yolink/token"
+          ]
+        },
         "format": "url"
       },
       "apiURL": {
@@ -31,6 +37,12 @@
         "type": "string",
         "required": true,
         "default": "https://api.yosmart.com/open/yolink/v2/api",
+        "typeahead": {
+          "source": [
+            "https://api.yosmart.com/open/yolink/v2/api",
+            "https://api-eu.yosmart.com/open/yolink/v2/api"
+          ]
+        },
         "format": "url"
       },
       "mqttPort": {
