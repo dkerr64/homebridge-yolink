@@ -62,11 +62,6 @@ export async function initCoSmokeDetector(this: YoLinkPlatformAccessory): Promis
     .onGet(handleGet.bind(this, 'smoke'));
   this.thermoService?.getCharacteristic(platform.Characteristic.CurrentTemperature)
     .onGet(handleGet.bind(this, 'thermo'));
-
-  platform.log.warn(`YoLink device type: '${device.type}' is not supported (${device.deviceMsgName}) (initialize)`
-    + platform.reportError + JSON.stringify(device, null, 2));
-
-  this.refreshDataTimer(handleGet.bind(this));
 }
 
 /***********************************************************************
