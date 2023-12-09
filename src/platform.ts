@@ -193,6 +193,8 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       const device: YoLinkDevice = accessory.context.device;
       const device2: YoLinkDevice = accessory.context.device2;
       if (device2) {
+        device2.name = device2.config.name ?? device2.name;
+        device2.deviceMsgName = `${device2.modelName} (${device2.deviceId}) ${device2.name}`;
         // Delete any existing garage door accessories that do not exactly match one
         // that we have setup in the config file.
         if (!this.config.garageDoors?.some(x => x.controller === device.deviceId && x.sensor === device2.deviceId)) {

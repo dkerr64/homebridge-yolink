@@ -44,7 +44,7 @@ export async function initGarageDoor(this: YoLinkPlatformAccessory): Promise<voi
 
   // Call get handler to initialize data fields to current state and set
   // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this, doorSensor));
+  await this.refreshDataTimer(handleGetBlocking.bind(this, doorSensor), 'sensor');
   // above must await because we use doorSensor in handleGet for doorController
   await this.refreshDataTimer(handleGetBlocking.bind(this, doorController));
 

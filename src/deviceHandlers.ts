@@ -46,7 +46,7 @@ export const deviceFeatures = {
   PowerFailureAlarm:  { hasBattery: true },
   Dimmer:             { hasBattery: false },
   InfraredRemoter:    { hasBattery: true },
-  COSmokeSensor:      { hasBattery: true, experimental: true },
+  COSmokeSensor:      { hasBattery: true },
 };
 
 export const initDeviceService = {

@@ -188,9 +188,9 @@ export class YoLinkPlatformAccessory {
    * right time to force call to yolinkAPI.getDeviceState.  All this to optimize
    * performance of user experience.
    */
-  async refreshDataTimer(this: YoLinkPlatformAccessory, handleGet: () => Promise<CharacteristicValue>) {
+  async refreshDataTimer(this: YoLinkPlatformAccessory, handleGet: () => Promise<CharacteristicValue>, dev = 'main') {
     const platform: YoLinkHomebridgePlatform = this.platform;
-    const device: YoLinkDevice = this.accessory.context.device;
+    const device: YoLinkDevice = (dev === 'main') ? this.accessory.context.device : this.accessory.context.device2;
 
     await handleGet();
     platform.log.info(`Device initialized: ${device.deviceMsgName}`);
@@ -219,11 +219,11 @@ export class YoLinkPlatformAccessory {
         batteryLevel = ((device.data?.battery ?? device.data?.state?.battery) ?? 0) * 25;
         const msg = `[${device.deviceMsgName}] Battery level: ${batteryLevel}%`;
         if (batteryLevel <= 25) {
-          device.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+          device.batteryService?.updateCharacteristic(platform.Characteristic.StatusLowBattery,
             platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
           this.platform.log.warn(msg);
         } else {
-          device.batteryService.updateCharacteristic(platform.Characteristic.StatusLowBattery,
+          device.batteryService?.updateCharacteristic(platform.Characteristic.StatusLowBattery,
             platform.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
           this.platform.verboseLog(msg);
         }
