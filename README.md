@@ -59,6 +59,21 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
 
 [Homebridge Config UI X](https://github.com/oznu/homebridge-config-ui-x) is the easiest way to configure this plugin.
 
+### API URLs
+
+The default YoLink cloud server URLs are:
+* **tokenURL**: "https://api.yosmart.com/open/yolink/token"
+* **apiURL**: "https://api.yosmart.com/open/yolink/v2/api"
+
+These work for devices shipped in the USA wih model names ending in `-UC`. In other countries you may receive devices with model names ending in `-EC` and you must change the URLs to:
+* **tokenURL**: "https://api-eu.yosmart.com/open/yolink/token"
+* **apiURL**: "https://api-eu.yosmart.com/open/yolink/v2/api"
+
+If you see an error message in the log similar to the following then you are likely using the wrong server URLs
+```log
+[YS7805-UC (abcdef1234567890) Motion] Device offline or other error
+```
+
 ### Configuration File
 
 ```json
@@ -148,20 +163,6 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
   * **controller** *(required)*: string representing the *deviceID* of the controlling device (activates door open or close). Must be a *GarageDoor* or *Finger* type device.
   * **sensor** *(required)*: string representing the *deviceID* of the sensor device (reports if door open or closed). Must be a *DoorSensor* type device.
   * **timeout** *(optional)*: time in seconds after which the door status is reset to 'open' or 'closed' after activating the controller if no report has been received from the door sensor. Defaults to 45 seconds.
-
-## API URLs
-
-The default YoLink cloud server URLs are:
-* **tokenURL**: "https://api.yosmart.com/open/yolink/token"
-* **apiURL**: "https://api.yosmart.com/open/yolink/v2/api"
-These work for devices shipped in the USA wih model names ending in `-UC`. In other countries you may receive devices with model names ending in `-EC` and you must change the URLs to:
-* **tokenURL**: "https://api-eu.yosmart.com/open/yolink/token"
-* **apiURL**: "https://api-eu.yosmart.com/open/yolink/v2/api"
-
-If you see an error message in the log similar to the following then you are likely using the wrong server URLs
-```log
-[YS7805-UC (abcdef1234567890) Motion] Device offline or other error
-```
 
 ## MQTT
 
@@ -286,9 +287,10 @@ YoLink have implemented rate limits on their cloud servers that impact any appli
 [YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 020104 Device is busy, try again later. (Dimmer.setState)
 [YoLink] YoLink Dimmer (abcdef1234567890) YoLink API error code: 010301 Access denied due to reaching limits,Please have a retry later. (MultiOutlet.getState)
 ```
-`000201` errors indicate that the LoRa radio channel is busy so the YoLink hub is unable to connect to the device.  The more devices you have the more likely this is to occur. The plugin will retry the request, which is normally successful after a few retries.  
-`020104` errors occur when you send more than 6 requests to the same device within one minute. You are likely to run into this with Dimmer switches, IR remote/blaster, and multi-outlet power strips where you may need to send multiple requests.  
-`010301` errors occur when the plugin sends more than 100 requests to YoLink cloud servers within 5 minutes.  
+
+* `000201` errors indicate that the LoRa radio channel is busy so the YoLink hub is unable to connect to the device.  The more devices you have the more likely this is to occur. The plugin will retry the request, which is normally successful after a few retries.
+* `020104` errors occur when you send more than 6 requests to the same device within one minute. You are likely to run into this with Dimmer switches, IR remote/blaster, and multi-outlet power strips where you may need to send multiple requests.
+* `010301` errors occur when the plugin sends more than 100 requests to YoLink cloud servers within 5 minutes.
 
 YoLink devices cannot be controlled locally, all requests go through YoLink cloud servers, so there is no workaround to the rate limits.
 For login and retrieving access tokens the plugin will retry indefinitely with 15 second initial delay, increasing by 15 seconds for each repeated attempt to a maximum of 60 seconds between retries. If the network goes down, then this should ensure that the connection to YoLink is reestablished within 60 seconds of network recovery.
