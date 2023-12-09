@@ -22,6 +22,7 @@ import { initLockDevice, mqttLockDevice }               from './lockDevice';
 import { initPowerSensor, mqttPowerSensor }             from './powerDevice';
 import { initLightbulb, mqttLightbulb }                 from './lightbulbDevice';
 import { initInfraredRemoter, mqttInfraredRemoter }     from './infraredRemoter';
+import { initCoSmokeDetector, mqttCoSmokeDetector }     from './coSmokeDetector';
 
 export const deviceFeatures = {
   Unknown:            { hasBattery: false, experimental: false },
@@ -45,6 +46,7 @@ export const deviceFeatures = {
   PowerFailureAlarm:  { hasBattery: true },
   Dimmer:             { hasBattery: false },
   InfraredRemoter:    { hasBattery: true },
+  COSmokeSensor:      { hasBattery: true, experimental: true },
 };
 
 export const initDeviceService = {
@@ -69,6 +71,7 @@ export const initDeviceService = {
   PowerFailureAlarm(this: YoLinkPlatformAccessory)  { initPowerSensor.bind(this)(); },
   Dimmer(this: YoLinkPlatformAccessory)             { initLightbulb.bind(this)('open', 'open', 'close'); },
   InfraredRemoter(this: YoLinkPlatformAccessory)    { initInfraredRemoter.bind(this)(); },
+  COSmokeSensor(this: YoLinkPlatformAccessory)      { initCoSmokeDetector.bind(this)(); },
 };
 
 export const mqttHandler = {
@@ -93,4 +96,5 @@ export const mqttHandler = {
   PowerFailureAlarm(this: YoLinkPlatformAccessory, data)  { mqttPowerSensor.bind(this)(data); },
   Dimmer(this: YoLinkPlatformAccessory, data)             { mqttLightbulb.bind(this)(data); },
   InfraredRemoter(this: YoLinkPlatformAccessory, data)    { mqttInfraredRemoter.bind(this)(data); },
+  COSmokeSensor(this: YoLinkPlatformAccessory, data)      { mqttCoSmokeDetector.bind(this)(data); },
 };
