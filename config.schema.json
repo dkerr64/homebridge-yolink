@@ -228,7 +228,9 @@
                     { "title": "false", "enum": ["false"] },
                     { "title": "true", "enum": ["true"] },
                     { "title": "Hydrometer", "enum": ["hydro"] },
-                    { "title": "Thermometer", "enum": ["thermo"] }
+                    { "title": "Thermometer", "enum": ["thermo"] },
+                    { "title": "CO Sensor", "enum": ["co"] },
+                    { "title": "Smoke Sensor", "enum": ["smoke"] }
                   ],
                   "description": "Hide this device from Homebridge / HomeKit. You might want to do this to suppress the 'device not supported' warning message in the log. As there is no accessory type in HomeKit for a hub, you can set this to true for the YoLink hub."
                 },

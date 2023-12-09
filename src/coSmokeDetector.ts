@@ -28,7 +28,7 @@ export async function initCoSmokeDetector(this: YoLinkPlatformAccessory): Promis
     // Not trying to hide the carbon monoxide service.
     this.coService = accessory.getService(platform.Service.CarbonMonoxideSensor)
       || accessory.addService(platform.Service.CarbonMonoxideSensor);
-    this.coService.setCharacteristic(platform.Characteristic.Name, device.name);
+    this.coService.setCharacteristic(platform.Characteristic.Name, device.name + ' CO');
   }
 
   if (String(device.config.hide).toLowerCase() === 'smoke') {
@@ -38,7 +38,17 @@ export async function initCoSmokeDetector(this: YoLinkPlatformAccessory): Promis
     // Not trying to hide the smoke service.
     this.smokeService = accessory.getService(platform.Service.SmokeSensor)
       || accessory.addService(platform.Service.SmokeSensor);
-    this.smokeService.setCharacteristic(platform.Characteristic.Name, device.name);
+    this.smokeService.setCharacteristic(platform.Characteristic.Name, device.name + ' Smoke');
+  }
+
+  if (device.config.temperature) {
+    // If requested add a service for the internal device temperature.
+    this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
+      || accessory.addService(platform.Service.TemperatureSensor);
+    this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
+  } else {
+    // If not requested then remove it if it already exists.
+    accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
   }
 
   // Call get handler to initialize data fields to current state and set
@@ -50,6 +60,8 @@ export async function initCoSmokeDetector(this: YoLinkPlatformAccessory): Promis
     .onGet(handleGet.bind(this, 'co'));
   this.smokeService?.getCharacteristic(platform.Characteristic.SmokeDetected)
     .onGet(handleGet.bind(this, 'smoke'));
+  this.thermoService?.getCharacteristic(platform.Characteristic.CurrentTemperature)
+    .onGet(handleGet.bind(this, 'thermo'));
 
   platform.log.warn(`YoLink device type: '${device.type}' is not supported (${device.deviceMsgName}) (initialize)`
     + platform.reportError + JSON.stringify(device, null, 2));
@@ -108,6 +120,8 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'smoke'): Promi
     .then((v) => {
       if (sensor === 'co') {
         this.coService.updateCharacteristic(platform.Characteristic.CarbonMonoxideDetected, v);
+      } else if (sensor === 'thermo') {
+        this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
       } else {
         this.smokeService.updateCharacteristic(platform.Characteristic.SmokeDetected, v);
       }
@@ -115,7 +129,9 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'smoke'): Promi
   // Return current state of the device pending completion of the blocking function
   return ((sensor === 'co')
     ? (device.data?.state?.state.gasAlarm ? 1 : 0)
-    : (device.data?.state?.state.smokeAlarm ? 1 : 0));
+    : (sensor === 'thermo')
+      ? (device.data?.state?.devTemperature ?? -270)
+      : (device.data?.state?.state.smokeAlarm ? 1 : 0));
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'smoke'): Promise<CharacteristicValue> {
@@ -124,37 +140,39 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'smoke'
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   // default to normal lebels of CO or Smoke.
-  let rc = false;
+  let rc = (sensor === 'thermo') ? -270 : false;
   try {
     if (await this.checkDeviceState(platform, device) && device.data.online) {
       this.logDeviceState(device, `Smoke: ${device.data.state.state.smokeAlarm}, CO" ${device.data.state.state.gasAlarm}, ` +
         `Battery: ${device.data.state.battery} (Requested: ${sensor})`);
-      if (this.coService) {
-        this.coService
-          .updateCharacteristic(platform.Characteristic.StatusActive, true)
-          .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      }
-      if (this.smokeService) {
-        this.smokeService
-          .updateCharacteristic(platform.Characteristic.StatusActive, true)
-          .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      }
+      this.coService?.updateCharacteristic(platform.Characteristic.StatusActive, true);
+      this.coService?.updateCharacteristic(platform.Characteristic.StatusFault, false);
+      this.smokeService?.updateCharacteristic(platform.Characteristic.StatusActive, true);
+      this.smokeService?.updateCharacteristic(platform.Characteristic.StatusFault, false);
+      this.thermoService?.updateCharacteristic(platform.Characteristic.StatusActive, true);
+      this.thermoService?.updateCharacteristic(platform.Characteristic.StatusFault, false);
       if (device.data.state.state.sLowBattery) {
         platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
       }
-      rc = (sensor === 'co') ? device.data.state.stats.gasAlarm : device.data.state.state.smokeAlarm;
+      switch (sensor) {
+        case 'thermo':
+          rc = device.data.state.devTemperature;
+          break;
+        case 'co':
+          rc = device.data.state.state.gasAlarm ? 1 : 0;
+          break;
+        default:
+          rc = device.data.state.state.smokeAlarm ? 1 : 0;
+          break;
+      }
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
-      if (this.coService) {
-        this.coService
-          .updateCharacteristic(platform.Characteristic.StatusActive, false)
-          .updateCharacteristic(platform.Characteristic.StatusFault, true);
-      }
-      if (this.smokeService) {
-        this.smokeService
-          .updateCharacteristic(platform.Characteristic.StatusActive, false)
-          .updateCharacteristic(platform.Characteristic.StatusFault, true);
-      }
+      this.coService?.updateCharacteristic(platform.Characteristic.StatusActive, false);
+      this.coService?.updateCharacteristic(platform.Characteristic.StatusFault, true);
+      this.smokeService?.updateCharacteristic(platform.Characteristic.StatusActive, false);
+      this.smokeService?.updateCharacteristic(platform.Characteristic.StatusFault, true);
+      this.thermoService?.updateCharacteristic(platform.Characteristic.StatusActive, false);
+      this.thermoService?.updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -163,7 +181,7 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'smoke'
     releaseSemaphore();
   }
   // for both smoke and CO we return integer 1 or 0 for true/false.
-  return (rc ? 1 : 0);
+  return (rc);
 }
 
 /***********************************************************************

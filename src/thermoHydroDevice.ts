@@ -123,32 +123,20 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'thermo
       this.logDeviceState(device, `Temperature ${device.data.state.temperature}\u00B0C ` +
         `(${(device.data.state.temperature * 9 / 5 + 32).toFixed(1)}\u00B0F), Humidity ${device.data.state.humidity}, ` +
         `Battery: ${device.data.state.battery} (Requested: ${sensor})`);
-      if (this.thermoService) {
-        this.thermoService
-          .updateCharacteristic(platform.Characteristic.StatusActive, true)
-          .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      }
-      if (this.hydroService) {
-        this.hydroService
-          .updateCharacteristic(platform.Characteristic.StatusActive, true)
-          .updateCharacteristic(platform.Characteristic.StatusFault, false);
-      }
+      this.thermoService?.updateCharacteristic(platform.Characteristic.StatusActive, true);
+      this.thermoService?.updateCharacteristic(platform.Characteristic.StatusFault, false);
+      this.hydroService?.updateCharacteristic(platform.Characteristic.StatusActive, true);
+      this.hydroService?.updateCharacteristic(platform.Characteristic.StatusFault, false);
       if (device.data.state.alarm.lowBattery) {
         platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
       }
       rc = (sensor === 'hydro') ? device.data.state.humidity : device.data.state.temperature;
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
-      if (this.thermoService) {
-        this.thermoService
-          .updateCharacteristic(platform.Characteristic.StatusActive, false)
-          .updateCharacteristic(platform.Characteristic.StatusFault, true);
-      }
-      if (this.hydroService) {
-        this.hydroService
-          .updateCharacteristic(platform.Characteristic.StatusActive, false)
-          .updateCharacteristic(platform.Characteristic.StatusFault, true);
-      }
+      this.thermoService?.updateCharacteristic(platform.Characteristic.StatusActive, false);
+      this.thermoService?.updateCharacteristic(platform.Characteristic.StatusFault, true);
+      this.hydroService?.updateCharacteristic(platform.Characteristic.StatusActive, false);
+      this.hydroService?.updateCharacteristic(platform.Characteristic.StatusFault, true);
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -259,17 +247,16 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
         this.logDeviceState(device, `Temperature ${device.data.state.temperature}\u00B0C ` +
           `(${(device.data.state.temperature * 9 / 5 + 32).toFixed(1)}\u00B0F), ` +
           `Humidity ${device.data.state.humidity}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
-        if (this.thermoService) {
-          this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
-        }
-        if (this.hydroService) {
-          this.hydroService.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
-        }
+
+        this.thermoService?.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
+        this.hydroService?.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
         if (device.data.alarm.lowBattery) {
           platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
         }
         break;
       case 'DataRecord':
+      // falls through
+      case 'setAlarm':
         // No equivalent for this in HomeKit
         platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
         break;
