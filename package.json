@@ -1,7 +1,7 @@
 {
   "displayName": "Homebridge YoLink",
   "name": "homebridge-yolink",
-  "version": "1.4.4-beta.2",
+  "version": "1.4.4-beta.3",
   "description": "Connect to YoLink.",
   "license": "Apache-2.0",
   "repository": {

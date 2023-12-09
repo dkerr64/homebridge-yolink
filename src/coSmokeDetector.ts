@@ -226,11 +226,15 @@ export async function mqttCoSmokeDetector(this: YoLinkPlatformAccessory, message
           `${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
         this.coService?.updateCharacteristic(platform.Characteristic.CarbonMonoxideDetected, message.data.state.gasAlarm ? 1 : 0);
         this.smokeService?.updateCharacteristic(platform.Characteristic.SmokeDetected, message.data.state.smokeAlarm ? 1 : 0);
-        if (device.data.state.sLowBattery) {
+        if (device.data.state.state.sLowBattery) {
           platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
         }
         break;
       case 'DataRecord':
+      // falls through
+      case 'setState':
+      // falls through
+      case 'setSchedule':
         // No equivalent for this in HomeKit
         platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
         break;

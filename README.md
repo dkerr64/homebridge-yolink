@@ -18,6 +18,7 @@ This plugin is new and not fully tested for all devices. Pull requests and/or ot
 
 Currently supports the following devices:
 
+* Carbon Monoxide Alarm
 * Dimmer (as light bulb)
 * Door Sensor
 * Finger Controller
@@ -33,6 +34,7 @@ Currently supports the following devices:
 * Outlet (single)
 * PowerFailureAlarm
 * Siren (as a switch)
+* Smoke & CO Alarm
 * Switch
 * Temperature and Humidity Sensor
 * Vibration Sensor (as a motion sensor)
@@ -151,7 +153,7 @@ If you see an error message in the log similar to the following then you are lik
 * **Devices** is an array of objects that allow settings or overrides on a device-by-device basis. This array is optional but if provided contains the following fields:
   * **deviceId** *(required)*: ID to identify specific device. You can find this from the Homebridge log or in the Homebridge Config UI X by clicking on an accessory settings and copying the Serial Number field.
   * **config** *(optional)*: Object with settings specific for this device:
-    * **hide** *(optional)*: Hide this device from Homebridge/HomeKit. You might want to do this to suppress the "device not supported" warning message in the log. Defaults to false. See Device Notes below for Thermometer / Hydrometer for settings specific to that device.
+    * **hide** *(optional)*: Hide this device from Homebridge/HomeKit. You might want to do this to suppress the "device not supported" warning message in the log. Defaults to false. See Device Notes below for Thermometer / Hydrometer, Carbon Monoxide and Smoke Alarm for settings specific to that device.
     * **name** *(optional)*: Override the name provided by YoLink for the device, this is what is shown in the Homebridge UI accessories page.
     * **refreshAfter** *(optional)*: Device specific override of global *refreshAfter*, see above. Defaults to global setting.
     * **doublePress** *(optional)*: Device specific override of global *doublePress*, see above. Defaults to global setting.
@@ -177,6 +179,10 @@ Observed behavior of various devices, and specific configuration settings are no
 Many YoLink devices are battery powered and report battery health. This plugin creates a battery service for each which shows in Homebridge as its own tile but in Apple Home is merged within the accessory settings. YoLink reports battery level of 0..4 which converts to 0, 25, 50, 75 and 100% in HomeKit.
 
 **Experimental** devices are work-in-progress and may not function as expected. They are included to allow further testing and must be enabled by adding the setting *"enableExperimental": true* to the plugin configuration. Feedback and bug reports welcomed.
+
+### Carbon Monoxide Alarm
+
+See *Smoke & CO Alarm* section below
 
 ### Dimmer
 
@@ -253,6 +259,10 @@ The YoLink power failure alarm can be represented in Homebridge/HomeKit as eithe
 ### Siren
 
 A YoLink siren has been implemented as a switch which can be turned on or off in Homebridge/HomeKit.
+
+### Smoke & CO Alarm
+
+YoLink smoke and carbon monoxide alarm are supported and the plugin assumes that both sensors are supported in the device.  If your device has only a smoke detector, or only a carbon monoxide detector, then you must hide the missing sensor in your config file. Set the *hide* configuration parameter to *co* or *smoke* to hide the unsupported sensor from HomeKit.
 
 ### Switch
 

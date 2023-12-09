@@ -250,7 +250,7 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
 
         this.thermoService?.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.temperature);
         this.hydroService?.updateCharacteristic(platform.Characteristic.CurrentRelativeHumidity, message.data.humidity);
-        if (device.data.alarm.lowBattery) {
+        if (device.data.state.alarm.lowBattery) {
           platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
         }
         break;
