@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink leak sensor device support
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2023 David Kerr
  *
  */
 
@@ -191,6 +191,7 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
               : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED)
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
+        this.thermoService?.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.devTemperature);
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));

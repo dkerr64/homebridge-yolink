@@ -113,12 +113,16 @@ async function handleGet(this: YoLinkPlatformAccessory, sensor = 'smoke'): Promi
   const device: YoLinkDevice = this.accessory.context.device;
   handleGetBlocking.bind(this, sensor)()
     .then((v) => {
-      if (sensor === 'co') {
-        this.coService.updateCharacteristic(platform.Characteristic.CarbonMonoxideDetected, v);
-      } else if (sensor === 'thermo') {
-        this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
-      } else {
-        this.smokeService.updateCharacteristic(platform.Characteristic.SmokeDetected, v);
+      switch (sensor) {
+        case 'thermo':
+          this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
+          break;
+        case 'co':
+          this.coService.updateCharacteristic(platform.Characteristic.CarbonMonoxideDetected, v);
+          break;
+        default:
+          this.smokeService.updateCharacteristic(platform.Characteristic.SmokeDetected, v);
+          break;
       }
     });
   // Return current state of the device pending completion of the blocking function
@@ -171,7 +175,7 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'smoke'
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in ThermoHydroDevice handleGet' + platform.reportError + msg);
+    platform.log.error('Error in CoSmokeDetector handleGet' + platform.reportError + msg);
   } finally {
     releaseSemaphore();
   }
@@ -184,6 +188,46 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'smoke'
  * Handle message received from MQTT server.
  *
  * This is an example of JSON object returned.
+ * {
+ *   "event": "COSmokeSensor.Report",
+ *   "time": 1702171916893,
+ *   "msgid": "1702171916892",
+ *   "data": {
+ *       "state": {
+ *           "unexpected": false,
+ *           "sLowBattery": false,
+ *           "smokeAlarm": false,
+ *           "gasAlarm": false,
+ *           "highTempAlarm": false,
+ *           "silence": false
+ *       },
+ *       "metadata": {
+ *           "inspect": false
+ *       },
+ *       "battery": 4,
+ *       "interval": 120,
+ *       "version": "0202",
+ *       "devTemperature": 19,
+ *       "tz": 0,
+ *       "sche": {
+ *           "type": "disable",
+ *           "day": 0,
+ *           "time": "0:0"
+ *       },
+ *       "loraInfo": {
+ *           "netId": "010205",
+ *           "signal": -34,
+ *           "gatewayId": "abcdef0123456789",
+ *           "gateways": 1
+ *       },
+ *       "stateChangedAt": {
+ *           "gasAlarm": 1701962206458,
+ *           "smokeAlarm": 1701962206458,
+ *           "unexpected": 1702128701737
+ *       }
+ *   },
+ *   "deviceId": "abcdef1234567890"
+ *}
  */
 export async function mqttCoSmokeDetector(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -191,21 +235,13 @@ export async function mqttCoSmokeDetector(this: YoLinkPlatformAccessory, message
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
-
-    platform.log.warn(`YoLink device type: '${device.type}' is under development (${device.deviceMsgName}) (MQTT)`
-      + platform.reportError + JSON.stringify(message, null, 2));
-
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
     const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}` : '';
-    const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
 
     switch (event[1]) {
       case 'Alert':
-      // I can see no way in HomeKit documentation for a thermo/hydro sensor
-      // to generate an alert.  I think bounds testing / alerting all has to be
-      // handled within HomeKit.
       // falls through
       case 'Report':
         if (!device.data) {
@@ -222,11 +258,12 @@ export async function mqttCoSmokeDetector(this: YoLinkPlatformAccessory, message
           // unchanged, update the time string.
           device.data.reportAt = device.reportAtTime.toISOString();
         }
-        this.logDeviceState(device, `Smoke: ${device.data.state.state.smokeAlarm}, CO" ${device.data.state.state.gasAlarm}, ` +
-          `${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
+        this.logDeviceState(device, `Smoke: ${message.data.state.smokeAlarm}, CO" ${message.data.state.gasAlarm}, ` +
+          `${batteryMsg} (MQTT: ${message.event})`);
         this.coService?.updateCharacteristic(platform.Characteristic.CarbonMonoxideDetected, message.data.state.gasAlarm ? 1 : 0);
         this.smokeService?.updateCharacteristic(platform.Characteristic.SmokeDetected, message.data.state.smokeAlarm ? 1 : 0);
-        if (device.data.state.state.sLowBattery) {
+        this.thermoService?.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.devTemperature);
+        if (message.data.state.sLowBattery) {
           platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
         }
         break;

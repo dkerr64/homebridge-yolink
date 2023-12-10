@@ -184,7 +184,7 @@
         "title": "Create temperature service for those devices that report this",
         "type": "boolean",
         "required": false,
-        "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors and Flex Fob. This will create a temperature sensor for those."
+        "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Alarms. This will create a temperature sensor for those."
 
       },
       "powerFailureSensorAs": {
@@ -268,7 +268,7 @@
                   "title": "Create temperature service for this devices",
                   "type": "boolean",
                   "required": false,
-                  "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors and Flex Fob. This will create a temperature sensor for those."
+                  "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Alarms. This will create a temperature sensor for those."
                 }
               }   
             }

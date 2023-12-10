@@ -229,6 +229,7 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
             (message.data.state === 'alert') ? true : false)
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
+        this.thermoService?.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.devTemperature);
         break;
       case 'setOpenRemind':
         // This does not carry either motion state or battery

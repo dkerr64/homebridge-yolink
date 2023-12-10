@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink smart remote device support (as a HomeKit stateless switch)
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2023 David Kerr
  *
  */
 
@@ -256,6 +256,7 @@ export async function mqttStatelessSwitch(this: YoLinkPlatformAccessory, message
             }
           }
         }
+        this.thermoService?.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.devTemperature);
         break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message));

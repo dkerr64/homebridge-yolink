@@ -262,6 +262,9 @@ A YoLink siren has been implemented as a switch which can be turned on or off in
 
 ### Smoke & CO Alarm
 
+>[!IMPORTANT]
+>This plugin is not intended to provide safety or security services.
+
 YoLink smoke and carbon monoxide alarm are supported and the plugin assumes that both sensors are supported in the device.  If your device has only a smoke detector, or only a carbon monoxide detector, then you must hide the missing sensor in your config file. Set the *hide* configuration parameter to *co* or *smoke* to hide the unsupported sensor from HomeKit.
 
 ### Switch
