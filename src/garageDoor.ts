@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink Garage Door device support
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2023 David Kerr
  *
  */
 
@@ -314,6 +314,23 @@ async function resetDoorState(this: YoLinkPlatformAccessory, doorSensor: YoLinkD
  *   },
  *   "deviceId":"abcdef1234567890"
  * }
+ *
+ * {
+ *   "event": "GarageDoor.setState",
+ *   "time": 1702966991160,
+ *   "msgid": "1702966991159",
+ *   "data": {
+ *     "state": "closed",
+ *     "stateChangedAt": 1702966991159,
+ *     "loraInfo": {
+ *       "netId": "010202",
+ *       "signal": -34,
+ *       "gatewayId": "abcdef1234567890",
+ *       "gateways": 1
+ *     }
+ *   },
+ *   "deviceId": "abcdef1234567890"
+ * }
  */
 export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -357,7 +374,7 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
                 doorSensor.data.reportAt = doorSensor.reportAtTime.toISOString();
               }
             }
-            this.logDeviceState(doorSensor, `Contact: ${doorSensor.data.state.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
+            this.logDeviceState(doorSensor, `DoorSensor: ${doorSensor.data.state.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
             this.garageService
               .updateCharacteristic(platform.Characteristic.CurrentDoorState,
                 (message.data.state === 'open')
@@ -380,6 +397,28 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
         break;
       case 'GarageDoor':
         switch (event[1]) {
+          case 'setState':
+            if (!device.data) {
+              // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
+              platform.log.warn(`[${device.deviceMsgName}] Device has no data field, is device offline?`);
+              break;
+            }
+            // Merge received data into existing data object
+            if (device.data.state) {
+              Object.assign(device.data.state, message.data);
+              if (!message.data.reportAt) {
+                // mqtt data does not include a report time, so merging the objects leaves current
+                // unchanged, update the time string.
+                device.data.reportAt = device.reportAtTime.toISOString();
+              }
+            }
+            this.logDeviceState(device, `GarageDoor: ${message.data.state} (MQTT: ${message.event})`);
+            this.garageService
+              .updateCharacteristic(platform.Characteristic.TargetDoorState,
+                (message.data.state === 'open')
+                  ? platform.api.hap.Characteristic.TargetDoorState.OPEN
+                  : platform.api.hap.Characteristic.TargetDoorState.CLOSED);
+            break;
           case 'Report':
             // message does not carry any state state or battery fields, so there is nothing we can update.
             platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
