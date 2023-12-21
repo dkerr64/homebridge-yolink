@@ -194,10 +194,15 @@ export class YoLinkPlatformAccessory {
 
     await handleGet();
     platform.log.info(`Device initialized: ${device.deviceMsgName}`);
+    if (--platform.initializeCount === 0) {
+      platform.log.info('All YoLink devices initialized');
+    } else {
+      platform.log.debug(`[${device.deviceMsgName}] Decrement initialize count: ${platform.initializeCount}`);
+    }
     if (device.config.refreshAfter >= 60) {
       // We don't allow for updates any more frequently than once a minute.
       const nextUpdateIn = Math.max(60, (device.updateTime || 0) - Math.floor(new Date().getTime() / 1000));
-      platform.verboseLog(`Set data refresh timer for ${device.deviceMsgName} to run every ${nextUpdateIn} seconds`);
+      platform.verboseLog(`[${device.deviceMsgName}] Set data refresh timer for to run every ${nextUpdateIn} seconds`);
       setInterval(async () => {
         await handleGet();
       }, nextUpdateIn * 1000);

@@ -59,6 +59,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   private readonly knownDevices: string[] = [];
   private readonly addDeviceSemaphore = new Semaphore();
 
+  public initializeCount = 0;
   public readonly yolinkAPI: YoLinkAPI;
   // We need to serialize requests to YoLink API.  Multiple threads can request state
   // updates for a device at the same time.  This would not be good, so we need a
@@ -282,11 +283,15 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       } else {
         if (garage) {
           this.log.info(`[${device.deviceMsgName}] Assigned to a garage door`);
+          this.initializeCount++;
+          this.log.debug(`[${device.deviceMsgName}] Increment initialize count: ${this.initializeCount}`);
         } else {
           this.log.info(`[${device.deviceMsgName}] Not registering device as config 'hide=true'`);
         }
       }
     } else {
+      this.initializeCount++;
+      this.log.debug(`[${device.deviceMsgName}] Increment initialize count: ${this.initializeCount}`);
       this.addDevice(device, uuid, existingAccessory);
     }
   }
