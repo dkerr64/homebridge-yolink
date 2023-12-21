@@ -23,11 +23,6 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
   this.setLock = 'lock';
   this.setUnlock = 'unlock';
 
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this));
-
-  // Once we have initial data, setup all the Homebridge handlers
   this.lockService = accessory.getService(platform.Service.LockMechanism)
     || accessory.addService(platform.Service.LockMechanism);
   this.lockService.setCharacteristic(platform.Characteristic.Name, device.name);
