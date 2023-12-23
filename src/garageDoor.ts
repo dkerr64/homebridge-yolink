@@ -190,7 +190,7 @@ async function handleSet(this: YoLinkPlatformAccessory, device: YoLinkDevice, va
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
-    const doorState = await handleGetBlocking.bind(this)(doorSensor);
+    const doorState = await handleGetBlocking.bind(this, doorSensor, false)();
     // 0=open, 1=closed, 2=opening, 3=closing, 4=stopped(not used)
     if (value === 0 && (doorState === 0 || doorState === 2)) {
       platform.log.warn(`Request to open garage door (${device.deviceMsgName}) ignored, door already open or opening`);
@@ -398,27 +398,7 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
       case 'GarageDoor':
         switch (event[1]) {
           case 'setState':
-            if (!device.data) {
-              // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
-              platform.log.warn(`[${device.deviceMsgName}] Device has no data field, is device offline?`);
-              break;
-            }
-            // Merge received data into existing data object
-            if (device.data.state) {
-              Object.assign(device.data.state, message.data);
-              if (!message.data.reportAt) {
-                // mqtt data does not include a report time, so merging the objects leaves current
-                // unchanged, update the time string.
-                device.data.reportAt = device.reportAtTime.toISOString();
-              }
-            }
-            this.logDeviceState(device, `GarageDoor: ${message.data.state} (MQTT: ${message.event})`);
-            this.garageService
-              .updateCharacteristic(platform.Characteristic.TargetDoorState,
-                (message.data.state === 'open')
-                  ? platform.api.hap.Characteristic.TargetDoorState.OPEN
-                  : platform.api.hap.Characteristic.TargetDoorState.CLOSED);
-            break;
+            // falls through
           case 'Report':
             // message does not carry any state state or battery fields, so there is nothing we can update.
             platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));

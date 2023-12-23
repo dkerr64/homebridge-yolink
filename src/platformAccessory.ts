@@ -202,7 +202,7 @@ export class YoLinkPlatformAccessory {
     if (device.config.refreshAfter >= 60) {
       // We don't allow for updates any more frequently than once a minute.
       const nextUpdateIn = Math.max(60, (device.updateTime || 0) - Math.floor(new Date().getTime() / 1000));
-      platform.verboseLog(`[${device.deviceMsgName}] Set data refresh timer for to run every ${nextUpdateIn} seconds`);
+      platform.verboseLog(`[${device.deviceMsgName}] Set data refresh timer to run every ${nextUpdateIn} seconds`);
       setInterval(async () => {
         await handleGet();
       }, nextUpdateIn * 1000);
@@ -237,7 +237,7 @@ export class YoLinkPlatformAccessory {
       const msg = (e instanceof Error) ? e.stack : e;
       platform.log.error('Error in updateBatteryInfo' + platform.reportError + msg);
     }
-    return (batteryLevel);
+    return (isNaN(batteryLevel) ? 0 : batteryLevel);
   }
 
   /*********************************************************************
