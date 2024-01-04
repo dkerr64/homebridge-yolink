@@ -243,6 +243,8 @@ export async function mqttCoSmokeDetector(this: YoLinkPlatformAccessory, message
     switch (event[1]) {
       case 'Alert':
       // falls through
+      case 'StatusChange':
+      // falls through
       case 'Report':
         if (!device.data) {
           // in rare conditions (error conditions returned from YoLink) data object will be undefined or null.
