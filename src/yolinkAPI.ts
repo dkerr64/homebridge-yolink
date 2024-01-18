@@ -353,8 +353,13 @@ export class YoLinkAPI {
    * setDeviceState
    *
    */
-  async setDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice, state, method = 'setState')
-    : Promise<yolinkBUDP | undefined> {
+  // eslint-disable-next-line max-len
+  async setDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice, state, method = 'setState') : Promise<yolinkBUDP | undefined> {
+    /*
+     * Hummm.... whether to retry on failure or not.  I keep changing my mind.  But,
+     * twice now my towel heater has not switched on in the morning with a 00201 error.
+     * So, I'm back to retrying!
+     *
     try {
       return await this.trySetDeviceState.bind(this)(platform, device, state, method);
     } catch (e) {
@@ -366,10 +371,12 @@ export class YoLinkAPI {
       }
       return (undefined);
     }
-    // Retry 10 times. On failure retry after 10 seconds.  Add 10 seconds for
+    */
+
+    // Retry 5 times. On failure retry after 10 seconds.  Add 10 seconds for
     // each failure with maximum of 30 seconds between each retry.
-    // return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state, method),
-    //  1, 10000, 10000, 30000) as yolinkBUDP;
+    // eslint-disable-next-line max-len
+    return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state, method), 5, 10000, 10000, 30000) as yolinkBUDP;
   }
 
   async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state, method = 'setState'): Promise<yolinkBUDP> {
