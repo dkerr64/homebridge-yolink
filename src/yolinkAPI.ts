@@ -380,7 +380,7 @@ export class YoLinkAPI {
   }
 
   async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state, method = 'setState'): Promise<yolinkBUDP> {
-    platform.log.info(`[${device.deviceMsgName}] YoLinkAPI.setDeviceState: ${JSON.stringify(state)}`);
+    platform.log.info(`[${device.deviceMsgName}] YoLinkAPI.setDeviceState: ${(state)?JSON.stringify(state):method}`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
     const bddp: yolinkBDDP = {
