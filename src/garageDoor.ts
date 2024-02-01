@@ -359,6 +359,8 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
           // falls through
           case 'Report':
           // falls through
+          case 'setState':
+          // falls through
           case 'StatusChange':
             if (doorSensor.data === undefined) {
               // in rare conditions (error conditions returned from YoLink) data object will be undefined.
@@ -375,11 +377,11 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
               }
             }
             this.logDeviceState(doorSensor, `DoorSensor: ${doorSensor.data.state.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
+            this.currentState = (message.data.state === 'open')
+              ? platform.api.hap.Characteristic.CurrentDoorState.OPEN
+              : platform.api.hap.Characteristic.CurrentDoorState.CLOSED;
             this.garageService
-              .updateCharacteristic(platform.Characteristic.CurrentDoorState,
-                (message.data.state === 'open')
-                  ? platform.api.hap.Characteristic.CurrentDoorState.OPEN
-                  : platform.api.hap.Characteristic.CurrentDoorState.CLOSED);
+              .updateCharacteristic(platform.Characteristic.CurrentDoorState, this.currentState);
             this.garageService
               .updateCharacteristic(platform.Characteristic.TargetDoorState,
                 (message.data.state === 'open')
@@ -397,8 +399,6 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
         break;
       case 'GarageDoor':
         switch (event[1]) {
-          case 'setState':
-            // falls through
           case 'Report':
             // message does not carry any state state or battery fields, so there is nothing we can update.
             platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
