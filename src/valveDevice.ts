@@ -252,6 +252,10 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
             : platform.api.hap.Characteristic.InUse.NOT_IN_USE)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
         break;
+      case 'setTimeZone':
+        // nothing to update in HomeKit
+        this.logDeviceState(device, `Unsupported message (MQTT: ${message.event})`);
+        break;
       default:
         platform.log.warn(mqttMessage + ' not supported.' + platform.reportError + JSON.stringify(message, null, 2));
     }
