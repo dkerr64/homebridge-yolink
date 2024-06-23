@@ -1,7 +1,7 @@
 {
   "displayName": "Homebridge YoLink",
   "name": "homebridge-yolink",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "description": "Connect to YoLink.",
   "license": "Apache-2.0",
   "repository": {
@@ -43,5 +43,8 @@
     "mqtt": "^4.3.7",
     "node-fetch": "^2.6.6",
     "semaphore-promise": "^1.4.2"
-  }
+  },
+  "maintainers": [
+    "dkerr64"
+  ]
 }
