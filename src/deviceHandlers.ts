@@ -3,7 +3,7 @@
 /***********************************************************************
  * YoLink device list
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  */
 import { initUnknownDevice, mqttUnknownDevice }         from './unknownDevice';
@@ -47,6 +47,7 @@ export const deviceFeatures = {
   Dimmer:             { hasBattery: false },
   InfraredRemoter:    { hasBattery: true },
   COSmokeSensor:      { hasBattery: true },
+  WaterMeterController: { hasBattery: true },
 };
 
 export const initDeviceService = {
@@ -72,6 +73,7 @@ export const initDeviceService = {
   Dimmer(this: YoLinkPlatformAccessory)             { initLightbulb.bind(this)('open', 'open', 'close'); },
   InfraredRemoter(this: YoLinkPlatformAccessory)    { initInfraredRemoter.bind(this)(); },
   COSmokeSensor(this: YoLinkPlatformAccessory)      { initCoSmokeDetector.bind(this)(); },
+  WaterMeterController(this: YoLinkPlatformAccessory) { initValveDevice.bind(this)('WaterMeterController'); },
 };
 
 export const mqttHandler = {
@@ -97,4 +99,5 @@ export const mqttHandler = {
   Dimmer(this: YoLinkPlatformAccessory, data)             { mqttLightbulb.bind(this)(data); },
   InfraredRemoter(this: YoLinkPlatformAccessory, data)    { mqttInfraredRemoter.bind(this)(data); },
   COSmokeSensor(this: YoLinkPlatformAccessory, data)      { mqttCoSmokeDetector.bind(this)(data); },
+  WaterMeterController(this: YoLinkPlatformAccessory, data) { mqttValveDevice.bind(this)(data); },
 };

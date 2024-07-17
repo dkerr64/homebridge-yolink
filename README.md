@@ -38,6 +38,7 @@ Currently supports the following devices:
 * Switch
 * Temperature and Humidity Sensor
 * Vibration Sensor (as a motion sensor)
+* Water Meter Controller (as a valve)
 
 The plugin registers as a MQTT client and subscribes to reports published by YoLink for real time alerts and status updates.
 
@@ -232,9 +233,7 @@ The YoLink Smart Lock M1 can be locked and unlocked from Homebridge/HomeKit and 
 
 ### Manipulator / Water Valve Controller
 
-YoLink water valve controllers report as a *Manipulator* device, the plugin registers this as a HomeKit generic valve. HomeKit has the concept of both open/close and in use where in use means that fluid is actually flowing through the device. Presumably this allows for a valve to be open, but no fluid to flow. YoLink only reports open/close and so the plugin uses this state for both valve position and in use (fluid flowing). Normal status reporting occurs every 4 hours. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
-
-I have observed *Can't connect to Device* errors from YoLink when trying to retrieve device status. When these occur the plugin attempts to connect again, up to 5 times, before giving up.
+YoLink water valve controllers report as a *Manipulator* device, the plugin registers this as a HomeKit generic valve. HomeKit has the concept of both open/close and in-use where in-use means that fluid is actually flowing through the device. Presumably this allows for a valve to be open, but no fluid to flow. YoLink only reports open/close and so the plugin uses this state for both valve position and in-use (fluid flowing). Normal status reporting occurs every 4 hours. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
 
 ### Motion Sensor
 
@@ -283,6 +282,14 @@ HomeKit does not have a vibration sensor device type so this plugin registers th
 
 YoLink vibration sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
 
+### Water Meter Controller
+
+Newer YoLink water meter and valve controllers report as a *WaterMeterController* device, the plugin registers this as a HomeKit generic valve. HomeKit has the concept of both open/close and in-use where in-use means that fluid is actually flowing through the device. Presumably this allows for a valve to be open, but no fluid to flow. 
+
+In contrast to the original *Manipulator* devices, these newer devices do report whether water is flowing and this is used to set the in-use state with HomeKit.  When you open or close the valve, Apple Home may show *waiting* until it detects that water has started or stopped flowing.
+
+A Leak Sensor and Temperature Sensor service is added with this device. The name of each has "Leak" and "Temperature" appended to the end.
+
 ### Unsupported Devices
 
 If you have a device not supported by the plugin then useful information will be logged as warnings, including callback messages received for any alerts or status changes triggered by the device. Please capture these logs and report to the author by opening a [issue](https://github.com/dkerr64/homebridge-yolink/issues).
@@ -324,7 +331,7 @@ Many log messages carry two timestamps. The first is current time and is logged 
 
 ## License
 
-(c) Copyright 2022-2023 David A. Kerr
+(c) Copyright 2022-2024 David A. Kerr
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this program except in compliance with the License. You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 

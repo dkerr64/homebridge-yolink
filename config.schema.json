@@ -124,7 +124,8 @@
             "SmartRemoter",
             "Switch",
             "THSensor",
-            "VibrationSensor"
+            "VibrationSensor",
+            "WaterMeterController"
           ]
         },
         "default": [
@@ -160,7 +161,8 @@
             "SmartRemoter",
             "Switch",
             "THSensor",
-            "VibrationSensor"
+            "VibrationSensor",
+            "WaterMeterController"
           ]
         }
       },
