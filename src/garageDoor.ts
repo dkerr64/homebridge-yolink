@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink Garage Door device support
  *
- * Copyright (c) 2022-2023 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  */
 

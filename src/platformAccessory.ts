@@ -115,6 +115,8 @@ export class YoLinkPlatformAccessory {
     device.timeout ??= 45;
     // targetState used to track if garage door has been requested to open or close
     device.targetState = '';
+    // Use waterFlowing status from waterMeterControllers?
+    device.config.useWaterFlowing = platform.makeBoolean(device.config.useWaterFlowing, platform.config.useWaterFlowing);
   }
 
   /*********************************************************************

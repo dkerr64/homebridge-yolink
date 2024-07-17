@@ -19,7 +19,7 @@
         "required": true,
         "default": "YoLink"
       },
-      "tokenURL": { 
+      "tokenURL": {
         "title": "YoLink authentication server URL address",
         "type": "string",
         "required": true,
@@ -124,7 +124,8 @@
             "SmartRemoter",
             "Switch",
             "THSensor",
-            "VibrationSensor"
+            "VibrationSensor",
+            "WaterMeterController"
           ]
         },
         "default": [
@@ -160,7 +161,8 @@
             "SmartRemoter",
             "Switch",
             "THSensor",
-            "VibrationSensor"
+            "VibrationSensor",
+            "WaterMeterController"
           ]
         }
       },
@@ -185,15 +187,30 @@
         "type": "boolean",
         "required": false,
         "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Alarms. This will create a temperature sensor for those."
-
+      },
+      "useWaterFlowing": {
+        "title": "Use waterFlowing status from YoLink water valves",
+        "type": "boolean",
+        "required": false,
+        "description": "YoLink water meter controller valves can report whether water is flowing. This sets whether to use this when informing HomeKit that a valve is InUse. Default is to assume InUse if valve is open."
       },
       "powerFailureSensorAs": {
         "title": "Represent YoLink Power Failure Alarm as",
         "type": "string",
         "required": false,
         "oneOf": [
-          { "title": "Outlet device", "enum": ["Outlet"] },
-          { "title": "Contact sensor", "enum": ["Contact"] }
+          {
+            "title": "Outlet device",
+            "enum": [
+              "Outlet"
+            ]
+          },
+          {
+            "title": "Contact sensor",
+            "enum": [
+              "Contact"
+            ]
+          }
         ],
         "description": "HomeKit does not have the concept of a power failure sensor so we much choose either an Outlet or Contact sensor to represent the YoLink device."
       },
@@ -216,7 +233,7 @@
               "type": "string",
               "required": true,
               "default": "",
-              "description":"You can find the Device ID in the Homebridge log, in the YoLink mobile app (as Device EUI) or in the Homebridge Config UI by clicking on an accessory's settings and copying the Serial Number field."
+              "description": "You can find the Device ID in the Homebridge log, in the YoLink mobile app (as Device EUI) or in the Homebridge Config UI by clicking on an accessory's settings and copying the Serial Number field."
             },
             "config": {
               "title": "Device Configuration",
@@ -227,12 +244,42 @@
                   "type": "string",
                   "required": false,
                   "oneOf": [
-                    { "title": "false", "enum": ["false"] },
-                    { "title": "true", "enum": ["true"] },
-                    { "title": "Hydrometer", "enum": ["hydro"] },
-                    { "title": "Thermometer", "enum": ["thermo"] },
-                    { "title": "CO Sensor", "enum": ["co"] },
-                    { "title": "Smoke Sensor", "enum": ["smoke"] }
+                    {
+                      "title": "false",
+                      "enum": [
+                        "false"
+                      ]
+                    },
+                    {
+                      "title": "true",
+                      "enum": [
+                        "true"
+                      ]
+                    },
+                    {
+                      "title": "Hydrometer",
+                      "enum": [
+                        "hydro"
+                      ]
+                    },
+                    {
+                      "title": "Thermometer",
+                      "enum": [
+                        "thermo"
+                      ]
+                    },
+                    {
+                      "title": "CO Sensor",
+                      "enum": [
+                        "co"
+                      ]
+                    },
+                    {
+                      "title": "Smoke Sensor",
+                      "enum": [
+                        "smoke"
+                      ]
+                    }
                   ],
                   "description": "Hide this device from Homebridge / HomeKit. You might want to do this to suppress the 'device not supported' warning message in the log. As there is no accessory type in HomeKit for a hub, you can set this to true for the YoLink hub."
                 },
@@ -241,7 +288,7 @@
                   "type": "string",
                   "required": false,
                   "default": "",
-                  "description":"This will override the device name returned by YoLink for display in the Homebridge accessories page"
+                  "description": "This will override the device name returned by YoLink for display in the Homebridge accessories page"
                 },
                 "refreshAfter": {
                   "title": "Refresh time for data from YoLink server (override global setting)",
@@ -269,8 +316,14 @@
                   "type": "boolean",
                   "required": false,
                   "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Alarms. This will create a temperature sensor for those."
+                },
+                "useWaterFlowing": {
+                  "title": "Use waterFlowing status from YoLink water valves",
+                  "type": "boolean",
+                  "required": false,
+                  "description": "YoLink water meter controller valves can report whether water is flowing. This sets whether to use this when informing HomeKit that a valve is InUse. Default is to assume InUse if valve is open."
                 }
-              }   
+              }
             }
           }
         }
@@ -304,7 +357,7 @@
             }
           }
         },
-        "description":"Pair two devices together into a single Garage Door accessory. You can find the Device ID in the Homebridge log, in the YoLink mobile app (as Device EUI) or in the Homebridge Config UI by clicking on an accessory's settings and copying the Serial Number field."
+        "description": "Pair two devices together into a single Garage Door accessory. You can find the Device ID in the Homebridge log, in the YoLink mobile app (as Device EUI) or in the Homebridge Config UI by clicking on an accessory's settings and copying the Serial Number field."
       }
     }
   },
@@ -337,6 +390,7 @@
             "refreshAfter",
             "doublePress",
             "deviceTemperatures",
+            "useWaterFlowing",
             "powerFailureSensorAs",
             "verboseLog",
             "liteLog",
@@ -373,7 +427,8 @@
                     "devices[].config.refreshAfter",
                     "devices[].config.doublePress",
                     "devices[].config.nOutlets",
-                    "devices[].config.temperature"
+                    "devices[].config.temperature",
+                    "devices[].config.useWaterFlowing"
                   ]
                 }
               ]

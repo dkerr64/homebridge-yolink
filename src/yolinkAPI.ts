@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink API class
  *
- * Copyright (c) 2022-2023 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  * Based on documentation at http://doc.yosmart.com
  *
@@ -333,7 +333,7 @@ export class YoLinkAPI {
       targetDevice: device.deviceId,
       token: device.token,
     };
-    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
+    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp, null, 2));
     const response = await fetch(platform.config.apiURL,
       {
         method: 'POST', body: JSON.stringify(bddp),
@@ -344,7 +344,7 @@ export class YoLinkAPI {
       });
     checkHttpStatus(response);
     budp = await response.json();
-    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
+    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
     checkBudpStatus(platform, budp, device);
     return budp;
   }
@@ -392,7 +392,7 @@ export class YoLinkAPI {
     if (state) {
       bddp.params = state;
     }
-    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
+    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp, null, 2));
     const response = await fetch(platform.config.apiURL,
       {
         method: 'POST', body: JSON.stringify(bddp),
@@ -403,7 +403,7 @@ export class YoLinkAPI {
       });
     checkHttpStatus(response);
     budp = await response.json();
-    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
+    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
     checkBudpStatus(platform, budp, device);
     return budp;
   }
