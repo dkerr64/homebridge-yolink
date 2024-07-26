@@ -18,11 +18,19 @@ export async function initValveDevice(this: YoLinkPlatformAccessory, type = 'Man
   const accessory: PlatformAccessory = this.accessory;
   const device: YoLinkDevice = accessory.context.device;
 
+  // Whether to set the InUse characteristic based on a waterFlowing state received from the device
+  // or based on whether the valve is open or closed.
+  this.useWaterFlowing = false;
+
   this.valveService = accessory.getService(platform.Service.Valve)
     || accessory.addService(platform.Service.Valve);
   this.valveService.setCharacteristic(platform.Characteristic.Name, device.name);
 
   if (type === 'WaterMeterController') {
+    // Check config for whether we should use the waterFlowing value for InUse characteristic
+    this.useWaterFlowing = device.config.useWaterFlowing ?? false;
+    platform.verboseLog(`Device ${device.deviceMsgName} valve InUse set based on waterFlowing state: ${this.useWaterFlowing}`);
+
     // These devices have temperature sensors, add service...
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
       || accessory.addService(platform.Service.TemperatureSensor);
@@ -157,6 +165,7 @@ async function handleGet(this: YoLinkPlatformAccessory, type: string, devSensor 
   // Return current state of the device pending completion of the blocking function
   if (type === 'WaterMeterController') {
     // WaterMeterController...
+    const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : device.data.state.valve === 'open';
     switch (devSensor) {
       case 'valve':
         return ((device.data.state.valve === 'open')
@@ -169,15 +178,9 @@ async function handleGet(this: YoLinkPlatformAccessory, type: string, devSensor 
           ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
           : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED);
       case 'flowing':
-        if (Object.prototype.hasOwnProperty.call(device.data.state, 'waterFlowing')) {
-          return ((device.data.state.waterFlowing)
-            ? platform.api.hap.Characteristic.InUse.IN_USE
-            : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
-        } else {
-          return ((device.data.state.valve === 'open')
-            ? platform.api.hap.Characteristic.Active.ACTIVE
-            : platform.api.hap.Characteristic.Active.INACTIVE);
-        }
+        return ((waterFlowing)
+          ? platform.api.hap.Characteristic.InUse.IN_USE
+          : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
       default:
         platform.log.error(`Unexpected device sensor type '${devSensor}' for ${device.deviceMsgName}`);
         return ((device.data.state.valve === 'open')
@@ -208,6 +211,7 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, type: string, de
 
       if (type === 'WaterMeterController') {
         // WaterMeterController...
+        const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : device.data.state.valve === 'open';
         switch (devSensor) {
           case 'valve':
             rc = (device.data.state.valve === 'open')
@@ -226,17 +230,10 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, type: string, de
             this.logDeviceState(device, `Valve (${devSensor}): ${device.data.alarm?.leak}, Battery: ${device.data.battery}`);
             break;
           case 'flowing':
-            if (Object.prototype.hasOwnProperty.call(device.data.state, 'waterFlowing')) {
-              rc = (device.data.state.waterFlowing)
-                ? platform.api.hap.Characteristic.InUse.IN_USE
-                : platform.api.hap.Characteristic.InUse.NOT_IN_USE;
-              this.logDeviceState(device, `Valve (${devSensor}): ${device.data.state.waterFlowing}, Battery: ${device.data.battery}`);
-            } else {
-              rc = (device.data.state.valve === 'open')
-                ? platform.api.hap.Characteristic.Active.ACTIVE
-                : platform.api.hap.Characteristic.Active.INACTIVE;
-              this.logDeviceState(device, `Valve (${devSensor}): ${device.data.state.valve}, Battery: ${device.data.battery}`);
-            }
+            rc = (waterFlowing)
+              ? platform.api.hap.Characteristic.InUse.IN_USE
+              : platform.api.hap.Characteristic.InUse.NOT_IN_USE;
+            this.logDeviceState(device, `Valve (${devSensor}): ${waterFlowing}, Battery: ${device.data.battery}`);
             break;
           default:
             platform.log.error(`Unexpected device sensor type '${devSensor}' for ${device.deviceMsgName}`);
@@ -328,21 +325,14 @@ async function handleSet(this: YoLinkPlatformAccessory, type: string, value: Cha
     setTimeout(() => {
       if (type === 'WaterMeterController') {
         // WaterMeterController...
+        const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : device.data.state.valve === 'open';
         this.valveService
           .updateCharacteristic(platform.Characteristic.Active, (device.data.state.valve === 'open')
             ? platform.api.hap.Characteristic.Active.ACTIVE
-            : platform.api.hap.Characteristic.Active.INACTIVE);
-        if (Object.prototype.hasOwnProperty.call(device.data.state, 'waterFlowing')) {
-          this.valveService
-            .updateCharacteristic(platform.Characteristic.InUse, (device.data.state.waterFlowing)
-              ? platform.api.hap.Characteristic.InUse.IN_USE
-              : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
-        } else {
-          this.valveService
-            .updateCharacteristic(platform.Characteristic.InUse, (device.data.state.valve === 'open')
-              ? platform.api.hap.Characteristic.InUse.IN_USE
-              : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
-        }
+            : platform.api.hap.Characteristic.Active.INACTIVE)
+          .updateCharacteristic(platform.Characteristic.InUse, (waterFlowing)
+            ? platform.api.hap.Characteristic.InUse.IN_USE
+            : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
       } else {
         // Manipulator...
         this.valveService
@@ -508,23 +498,16 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
         Object.assign(device.data, message.data);
         if (Object.prototype.hasOwnProperty.call(device.data.state, 'valve')) {
           // WaterMeterController...
-          this.logDeviceState(device, `Valve: ${device.data.state.valve}, Water flowing: ${device.data.state.waterFlowing},` +
+          const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : device.data.state.valve === 'open';
+          this.logDeviceState(device, `Valve: ${device.data.state.valve}, Water flowing: ${waterFlowing},` +
             ` Battery: ${device.data.battery} (MQTT: ${message.event})`);
           this.valveService
             .updateCharacteristic(platform.Characteristic.Active, (device.data.state.valve === 'open')
               ? platform.api.hap.Characteristic.Active.ACTIVE
-              : platform.api.hap.Characteristic.Active.INACTIVE);
-          if (Object.prototype.hasOwnProperty.call(device.data.state, 'waterFlowing')) {
-            this.valveService
-              .updateCharacteristic(platform.Characteristic.InUse, (device.data.state.waterFlowing)
-                ? platform.api.hap.Characteristic.InUse.IN_USE
-                : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
-          } else {
-            this.valveService
-              .updateCharacteristic(platform.Characteristic.InUse, (device.data.state.valve === 'open')
-                ? platform.api.hap.Characteristic.InUse.IN_USE
-                : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
-          }
+              : platform.api.hap.Characteristic.Active.INACTIVE)
+            .updateCharacteristic(platform.Characteristic.InUse, (waterFlowing)
+              ? platform.api.hap.Characteristic.InUse.IN_USE
+              : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
           this.thermoService
             ?.updateCharacteristic(platform.Characteristic.CurrentTemperature, device.data.temperature);
           this.leakService

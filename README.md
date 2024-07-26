@@ -104,6 +104,7 @@ If you see an error message in the log similar to the following then you are lik
             "doublePress": 800,
             "powerFailureSensorAs": "Outlet",
             "deviceTemperatures": false,
+            "useWaterFlowing": false,
             "devices": [
                 {
                     "deviceId": "0123456789abcdef",
@@ -114,6 +115,7 @@ If you see an error message in the log similar to the following then you are lik
                         "doublePress": 800,
                         "nOutlets": 5,
                         "temperature": false,
+                        "useWaterFlowing": false,
                         "enableExperimental": false
                     }
                 }
@@ -148,6 +150,7 @@ If you see an error message in the log similar to the following then you are lik
   * **doublePress** *(optional)*: Duration in milliseconds to trigger a double-press event on two button presses on a stateless device. Defaults to 800ms and a value of zero disables double-press feature. See notes below for YoLink FlexFob remote.
   * **powerFailureSensorAs** *(optional)*: How to represent the YoLink power failure alarm sensor in HomeKit, can be either *Outlet* or *Contact*, defaults to Outlet.
   * **deviceTemperatures** *(optional)*: If set to true then create a temperature service for those devices that report temperature in addition to their main function. See Device Notes below.
+  * **useWaterFlowing** *(optional)*: If set to true then the plugin will use the *waterFlowing* status from YoLink *WaterMeterController* valves to report the *InUse* status to HomeKit. See Device Notes below.
   * **devices** *(optional)*: Optional array of device settings, see below.
   * **garageDoors** *(optional)*: Optional array of sensor/controller pairs, see below.
 
@@ -159,7 +162,8 @@ If you see an error message in the log similar to the following then you are lik
     * **refreshAfter** *(optional)*: Device specific override of global *refreshAfter*, see above. Defaults to global setting.
     * **doublePress** *(optional)*: Device specific override of global *doublePress*, see above. Defaults to global setting.
     * **nOutlets** *(optional)*: For power strip or multi-outlet devices, number of controllable outlets. See device notes below.
-    * **temperature** *(optional)*: If set to true then create a temperature service in addition to the main function. See device notes below.
+    * **temperature** *(optional)*: If set to true then create a temperature service in addition to the main function. See Device Notes below.
+    * **useWaterFlowing** *(optional)*: Device specific override of global *useWaterFlowing*, see above.  Defaults to global setting.
     * **enableExperimental** *(optional)*: Device specific override of global *enableExperimental*, see above. Defaults to global setting.
 
 * **garageDoors** are an array of objects that allow you to pair two devices, either a *GarageDoor* or *Finger* controller with a *DoorSensor* that together represent a single garage door. The garage door inherits properties of the individual devices. The garage door *name* is taken from the controller device. See device notes below.
@@ -284,9 +288,11 @@ YoLink vibration sensors also report device temperature. If you set the *tempera
 
 ### Water Meter Controller
 
-Newer YoLink water meter and valve controllers report as a *WaterMeterController* device, the plugin registers this as a HomeKit generic valve. HomeKit has the concept of both open/close and in-use where in-use means that fluid is actually flowing through the device. Presumably this allows for a valve to be open, but no fluid to flow. 
+YoLink water meter and valve controllers report as a *WaterMeterController* device, the plugin registers this as a HomeKit generic valve. HomeKit has the concept of both open/close and in-use where in-use means that fluid is actually flowing through the device. Presumably this allows for a valve to be open, but no fluid to flow.
 
-In contrast to the original *Manipulator* devices, these newer devices do report whether water is flowing and this is used to set the in-use state with HomeKit.  When you open or close the valve, Apple Home may show *waiting* until it detects that water has started or stopped flowing.
+In contrast to the original *Manipulator* devices, these devices do report whether water is flowing.  However these devices currently do not update this status in real time and this can confuse Apple Home which will repport "Waiting..." after you open the valve -- as it waits for the in-use characteristic to indicate water flowing. Therefore, by default, this plugin will report in-use based on whether the value is open or closed. You can set the config *useWaterFlowing* setting to change this to use the water flowing status from the device.
+
+This plugin expects to receive status updates from YoLink devices when status changes. As this device is not currently doing this for *waterFlowing*, an alternative would be to change the *refreshAfter* config setting for this device only (do not change it globally) and the plugin will poll the device for status more regularly. The minimum time you can set this to is 60 seconds. However this is *not recommended* as it places additional load on the LoRa protocol and the affects on device battery life are unknown.
 
 A Leak Sensor and Temperature Sensor service is added with this device. The name of each has "Leak" and "Temperature" appended to the end.
 
