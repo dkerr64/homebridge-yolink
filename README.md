@@ -288,13 +288,13 @@ YoLink vibration sensors also report device temperature. If you set the *tempera
 
 ### Water Meter Controller
 
-YoLink water meter and valve controllers report as a *WaterMeterController* device, the plugin registers this as a HomeKit generic valve. HomeKit has the concept of both open/close and in-use where in-use means that fluid is actually flowing through the device. Presumably this allows for a valve to be open, but no fluid to flow.
+YoLink water meter and valve controllers report as a *WaterMeterController* device, the plugin registers this as a HomeKit generic valve. HomeKit has the concept of both open/close and in-use where in-use means that fluid is actually flowing through the device. This allows for a valve to be open, but no fluid to flow.
 
-In contrast to the original *Manipulator* devices, these devices do report whether water is flowing.  However these devices currently do not update this status in real time and this can confuse Apple Home which will repport "Waiting..." after you open the valve -- as it waits for the in-use characteristic to indicate water flowing. Therefore, by default, this plugin will report in-use based on whether the value is open or closed. You can set the config *useWaterFlowing* setting to change this to use the water flowing status from the device.
+The *YS-5008-UC* valve does report whether water is flowing.  However these devices currently do not update this status in real time and this can confuse Apple Home which will repport "Waiting..." after you open the valve -- as it waits for the in-use characteristic to indicate water flowing. Therefore, by default, this plugin will report in-use based on whether the value is open or closed. You can set the config *useWaterFlowing* setting to change this to use the water flowing status from the device.
 
 This plugin expects to receive status updates from YoLink devices when status changes. As this device is not currently doing this for *waterFlowing*, an alternative would be to change the *refreshAfter* config setting for this device only (do not change it globally) and the plugin will poll the device for status more regularly. The minimum time you can set this to is 60 seconds. However this is *not recommended* as it places additional load on the LoRa protocol and the affects on device battery life are unknown.
 
-A Leak Sensor and Temperature Sensor service is added with this device. The name of each has "Leak" and "Temperature" appended to the end.
+A Leak Sensor and, if supported, a Temperature Sensor service is added with this device. The name of each has "Leak" and "Temperature" appended to the end. *YS-5006-UC* is known not to report temperature.
 
 ### Unsupported Devices
 

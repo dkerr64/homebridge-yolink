@@ -73,7 +73,7 @@ export const initDeviceService = {
   Dimmer(this: YoLinkPlatformAccessory)             { initLightbulb.bind(this)('open', 'open', 'close'); },
   InfraredRemoter(this: YoLinkPlatformAccessory)    { initInfraredRemoter.bind(this)(); },
   COSmokeSensor(this: YoLinkPlatformAccessory)      { initCoSmokeDetector.bind(this)(); },
-  WaterMeterController(this: YoLinkPlatformAccessory) { initValveDevice.bind(this)('WaterMeterController'); },
+  WaterMeterController(this: YoLinkPlatformAccessory) { initValveDevice.bind(this)(); },
 };
 
 export const mqttHandler = {

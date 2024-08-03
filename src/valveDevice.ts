@@ -13,52 +13,58 @@ import { YoLinkPlatformAccessory } from './platformAccessory';
  * initValveDevice
  *
  */
-export async function initValveDevice(this: YoLinkPlatformAccessory, type = 'Manipulator'): Promise<void> {
+export async function initValveDevice(this: YoLinkPlatformAccessory): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const accessory: PlatformAccessory = this.accessory;
   const device: YoLinkDevice = accessory.context.device;
-
-  // Whether to set the InUse characteristic based on a waterFlowing state received from the device
-  // or based on whether the valve is open or closed.
-  this.useWaterFlowing = false;
 
   this.valveService = accessory.getService(platform.Service.Valve)
     || accessory.addService(platform.Service.Valve);
   this.valveService.setCharacteristic(platform.Characteristic.Name, device.name);
 
-  if (type === 'WaterMeterController') {
-    // Check config for whether we should use the waterFlowing value for InUse characteristic
-    this.useWaterFlowing = device.config.useWaterFlowing ?? false;
-    platform.verboseLog(`Device ${device.deviceMsgName} valve InUse set based on waterFlowing state: ${this.useWaterFlowing}`);
+  // Call get handler to initialize data fields to current state and set
+  // timer to regularly update the data.
+  await this.refreshDataTimer(handleGetBlocking.bind(this));
 
+  // Check config for whether we should use the waterFlowing value for InUse characteristic,
+  // and that device actually returns waterFlowing state.
+
+  this.useWaterFlowing = (device.config.useWaterFlowing ?? false)
+    && Object.prototype.hasOwnProperty.call(device.data.state, 'waterFlowing');
+  platform.verboseLog(`Device ${device.deviceMsgName} valve InUse set based on waterFlowing state: ${this.useWaterFlowing}`);
+
+  // Once we have initial data, setup all the Homebridge handlers
+  this.valveService.getCharacteristic(platform.Characteristic.Active)
+    .onGet(handleGet.bind(this))
+    // if state is string then device is original YoLink Manipulator and set key = state,
+    // else it is WaterMeterController and set key = valve.
+    .onSet(handleSet.bind(this, (typeof device.data.state === 'string') ? 'state' : 'valve'));
+  this.valveService.getCharacteristic(platform.Characteristic.InUse)
+    .onGet(handleInUse.bind(this));
+  this.valveService.getCharacteristic(platform.Characteristic.ValveType)
+    .onGet(handleType.bind(this));
+
+  if (device.data?.alarm?.leak) {
+    // Device can detect leaks, add service...
+    this.leakService = accessory.getService(platform.Service.LeakSensor)
+      || accessory.addService(platform.Service.LeakSensor);
+    this.leakService.setCharacteristic(platform.Characteristic.Name, device.name + ' Leak');
+    this.logDeviceState(device, 'Added leak sensor');
+
+    this.leakService.getCharacteristic(platform.Characteristic.LeakDetected)
+      .onGet(handleGet.bind(this, 'leak'));
+  }
+
+  if (device.data?.temperature) {
     // These devices have temperature sensors, add service...
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
       || accessory.addService(platform.Service.TemperatureSensor);
     this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
+    this.logDeviceState(device, `Added temperature sensor: ${device.data.temperature}\u00B0C`);
 
-    // And they can also detect leaks, always add this...
-    this.leakService = accessory.getService(platform.Service.LeakSensor)
-      || accessory.addService(platform.Service.LeakSensor);
-    this.leakService.setCharacteristic(platform.Characteristic.Name, device.name + ' Leak');
+    this.thermoService.getCharacteristic(platform.Characteristic.CurrentTemperature)
+      .onGet(handleGet.bind(this, 'thermo'));
   }
-
-  // Call get handler to initialize data fields to current state and set
-  // timer to regularly update the data.
-  await this.refreshDataTimer(handleGetBlocking.bind(this, type, 'both'));
-
-  // Once we have initial data, setup all the Homebridge handlers
-  this.valveService.getCharacteristic(platform.Characteristic.Active)
-    .onGet(handleGet.bind(this, type))
-    .onSet(handleSet.bind(this, type));
-  this.valveService.getCharacteristic(platform.Characteristic.InUse)
-    .onGet(handleInUse.bind(this, type));
-  this.valveService.getCharacteristic(platform.Characteristic.ValveType)
-    .onGet(handleType.bind(this));
-
-  this.thermoService?.getCharacteristic(platform.Characteristic.CurrentTemperature)
-    .onGet(handleGet.bind(this, type, 'thermo'));
-  this.leakService?.getCharacteristic(platform.Characteristic.LeakDetected)
-    .onGet(handleGet.bind(this, type, 'leak'));
 }
 
 /***********************************************************************
@@ -83,7 +89,8 @@ export async function initValveDevice(this: YoLinkPlatformAccessory, type = 'Man
  *    }
  *  }
  *
- * Newer WaterMeterController returns this...
+ * Newer YS5008-UC WaterMeterController returns this...
+ * The YS5008-UC does not include waterFlowing or temperature fields.
  * {
  *   "state": {
  *     "valve": "open",
@@ -136,12 +143,12 @@ export async function initValveDevice(this: YoLinkPlatformAccessory, type = 'Man
  *   }
  *  }
  */
-async function handleGet(this: YoLinkPlatformAccessory, type: string, devSensor = 'valve'): Promise<CharacteristicValue> {
+async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'valve'): Promise<CharacteristicValue> {
   // wrapping the semaphone blocking function so that we return to Homebridge immediately
   // even if semaphore not available.
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
-  handleGetBlocking.bind(this, type, devSensor)()
+  handleGetBlocking.bind(this, devSensor)()
     .then((v) => {
       switch (devSensor) {
         case 'valve':
@@ -163,39 +170,32 @@ async function handleGet(this: YoLinkPlatformAccessory, type: string, devSensor 
     });
 
   // Return current state of the device pending completion of the blocking function
-  if (type === 'WaterMeterController') {
-    // WaterMeterController...
-    const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : device.data.state.valve === 'open';
-    switch (devSensor) {
-      case 'valve':
-        return ((device.data.state.valve === 'open')
-          ? platform.api.hap.Characteristic.Active.ACTIVE
-          : platform.api.hap.Characteristic.Active.INACTIVE);
-      case 'thermo':
-        return (device.data.temperature);
-      case 'leak':
-        return ((device.data.alarm?.leak)
-          ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
-          : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED);
-      case 'flowing':
-        return ((waterFlowing)
-          ? platform.api.hap.Characteristic.InUse.IN_USE
-          : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
-      default:
-        platform.log.error(`Unexpected device sensor type '${devSensor}' for ${device.deviceMsgName}`);
-        return ((device.data.state.valve === 'open')
-          ? platform.api.hap.Characteristic.Active.ACTIVE
-          : platform.api.hap.Characteristic.Active.INACTIVE);
-    }
-  } else {
-    // Manipulator...
-    return ((device.data.state === 'open')
-      ? platform.api.hap.Characteristic.Active.ACTIVE
-      : platform.api.hap.Characteristic.Active.INACTIVE);
+  const valveOpen = device.data.state?.valve === 'open' || device.data.state === 'open';
+  const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : valveOpen;
+  switch (devSensor) {
+    case 'valve':
+      return ((valveOpen)
+        ? platform.api.hap.Characteristic.Active.ACTIVE
+        : platform.api.hap.Characteristic.Active.INACTIVE);
+    case 'thermo':
+      return ((device.data?.temperature) ? device.data.temperature : 0);
+    case 'leak':
+      return ((device.data.alarm?.leak)
+        ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
+        : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED);
+    case 'flowing':
+      return ((waterFlowing)
+        ? platform.api.hap.Characteristic.InUse.IN_USE
+        : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
+    default:
+      platform.log.error(`Unexpected device sensor type '${devSensor}' for ${device.deviceMsgName}`);
+      return ((device.data.state.valve === 'open')
+        ? platform.api.hap.Characteristic.Active.ACTIVE
+        : platform.api.hap.Characteristic.Active.INACTIVE);
   }
 }
 
-async function handleGetBlocking(this: YoLinkPlatformAccessory, type: string, devSensor = 'valve'): Promise<CharacteristicValue> {
+async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'valve'): Promise<CharacteristicValue> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
@@ -209,42 +209,35 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, type: string, de
       this.valveService
         .updateCharacteristic(platform.Characteristic.StatusFault, false);
 
-      if (type === 'WaterMeterController') {
-        // WaterMeterController...
-        const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : device.data.state.valve === 'open';
-        switch (devSensor) {
-          case 'valve':
-            rc = (device.data.state.valve === 'open')
-              ? platform.api.hap.Characteristic.Active.ACTIVE
-              : platform.api.hap.Characteristic.Active.INACTIVE;
-            this.logDeviceState(device, `Valve (${devSensor}): ${device.data.state.valve}, Battery: ${device.data.battery}`);
-            break;
-          case 'thermo':
-            rc = device.data.temperature;
-            this.logDeviceState(device, `Valve (${devSensor}): ${device.data.temperature}, Battery: ${device.data.battery}`);
-            break;
-          case 'leak':
-            rc = (device.data.alarm?.leak)
-              ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
-              : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED;
-            this.logDeviceState(device, `Valve (${devSensor}): ${device.data.alarm?.leak}, Battery: ${device.data.battery}`);
-            break;
-          case 'flowing':
-            rc = (waterFlowing)
-              ? platform.api.hap.Characteristic.InUse.IN_USE
-              : platform.api.hap.Characteristic.InUse.NOT_IN_USE;
-            this.logDeviceState(device, `Valve (${devSensor}): ${waterFlowing}, Battery: ${device.data.battery}`);
-            break;
-          default:
-            platform.log.error(`Unexpected device sensor type '${devSensor}' for ${device.deviceMsgName}`);
-            break;
-        }
-      } else {
-        // Manipulator...
-        if (device.data.state === 'open') {
-          rc = platform.api.hap.Characteristic.Active.ACTIVE; // also == IN_USE
-        }
-        this.logDeviceState(device, `Valve (${devSensor}): ${device.data.state}, Battery: ${device.data.battery}`);
+      const valveOpen = device.data.state?.valve === 'open' || device.data.state === 'open';
+      const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : valveOpen;
+      switch (devSensor) {
+        case 'valve':
+          rc = (valveOpen)
+            ? platform.api.hap.Characteristic.Active.ACTIVE
+            : platform.api.hap.Characteristic.Active.INACTIVE;
+          this.logDeviceState(device, `Valve open: ${valveOpen}, Battery: ${device.data.battery}`);
+          break;
+        case 'thermo':
+          rc = (device.data?.temperature) ? device.data.temperature : 0;
+          this.logDeviceState(device, `Valve (${devSensor}): Temperature: ${device.data?.temperature}\u00B0C,` +
+            ` Battery: ${device.data.battery}`);
+          break;
+        case 'leak':
+          rc = (device.data?.alarm?.leak)
+            ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
+            : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED;
+          this.logDeviceState(device, `Valve (${devSensor}): ${device.data.alarm?.leak}, Battery: ${device.data.battery}`);
+          break;
+        case 'flowing':
+          rc = (waterFlowing)
+            ? platform.api.hap.Characteristic.InUse.IN_USE
+            : platform.api.hap.Characteristic.InUse.NOT_IN_USE;
+          this.logDeviceState(device, `Valve (${devSensor}): ${waterFlowing}, Battery: ${device.data.battery}`);
+          break;
+        default:
+          platform.log.error(`Unexpected device sensor type '${devSensor}' for ${device.deviceMsgName}`);
+          break;
       }
     } else {
       platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
@@ -264,10 +257,10 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, type: string, de
  * handleInUse
  *
  */
-async function handleInUse(this: YoLinkPlatformAccessory, type: string): Promise<CharacteristicValue> {
+async function handleInUse(this: YoLinkPlatformAccessory): Promise<CharacteristicValue> {
   // Apple HomeKit documentation defines In Use as fluid is flowing through valve.
   // We will assume that if the valve is open, then fluid is flowing...
-  return await handleGet.bind(this, type)('flowing');
+  return await handleGet.bind(this)('flowing');
 }
 
 /***********************************************************************
@@ -303,7 +296,7 @@ async function handleInUse(this: YoLinkPlatformAccessory, type: string): Promise
  *   }
  *  }
  */
-async function handleSet(this: YoLinkPlatformAccessory, type: string, value: CharacteristicValue): Promise<void> {
+async function handleSet(this: YoLinkPlatformAccessory, key: string, value: CharacteristicValue): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   // serialize access to device data.
@@ -311,7 +304,6 @@ async function handleSet(this: YoLinkPlatformAccessory, type: string, value: Cha
   try {
     const newState = (value === platform.api.hap.Characteristic.Active.ACTIVE) ? 'open' : 'close';
     // type can be 'Manipulator' or 'WaterMeterController' and each have different key values to use...
-    const key = (type === 'Manipulator') ? 'state' : 'valve';
     const data = (await platform.yolinkAPI.setDeviceState(platform, device, { [key]: newState }))?.data;
     if (data) {
       if (typeof device.data.state === 'object') {
@@ -323,26 +315,15 @@ async function handleSet(this: YoLinkPlatformAccessory, type: string, value: Cha
     // Calling updateCharacteristic within set handler seems to fail, new value is not accepted.  Workaround is
     // to request the update after short delay (say 50ms) to allow homebridge/homekit to complete the set handler.
     setTimeout(() => {
-      if (type === 'WaterMeterController') {
-        // WaterMeterController...
-        const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : device.data.state.valve === 'open';
-        this.valveService
-          .updateCharacteristic(platform.Characteristic.Active, (device.data.state.valve === 'open')
-            ? platform.api.hap.Characteristic.Active.ACTIVE
-            : platform.api.hap.Characteristic.Active.INACTIVE)
-          .updateCharacteristic(platform.Characteristic.InUse, (waterFlowing)
-            ? platform.api.hap.Characteristic.InUse.IN_USE
-            : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
-      } else {
-        // Manipulator...
-        this.valveService
-          .updateCharacteristic(platform.Characteristic.Active, (device.data.state === 'open')
-            ? platform.api.hap.Characteristic.Active.ACTIVE
-            : platform.api.hap.Characteristic.Active.INACTIVE)
-          .updateCharacteristic(platform.Characteristic.InUse, (device.data.state === 'open')
-            ? platform.api.hap.Characteristic.InUse.IN_USE
-            : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
-      }
+      const valveOpen = device.data.state?.valve === 'open' || device.data.state === 'open';
+      const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : valveOpen;
+      this.valveService
+        .updateCharacteristic(platform.Characteristic.Active, (valveOpen)
+          ? platform.api.hap.Characteristic.Active.ACTIVE
+          : platform.api.hap.Characteristic.Active.INACTIVE)
+        .updateCharacteristic(platform.Characteristic.InUse, (waterFlowing)
+          ? platform.api.hap.Characteristic.InUse.IN_USE
+          : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
     }, 50);
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -409,6 +390,8 @@ async function handleType(this: YoLinkPlatformAccessory): Promise<Characteristic
  *   "deviceId": "abcdef1234567890"
  * }
  * ============
+ * Newer YS5008-UC WaterMeterController returns this...
+ * The YS5008-UC does not include waterFlowing or temperature fields.
  * {
  *   "event": "WaterMeterController.Report",
  *   "method": "Report",
@@ -496,20 +479,24 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
         }
         // Merge received data into existing data object
         Object.assign(device.data, message.data);
-        if (Object.prototype.hasOwnProperty.call(device.data.state, 'valve')) {
-          // WaterMeterController...
-          const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : device.data.state.valve === 'open';
-          this.logDeviceState(device, `Valve: ${device.data.state.valve}, Water flowing: ${waterFlowing},` +
+        {
+          const valveOpen = device.data.state?.valve === 'open' || device.data.state === 'open';
+          const waterFlowing = (this.useWaterFlowing) ? device.data.state.waterFlowing : valveOpen;
+
+          this.logDeviceState(device, `Valve open: ${valveOpen}, Water flowing: ${waterFlowing},` +
             ` Battery: ${device.data.battery} (MQTT: ${message.event})`);
+
           this.valveService
-            .updateCharacteristic(platform.Characteristic.Active, (device.data.state.valve === 'open')
+            .updateCharacteristic(platform.Characteristic.Active, (valveOpen)
               ? platform.api.hap.Characteristic.Active.ACTIVE
               : platform.api.hap.Characteristic.Active.INACTIVE)
             .updateCharacteristic(platform.Characteristic.InUse, (waterFlowing)
               ? platform.api.hap.Characteristic.InUse.IN_USE
               : platform.api.hap.Characteristic.InUse.NOT_IN_USE);
           this.thermoService
-            ?.updateCharacteristic(platform.Characteristic.CurrentTemperature, device.data.temperature);
+            ?.updateCharacteristic(platform.Characteristic.CurrentTemperature, (device.data?.temperature)
+              ? device.data.temperature
+              : 0);
           this.leakService
             ?.updateCharacteristic(platform.Characteristic.LeakDetected, (device.data.alarm?.leak)
               ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
@@ -518,18 +505,6 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
             .updateCharacteristic(platform.Characteristic.StatusFault, (device.data.alarm?.valveError)
               ? platform.api.hap.Characteristic.StatusFault.GENERAL_FAULT
               : platform.api.hap.Characteristic.StatusFault.NO_FAULT);
-        } else {
-          // Manipulator...
-          this.logDeviceState(device, `Valve: ${device.data.state}, Battery: ${device.data.battery} (MQTT: ${message.event})`);
-          this.valveService
-            .updateCharacteristic(platform.Characteristic.Active, (device.data.state === 'open')
-              ? platform.api.hap.Characteristic.Active.ACTIVE
-              : platform.api.hap.Characteristic.Active.INACTIVE)
-            .updateCharacteristic(platform.Characteristic.InUse, (device.data.state === 'open')
-              ? platform.api.hap.Characteristic.InUse.IN_USE
-              : platform.api.hap.Characteristic.InUse.NOT_IN_USE)
-            .updateCharacteristic(platform.Characteristic.StatusFault,
-              platform.api.hap.Characteristic.StatusFault.NO_FAULT);
         }
         break;
       case 'setTimeZone':
