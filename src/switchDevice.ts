@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink siren/switch/garage door/finger device support (as a HomeKit switch)
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  */
 
@@ -113,7 +113,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory): Promise<Charact
         rc = true;
       }
     } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+      device.errorState = true;
     }
 
   } catch (e) {

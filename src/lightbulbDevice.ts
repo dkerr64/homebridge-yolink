@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink dimmer switch device support (as a HomeKit lightbulb)
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  */
 
@@ -114,7 +114,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, mode = 'on'): Pr
         return (device.data.state === this.onState);
       }
     } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+      device.errorState = true;
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;

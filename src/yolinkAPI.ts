@@ -91,6 +91,9 @@ function checkBudpStatus(platform: YoLinkHomebridgePlatform, budp, device: YoLin
     throw (new Error(`${devName}YoLink API error: BUDP undefined or null`));
   }
   if (budp.state && budp.state === 'error') {
+    if (device) {
+      device.errorState = true;
+    }
     throw (new Error(`${devName}YoLink API error: ${budp.msg}`));
   }
   if (!budp.code) {
@@ -104,6 +107,9 @@ function checkBudpStatus(platform: YoLinkHomebridgePlatform, budp, device: YoLin
     } else {
       // Unexpected error?
       platform.log.error(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`);
+    }
+    if (device) {
+      device.errorState = true;
     }
     throw (new Error(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`));
   } else if (!budp.data) {
@@ -354,7 +360,7 @@ export class YoLinkAPI {
    *
    */
   // eslint-disable-next-line max-len
-  async setDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice, state, method = 'setState') : Promise<yolinkBUDP | undefined> {
+  async setDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice, state, method = 'setState'): Promise<yolinkBUDP | undefined> {
     /*
      * Hummm.... whether to retry on failure or not.  I keep changing my mind.  But,
      * twice now my towel heater has not switched on in the morning with a 00201 error.
@@ -380,7 +386,7 @@ export class YoLinkAPI {
   }
 
   async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state, method = 'setState'): Promise<yolinkBUDP> {
-    platform.log.info(`[${device.deviceMsgName}] YoLinkAPI.setDeviceState: ${(state)?JSON.stringify(state):method}`);
+    //platform.log.info(`[${device.deviceMsgName}] YoLinkAPI.setDeviceState: ${(state)?JSON.stringify(state):method}`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
     const bddp: yolinkBDDP = {
@@ -405,6 +411,7 @@ export class YoLinkAPI {
     budp = await response.json();
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
     checkBudpStatus(platform, budp, device);
+    platform.log.info(`[${device.deviceMsgName}] Device state set: ${(state) ? JSON.stringify(state) : method}`);
     return budp;
   }
 

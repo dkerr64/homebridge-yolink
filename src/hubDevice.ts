@@ -4,7 +4,7 @@
  * Homebridge does not have a hub-like device. But we register it and
  * log data about it.
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  */
 
@@ -35,7 +35,8 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
     if( await this.checkDeviceState(platform, device) ) {
       this.logDeviceState(device, `WiFi: ${device.data.wifi.enable}, Ethernet: ${device.data.eth.enable}`);
     } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+      device.errorState = true;
     }
   } catch(e) {
     const msg = (e instanceof Error) ? e.stack : e;

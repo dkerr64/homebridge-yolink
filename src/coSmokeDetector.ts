@@ -4,7 +4,7 @@
  * This will issue warning messages to the HomeBridge log that can then
  * be provided to author to assist in adding device support.
  *
- * Copyright (c) 2023 David Kerr
+ * Copyright (c) 2023-2024 David Kerr
  *
  */
 
@@ -165,7 +165,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'smoke'
           break;
       }
     } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+      device.errorState = true;
       this.coService?.updateCharacteristic(platform.Characteristic.StatusActive, false);
       this.coService?.updateCharacteristic(platform.Characteristic.StatusFault, true);
       this.smokeService?.updateCharacteristic(platform.Characteristic.StatusActive, false);

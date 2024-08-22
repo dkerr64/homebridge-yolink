@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink Homebridge Platform class
  *
- * Copyright (c) 2022-2023 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  * Based on https://github.com/homebridge/homebridge-plugin-template
  *
@@ -43,6 +43,7 @@ export type YoLinkDevice = {
   modelName: string;
   deviceMsgName: string;
   semaphore: Semaphore;
+  errorState: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 };
@@ -101,7 +102,8 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL;
     this.config.checkNewDeviceInterval ??= 0;
 
-    this.log.info(`YoLink plugin for HomeBridge version ${packageJSON.version} (c) 2022-2023 David A. Kerr${this.reportError}`);
+    this.log.info(`YoLink plugin for Homebridge.\n\nVersion ${packageJSON.version}\n` +
+      `Copyright (c) 2022-2024 David A. Kerr${this.reportError}`);
     this.verboseLog(`Loaded configuration:\n${JSON.stringify(this.config, null, 2)}`);
 
     this.yolinkAPI = new YoLinkAPI(this);

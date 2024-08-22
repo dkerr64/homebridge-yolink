@@ -239,7 +239,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'val
           break;
       }
     } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+      device.errorState = true;
       this.valveService
         .updateCharacteristic(platform.Characteristic.StatusFault, true);
     }

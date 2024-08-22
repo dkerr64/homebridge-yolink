@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink Platform Accessory class
  *
- * Copyright (c) 2022-2023 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  * Based on https://github.com/homebridge/homebridge-plugin-template
  *
@@ -142,7 +142,7 @@ export class YoLinkPlatformAccessory {
           device.updateTime = timestamp + device.config.refreshAfter;
           // reportAtTime is the earlier of the time stamp on this message, or
           // or the time reported in the message from YoLink. We use this to
-          // only log (in like mode), when we have an update.
+          // only log (in lite mode), when we have an update.
           const msgTime = new Date(parseInt(device.budp.msgid));
           const repTime = new Date(device.data?.reportAt ?? '9999-12-31');
           device.reportAtTime = (msgTime < repTime) ? msgTime : repTime;
@@ -153,15 +153,18 @@ export class YoLinkPlatformAccessory {
         }
       }
     } catch (e) {
+      // Error condition could be a throw() by ourselves within yolinkAPI.ts
       const msg = ((e instanceof Error) ? e.stack : e) as string;
       const yolinkMsg = msg.substring(7, msg.indexOf(')') + 1);
       const errCode = msg.split('YoLink API error code: ').pop()?.substring(0, 6);
-      if ((errCode === '000201') ||(errCode === '010301')|| (errCode === '000201')) {
+      if ((errCode === '000201') || (errCode === '010301') || (errCode === '000201')) {
         // "YoLink API error code are rather common, so don't declare a problem
         platform.liteLog(yolinkMsg + ' - retrying');
       } else {
         platform.log.warn('Error in checkDeviceState' + platform.reportError + msg);
       }
+      // Set device errorState so that when we eventually recover, we will log state.
+      device.errorState = true;
     }
     return (device.data);
   }
@@ -171,10 +174,15 @@ export class YoLinkPlatformAccessory {
    *
    */
   logDeviceState(this: YoLinkPlatformAccessory, device: YoLinkDevice, msg: string) {
-    // reportAtTime is the earlier of the time stamp on this message, or
-    // or the time reported in the message from YoLink. We use this to
-    // only log (in lite mode), when we have an update.
-    if (device.lastReportAtTime < device.reportAtTime.getTime()) {
+    if (device.errorState) {
+      // we had previously logged an error condition, if we are now logging
+      // device state we must have recovered from the error. Log that we recovered.
+      this.platform.log.info(`[${device.deviceMsgName}] At ${device.reportAtTime.toLocaleString()}: Error recovery: ${msg}`);
+      device.errorState = false;
+    } else if (device.lastReportAtTime < device.reportAtTime.getTime()) {
+      // reportAtTime is the earlier of the time stamp on this message, or
+      // or the time reported in the message from YoLink. We use this to
+      // only log (in lite mode), when we have an update.
       device.lastReportAtTime = device.reportAtTime.getTime();
       this.platform.liteLog(`[${device.deviceMsgName}] At ${device.reportAtTime.toLocaleString()}: Device state updated: ${msg}`);
     } else {

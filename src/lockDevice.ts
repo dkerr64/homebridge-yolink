@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink lock device support
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  */
 
@@ -118,7 +118,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, requested = 'cur
       this.logDeviceState(device, `Lock: ${device.data.state}${batteryMsg}`);
       rc = (device.data.state === this.lockedState) ? 1 : 0;
     } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+      device.errorState = true;
     }
 
   } catch (e) {

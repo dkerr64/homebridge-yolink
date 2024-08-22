@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink Power Failure Alarm sensor device support.
  *
- * Copyright (c) 2022 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  */
 
@@ -114,7 +114,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory): Promise<Charact
       this.logDeviceState(device, `Power OK: ${device.data.state.powerSupply}, ` +
         `State: ${device.data.state.state}, Battery: ${device.data.state.battery}`);
     } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+      device.errorState = true;
       if (this.contactService) {
         this.contactService
           .updateCharacteristic(platform.Characteristic.StatusActive, false)

@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink leak sensor device support
  *
- * Copyright (c) 2022-2023 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  */
 
@@ -108,7 +108,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
         `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
         `(${(device.data.state.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)`);
     } else {
-      platform.log.error(`Device offline or other error for ${device.deviceMsgName}`);
+      platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+      device.errorState = true;
       this.leakService
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);

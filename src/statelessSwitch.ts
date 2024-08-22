@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink smart remote device support (as a HomeKit stateless switch)
  *
- * Copyright (c) 2022-2023 David Kerr
+ * Copyright (c) 2022-2024 David Kerr
  *
  */
 
@@ -132,6 +132,7 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
         `(${(device.data.state.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)`);
     } else {
       platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+      device.errorState = true;
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;

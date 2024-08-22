@@ -126,6 +126,7 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
         `(${(device.data.state.devTemperature * 9 / 5 + 32).toFixed(1)}\u00B0F)`);
     } else {
       platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+      device.errorState = true;
       this.motionService
         .updateCharacteristic(platform.Characteristic.StatusActive, false)
         .updateCharacteristic(platform.Characteristic.StatusFault, true);

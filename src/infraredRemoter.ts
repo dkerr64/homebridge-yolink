@@ -3,7 +3,7 @@
  *
  * Support for the YoLink Infrared Remoter device
  *
- * Copyright (c) 2023 David Kerr
+ * Copyright (c) 2023-2024 David Kerr
  *
  */
 
@@ -109,6 +109,7 @@ async function handleGet(this: YoLinkPlatformAccessory, keyNumber = -1): Promise
         this.logDeviceState(device, `Key Number: ${keyNumber}${batteryMsg}`);
       } else {
         platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
+        device.errorState = true;
       }
     } catch (e) {
       const msg = (e instanceof Error) ? e.stack : e;
