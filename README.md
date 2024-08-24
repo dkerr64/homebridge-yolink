@@ -221,7 +221,7 @@ The plugin recognizes these devices and registers *Accessory Information* servic
 
 ### IR Remote / Blaster
 
-The YoLink Infrared Remote is supported in Homebridge/Homekit as a series of switches and as a battery service. In Homebridge these are represented with multiple service tiles that all combine into the one accessory on Apple Home.
+The YoLink Infrared Remote is supported in Homebridge/Homekit as a series of switches and as a battery service. In Homebridge these are represented with multiple service tiles that all combine into the one accessory on Apple Home.  See section on *Network Resiliency* below for comments on YoLink server rate limits.
 
 Sending an IR signal is stateless and so the switch does not remain in the on position, it automatically resets itself to off.
 
@@ -323,7 +323,7 @@ For login and retrieving access tokens the plugin will retry indefinitely with 1
 
 For getting device information the plugin will retry a maximum of 30 times before giving up. The initial retry delay is 5 seconds, incrementing by 5 seconds each time with a maximum interval of 60 seconds. After all attempts it will fail with a message to log, but this will not terminate the plugin.
 
-For setting device state (e.g. turning an outlet on or off) the plugin does not attempt to retry but will issue a warning to log.  This is necessary because attempting to retry will slow down Homebridge and/or potentially cause a backlog of *setState* requests that can take some time to clear because of YoLink cloud server rate limits.
+For setting device state (e.g. turning an outlet on or off) the plugin will retry a maximum of 5 times before giving up. The initial retry delay is 10 seconds, incrementing by 10 seconds each time with a maximum interval of 30 seconds. After all attempts it will fail with a message to log, but this will not terminate the plugin.  We use fewer retries for setting device states because attempting to retry will slow down Homebridge and/or potentially cause a backlog of *setState* requests that can take some time to clear because of YoLink cloud server rate limits.
 
 The MQTT callback will attempt to reconnect, if necessary with login / access token retrieval that follow the above procedure.
 
