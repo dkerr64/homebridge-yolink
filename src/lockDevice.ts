@@ -20,8 +20,13 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
 
   this.setMethod = 'setState';
   this.lockedState = 'locked';
-  this.setLock = 'lock';
-  this.setUnlock = 'unlock';
+  if (this.deviceType === 'LockV2') {
+    this.setLock = {'lock': 'locked'};
+    this.setUnlock = {'lock': 'unlocked'};
+  } else {
+    this.setLock = 'lock';
+    this.setUnlock = 'unlock';
+  }
 
   this.lockService = accessory.getService(platform.Service.LockMechanism)
     || accessory.addService(platform.Service.LockMechanism);
@@ -88,6 +93,42 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
  *   }
  * }
  *
+ * Newer "LockV2" devices report..
+ * {
+ *  "code": "000000",
+ *  "time": 1731886360708,
+ *  "msgid": 1731886360708,
+ *  "method": "LockV2.getState",
+ *  "desc": "Success",
+ *  "data": {
+ *    "state": {
+ *      "lock": "unlocked",
+ *      "door": "open"
+ *    },
+ *    "battery": 3,
+ *    "alert": {
+ *      "type": "UnLockFailed",
+ *      "source": "Fingerprint"
+ *    },
+ *    "attributes": {
+ *      "openRemind": 0,
+ *      "rlSet": "left",
+ *      "soundLevel": 3,
+ *      "autoLock": 10,
+ *      "enableSetButton": true
+ *    },
+ *    "version": "1607",
+ *    "tz": 0,
+ *    "loraP2PHash": 166,
+ *    "loraInfo": {
+ *      "netId": "010201",
+ *      "devNetType": "A",
+ *      "signal": -21,
+ *      "gatewayId": "<sanitized>",
+ *      "gateways": 1
+ *    }
+ *  }
+ * }
  */
 async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): Promise<CharacteristicValue> {
   // wrapping the semaphone blocking function so that we return to Homebridge immediately
@@ -102,7 +143,7 @@ async function handleGet(this: YoLinkPlatformAccessory, requested = 'current'): 
       }
     });
   // Return current state of the device pending completion of the blocking function
-  return ((this.accessory.context.device.data.state === this.lockedState) ? 1 : 0);
+  return (((this.accessory.context.device.data?.state?.lock ?? this.accessory.context.device.data.state) === this.lockedState) ? 1 : 0);
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, requested = 'current'): Promise<CharacteristicValue> {
@@ -116,7 +157,8 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, requested = 'cur
     if (await this.checkDeviceState(platform, device)) {
       const batteryMsg = (device.hasBattery) ? `, Battery: ${device.data.battery}` : '';
       this.logDeviceState(device, `Lock: ${device.data.state}${batteryMsg}`);
-      rc = (device.data.state === this.lockedState) ? 1 : 0;
+      // Newer V2 devices wrap lock state within object
+      rc = ((device.data.state?.lock ?? device.data.state) === this.lockedState) ? 1 : 0;
     } else {
       platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
       device.errorState = true;
@@ -169,14 +211,19 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, value: Character
     const newState = (value === 1) ? this.setLock : this.setUnlock;
     const data = (await platform.yolinkAPI.setDeviceState(platform, device, { 'state': newState }, this.setMethod))?.data;
     if (data) {
-      device.data.state = data.state;
+      if (typeof device.data.state === 'object') {
+        Object.assign(device.data.state, data.state);
+      } else {
+        device.data.state = data.state;
+      }
     }
     // Set the current state to the new state as reported by response from YoLink
     // Calling updateCharacteristic within set handler seems to fail, new value is not accepted.  Workaround is
     // to request the update after short delay (say 50ms) to allow homebridge/homekit to complete the set handler.
     setTimeout(() => {
       this.lockService
-        .updateCharacteristic(platform.Characteristic.LockCurrentState, (device.data.state === this.lockedState) ? 1 : 0);
+        .updateCharacteristic(platform.Characteristic.LockCurrentState,
+          ((device.data.state?.lock ?? device.data.state) === this.lockedState) ? 1 : 0);
     }, 50);
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
@@ -317,6 +364,27 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, value: Character
  *   },
  *   "deviceId":"abcdef1234567890"
  * }
+ *
+ * Newer "LockV2" example...
+ * {
+ *  "event": "LockV2.setState",
+ *  "time": 1731886690801,
+ *  "msgid": "1731886690800",
+ *  "data": {
+ *    "state": {
+ *      "lock": "unlocked"
+ *    },
+ *    "loraInfo": {
+ *      "netId": "010201",
+ *      "devNetType": "A",
+ *      "signal": -25,
+ *      "gatewayId": "abcdef1234567890",
+ *      "gateways": 1
+ *    },
+ *    "source": "app"
+ *  },
+ *  "deviceId": "abcdef1234567890"
+ * }
  */
 export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -360,7 +428,7 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
         }
         this.lockService
           .updateCharacteristic(platform.Characteristic.LockCurrentState,
-            (message.data.state === this.lockedState) ? 1 : 0);
+            ((device.data.state?.lock ?? device.data.state) === this.lockedState) ? 1 : 0);
         break;
       case 'getUsers':
       // falls through

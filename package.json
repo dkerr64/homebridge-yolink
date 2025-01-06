@@ -1,7 +1,7 @@
 {
   "displayName": "Homebridge YoLink",
   "name": "homebridge-yolink",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Connect to YoLink.",
   "license": "Apache-2.0",
   "repository": {
@@ -12,8 +12,8 @@
     "url": "https://github.com/dkerr64/homebridge-yolink/issues"
   },
   "engines": {
-    "node": "^18.17.0 || ^20.9.0",
-    "homebridge": "^1.6.0"
+    "homebridge": "^1.6.0 || ^2.0.0-beta.0",
+    "node": "^18.20.4 || ^20.9.0 || ^22.11.0"
   },
   "main": "dist/index.js",
   "scripts": {

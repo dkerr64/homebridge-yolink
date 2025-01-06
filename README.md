@@ -27,7 +27,7 @@ Currently supports the following devices:
 * Hub and Speaker Hub
 * IR Remote / Blaster
 * Leak Sensor
-* Lock
+* Lock & LockV2
 * Manipulator (as a valve)
 * Motion Sensor
 * Outlet (multiple)
@@ -143,7 +143,7 @@ If you see an error message in the log similar to the following then you are lik
   * **verboseLog** *(optional)*: Provides most detailed log information without having to enable Homebridge debug mode.
   * **liteLog** *(optional)*: HomeKit makes frequent requests for device status, this suppresses logging of every request (unless *verboseLog* is true). Requests that require message be sent to YoLink servers are still logged. Defaults to true.
   * **allDevices** *(optional)*: If set to false then only devices listed in the Devices section of the config file are loaded, and then only if the hide property is false. Defaults to true so all devices reported by YoLink are loaded (if device's *hide* property is false).
-  * **excludeTypes** *(optional)*: Array of YoLink device types that will be excluded even if *allDevices* is set to true. The currently supported list of device types is *Hub, SpeakerHub, VibrationSensor, MotionSensor, LeakSensor, Manipulator, THSensor, DoorSensor, Siren, Switch, Outlet, SmartRemoter, MultiOutlet, GarageDoor, Finger, Lock* and *PowerFailureAlarm*. Defaults to exclude Hub and Speaker Hub. Note that capitalization is important and values must be entered exactly as listed here.
+  * **excludeTypes** *(optional)*: Array of YoLink device types that will be excluded even if *allDevices* is set to true. The currently supported list of device types is *Hub, SpeakerHub, VibrationSensor, MotionSensor, LeakSensor, Manipulator, THSensor, DoorSensor, Siren, Switch, Outlet, SmartRemoter, MultiOutlet, GarageDoor, Finger, Lock, LockV2* and *PowerFailureAlarm*. Defaults to exclude Hub and Speaker Hub. Note that capitalization is important and values must be entered exactly as listed here.
   * **includeTypes** *(optional)*: Array of YoLink device types that will be included even if *allDevices* is set to false. Same list of device types as above with no default.
   * **checkNewDeviceInterval** *(optional)*: Interval (in seconds) to check for new YoLink devices added *or removed* from YoLink.  Defaults to zero (feature disabled). This feature will allow new devices to be detected and added to Homebridge/HomeKit without restarting the plugin. Also will detect when a device is deleted and remove it from Homebridge/HomeKit. Note that if a device requires config file changes then the plugin must be restarted to pick up config file changes. As this polls the YoLink server, a value less than 60 seconds is not recommended.
   * **enableExperimental** *(optional)*: If set to true, enables support for devices still considered experimental, see Device Notes below.
