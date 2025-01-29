@@ -1,4 +1,3 @@
-/* eslint-disable no-multi-spaces */
 /* eslint-disable brace-style */
 /***********************************************************************
  * YoLink device list
@@ -61,7 +60,7 @@ export const initDeviceService = {
   Manipulator(this: YoLinkPlatformAccessory)        { initValveDevice.bind(this)(); },
   THSensor(this: YoLinkPlatformAccessory)           { initThermoHydroDevice.bind(this)(); },
   DoorSensor(this: YoLinkPlatformAccessory)         { initContactSensor.bind(this)(); },
-  Siren(this: YoLinkPlatformAccessory)              { initSwitchDevice.bind(this)('alert', {'alarm':true}, {'alarm':false}); },
+  Siren(this: YoLinkPlatformAccessory)              { initSwitchDevice.bind(this)('alert', { 'alarm':true }, { 'alarm':false }); },
   Switch(this: YoLinkPlatformAccessory)             { initSwitchDevice.bind(this)('open', 'open', 'close'); },
   Outlet(this: YoLinkPlatformAccessory)             { initOutletDevice.bind(this)('open', 'open', 'close'); },
   SmartRemoter(this: YoLinkPlatformAccessory)       { initStatelessSwitch.bind(this, 4)(); },

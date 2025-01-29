@@ -21,8 +21,8 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
   this.setMethod = 'setState';
   this.lockedState = 'locked';
   if (this.deviceType === 'LockV2') {
-    this.setLock = {'lock': 'locked'};
-    this.setUnlock = {'lock': 'unlocked'};
+    this.setLock = { 'lock': 'locked' };
+    this.setUnlock = { 'lock': 'unlocked' };
   } else {
     this.setLock = 'lock';
     this.setUnlock = 'unlock';

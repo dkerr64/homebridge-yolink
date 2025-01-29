@@ -162,6 +162,7 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, mode = 'on', val
   try {
     let newState = this.setOn;
     let newBrightness = 100;
+    /* eslint-disable no-constant-binary-expression */
     if (mode === 'brightness') {
       newBrightness = Number(value) ?? newBrightness;
       newState = (newBrightness === 0) ? this.setOff : this.setOn;
@@ -169,6 +170,7 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, mode = 'on', val
       newState = (value === true) ? this.setOn : this.setOff;
       newBrightness = Number(device.data.brightness) ?? newBrightness;
     }
+    /* eslint-enable no-constant-binary-expression */
     const data = (await platform.yolinkAPI.setDeviceState(platform,
       device,
       { 'state': newState, 'brightness': newBrightness },

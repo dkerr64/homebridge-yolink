@@ -127,7 +127,6 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, device: YoLinkDe
         // return value for target state must be open or closed, not opening or closing.
         // 0=open, 1=closed, 2=opening, 3=closing, 4=stopped(not used)
         rc = (rc > 1) ? rc - 2 : rc;
-        // eslint-disable-next-line max-len
         this.logDeviceState(device, `Garage Door or Finger: ${(device.data.battery) ? 'Battery: ' + device.data.battery + ', ' : ''}rc: ${rc}`);
       } else {
         this.logDeviceState(device, `Sensor: ${device.data.state.state}, Battery: ${device.data.state.battery}, rc: ${rc}`);

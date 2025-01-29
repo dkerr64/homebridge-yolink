@@ -359,7 +359,6 @@ export class YoLinkAPI {
    * setDeviceState
    *
    */
-  // eslint-disable-next-line max-len
   async setDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice, state, method = 'setState'): Promise<yolinkBUDP | undefined> {
     /*
      * Hummm.... whether to retry on failure or not.  I keep changing my mind.  But,
@@ -381,7 +380,6 @@ export class YoLinkAPI {
 
     // Retry 5 times. On failure retry after 10 seconds.  Add 10 seconds for
     // each failure with maximum of 30 seconds between each retry.
-    // eslint-disable-next-line max-len
     return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state, method), 5, 10000, 10000, 30000) as yolinkBUDP;
   }
 

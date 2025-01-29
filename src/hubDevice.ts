@@ -32,13 +32,13 @@ async function handleGet(this: YoLinkPlatformAccessory): Promise<CharacteristicV
   // serialize access to device data.
   const releaseSemaphore = await device.semaphore.acquire();
   try {
-    if( await this.checkDeviceState(platform, device) ) {
+    if (await this.checkDeviceState(platform, device)) {
       this.logDeviceState(device, `WiFi: ${device.data.wifi.enable}, Ethernet: ${device.data.eth.enable}`);
     } else {
       platform.log.error(`[${device.deviceMsgName}] Device offline or other error`);
       device.errorState = true;
     }
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in HubDevice handleGet' + platform.reportError + msg);
   } finally {
@@ -61,7 +61,7 @@ export async function mqttHubDevice(this: YoLinkPlatformAccessory, message): Pro
     // Merge received data into existing data object
     Object.assign(device.data, message.data);
     this.logDeviceState(device, `WiFi: ${device.data.wifi.enable}, Ethernet: ${device.data.eth.enable} (MQTT: ${message.event})`);
-  } catch(e) {
+  } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in mqttHubDevice' + platform.reportError + msg);
   } finally {

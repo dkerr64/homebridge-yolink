@@ -83,11 +83,11 @@ export class YoLinkPlatformAccessory {
       } else {
         platform.log.warn(`[${device.deviceMsgName}] Experimental device skipped. Enable experimental devices in config. `
           + 'Initializing as Unknown device');
-        initDeviceService['Unknown'].bind(this)();
+        initDeviceService.Unknown.bind(this)();
       }
     } else {
       // We do not have support for this device yet.
-      initDeviceService['Unknown'].bind(this)();
+      initDeviceService.Unknown.bind(this)();
     }
     return (this);
   }
@@ -321,7 +321,7 @@ export class YoLinkPlatformAccessory {
         if (mqttHandler[this.deviceType]) {
           mqttHandler[this.deviceType].bind(this)(message);
         } else {
-          mqttHandler['Unknown'].bind(this)(message);
+          mqttHandler.Unknown.bind(this)(message);
         }
       } else {
         platform.log.warn(`MQTT: ${message.event} for uninitialized device ${device.deviceMsgName}`
