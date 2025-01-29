@@ -99,7 +99,7 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
   // Return current state of the device pending completion of the blocking function
   return ((devSensor === 'thermo')
     ? (device.data?.state?.devTemperature ?? -270)
-    : ((device.data?.state?.state === 'alert') ?? false));
+    : (device.data?.state?.state === 'alert'));
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
