@@ -191,8 +191,8 @@ export class YoLinkAPI {
     const timestamp = new Date().getTime();
     const params = new URLSearchParams();
     params.append('grant_type', 'client_credentials');
-    params.append('client_id', platform.config.userAccessId);
-    params.append('client_secret', platform.config.secretKey);
+    params.append('client_id', platform.config.userAccessId.trim());
+    params.append('client_secret', platform.config.secretKey.trim());
     platform.verboseLog('SENDING:\n' + params);
     let response = await fetch(platform.config.tokenURL, { method: 'POST', body: params });
     checkHttpStatus(response);
@@ -261,7 +261,7 @@ export class YoLinkAPI {
         platform.verboseLog('Current access token expired, or close to expiry, requesting new one');
         const params = new URLSearchParams();
         params.append('grant_type', 'refresh_token');
-        params.append('client_id', platform.config.userAccessId);
+        params.append('client_id', platform.config.userAccessId.trim());
         // TEST with bad refresh token
         params.append('refresh_token', this.yolinkTokens.refresh_token);
         platform.verboseLog('SENDING:\n' + params);
