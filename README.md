@@ -171,6 +171,26 @@ If you see an error message in the log similar to the following then you are lik
   * **sensor** *(required)*: string representing the *deviceID* of the sensor device (reports if door open or closed). Must be a *DoorSensor* type device.
   * **timeout** *(optional)*: time in seconds after which the door status is reset to 'open' or 'closed' after activating the controller if no report has been received from the door sensor. Defaults to 45 seconds.
 
+## Multiple home support
+
+YoLink allows you to setup multiple homes. This plugin supports this by using multiple [child bridges](https://github.com/homebridge/homebridge/wiki/Child-Bridges) and unique access credentials for each home. Start at the YoLink app, go into your profile, select advanced, select user access credentials, and click the + icon to add new credentials... select the home you want new credentials for.
+
+Make sure that the plugin is set to use child bridge. If not, do that first, restart, and continue...
+
+In HomeBridge, go to the YoLink plugin, select JSON config from the dot-dot-dot menu.  Again there is a + icon to add an additional config. Copy/paste the existing config into this new one.  You **must** make the following changes...
+
+- Change the `name` to make it different from first home.
+- Replace `userAccessId` and `secretKey` values with the credentials for second home.
+- In the `_bridge` section change `username` to be unique (I just changed one of the hex bytes, modeled on the example).
+- If the bridge section also has a `port` setting, change it to be unique too (I did not, so one is randomly assigned).
+- Optionally, edit the list of `excludeTypes` and `includeTypes` if applicable.
+
+Save that and restart the child bridges.
+
+Once restarted, back at the plugin dot-dot-dot menu select Child Bridge Config.  The drop-down next to Platform should have two entries, one for each home.  Select the new one and a QR code should appear to allow pairing with HomeKit.  I stopped at this point as I just assumed that part would work.
+
+If there is no QR code, follow instructions at above link to manually add accessory to HomeKit.
+
 ## MQTT
 
 The plugin registers with YoLink servers as a MQTT client and subscribes to published messages to receive alerts (e.g. motion sensor detects movement) which are forwarded to Homebridge/HomeKit. The plugin receives updates from YoLink devices at different times depending on the device. An alert event generates a message immediately but regular updates are received when there is no alert. Devices like the leak detector report at least every 4 hours, but temperature and humidity sensor sends updates based on environmental change rate, or at least every hour. This is documented in YoLink user guides for each device.
