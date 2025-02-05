@@ -187,9 +187,7 @@ In HomeBridge, go to the YoLink plugin, select JSON config from the dot-dot-dot 
 
 Save that and restart the child bridges.
 
-Once restarted, back at the plugin dot-dot-dot menu select Child Bridge Config.  The drop-down next to Platform should have two entries, one for each home.  Select the new one and a QR code should appear to allow pairing with HomeKit.  I stopped at this point as I just assumed that part would work.
-
-If there is no QR code, follow instructions at above link to manually add accessory to HomeKit.
+Once restarted, back at the plugin dot-dot-dot menu select Child Bridge Config.  The drop-down next to Platform should have two entries, one for each home.  Select the new one and a QR code should appear to allow pairing with HomeKit.  If there is no QR code, follow instructions at above link to manually add accessory to HomeKit.
 
 ## MQTT
 
