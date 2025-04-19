@@ -400,6 +400,8 @@ export async function mqttGarageDoor(this: YoLinkPlatformAccessory, message): Pr
         break;
       case 'GarageDoor':
         switch (event[1]) {
+          case 'getState':
+          // falls through
           case 'Report':
             // message does not carry any state state or battery fields, so there is nothing we can update.
             platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
