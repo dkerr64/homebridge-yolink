@@ -30,8 +30,7 @@ import {
 import { YoLinkPlatformAccessory } from './platformAccessory';
 import { YoLinkAPI } from './yolinkAPI';
 import Semaphore from 'semaphore-promise';
-/* eslint-disable @typescript-eslint/no-require-imports */
-const packageJSON = require('../package.json');
+import * as packageJSON from '../package.json';
 
 export type YoLinkDevice = {
   deviceId: string;
