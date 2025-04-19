@@ -14,7 +14,7 @@ import { URL, URLSearchParams } from 'url';
 import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import fetch from 'node-fetch';
 import Semaphore from 'semaphore-promise';
-import mqtt from 'mqtt';
+import mqtt, { IClientOptions } from 'mqtt';
 
 // YoLink Basic Downlink Data Packet (BDDP) represents data format for
 // API requests sent TO YoLink.
@@ -430,10 +430,11 @@ export class YoLinkAPI {
     const reports = `yl-home/${this.yolinkHomeId}/+/report`;
 
     platform.log.info('Create MQTT client to connect to YoLink message service');
-    const options = {
+    const options: IClientOptions = {
       clean: true,
       username: this.yolinkTokens.access_token,
-      reconnectPeriod: 2000,
+      reconnectPeriod: 30 * 1000,
+      connectTimeout: 30 * 1000,
     };
 
     // Make a note of the access token expire time for the token used to start
