@@ -19,10 +19,48 @@
         "required": true,
         "default": "YoLink"
       },
+      "hubType": {
+        "title": "Hub Type",
+        "type": "string",
+        "required": true,
+        "default": "cloud",
+        "oneOf": [
+          {
+            "title": "Cloud Hub (YoLink Cloud API)",
+            "enum": ["cloud"]
+          },
+          {
+            "title": "Local Hub (Local API)",
+            "enum": ["local"]
+          }
+        ],
+        "description": "Choose whether to connect to YoLink devices through the cloud API or a local hub. Local hub provides faster response times and works without internet connectivity."
+      },
+      "hubIPAddress": {
+        "title": "Local Hub IP Address",
+        "type": "string",
+        "required": false,
+        "default": "",
+        "format": "ipv4",
+        "condition": {
+          "functionBody": "return model.hubType === 'local';"
+        },
+        "description": "IP address of your local YoLink hub (required when using Local Hub)"
+      },
+      "subnetId": {
+        "title": "Subnet ID",
+        "type": "string",
+        "required": false,
+        "default": "",
+        "condition": {
+          "functionBody": "return model.hubType === 'local';"
+        },
+        "description": "Subnet ID for local hub MQTT subscriptions. Find this in YoLink App: Local Hub -> Local Network -> General"
+      },
       "tokenURL": {
         "title": "YoLink authentication server URL address",
         "type": "string",
-        "required": true,
+        "required": false,
         "default": "https://api.yosmart.com/open/yolink/token",
         "typeahead": {
           "source": [
@@ -30,12 +68,15 @@
             "https://api-eu.yosmart.com/open/yolink/token"
           ]
         },
-        "format": "url"
+        "format": "url",
+        "condition": {
+          "functionBody": "return model.hubType === 'cloud';"
+        }
       },
       "apiURL": {
         "title": "YoLink API server URL address",
         "type": "string",
-        "required": true,
+        "required": false,
         "default": "https://api.yosmart.com/open/yolink/v2/api",
         "typeahead": {
           "source": [
@@ -43,7 +84,10 @@
             "https://api-eu.yosmart.com/open/yolink/v2/api"
           ]
         },
-        "format": "url"
+        "format": "url",
+        "condition": {
+          "functionBody": "return model.hubType === 'cloud';"
+        }
       },
       "mqttPort": {
         "title": "Port number for MQTT service at YoLink API server",
@@ -51,20 +95,24 @@
         "required": false,
         "default": 8003,
         "minimum": 0,
-        "maximum": 65535
+        "maximum": 65535,
+        "condition": {
+          "functionBody": "return model.hubType === 'cloud';"
+        }
       },
       "userAccessId": {
-        "title": "User Access ID (replace with your ID from YoLink App)",
-        "type": "string",
-        "required": true,
-        "default": ""
-      },
-      "secretKey": {
-        "title": "Secret Key (replace with your secret from YoLink App)",
+        "title": "User Access ID / Client ID",
         "type": "string",
         "required": true,
         "default": "",
-        "description": "Obtain credentials from the YoLink app on your mobile device. Settings->Account->Advanced Settings->User Access Credentials. If none exist use the (+) button to request credentials be generated for you. Copy down the UAID and Secret Key and enter in above fields."
+        "description": "For Cloud: User Access ID from YoLink App (Settings->Account->Advanced Settings->User Access Credentials). For Local: Client ID from YoLink App (Local Hub->Local Network->Integrations->Local API)"
+      },
+      "secretKey": {
+        "title": "Secret Key / Client Secret",
+        "type": "string",
+        "required": true,
+        "default": "",
+        "description": "For Cloud: Secret Key from YoLink App User Access Credentials. For Local: Client Secret from YoLink App Local API settings. If credentials don't exist, use the (+) button to generate them."
       },
       "refreshAfter": {
         "title": "Refresh time for data from YoLink server",
@@ -375,6 +423,9 @@
           "items": [
             "name",
             "platform",
+            "hubType",
+            "hubIPAddress",
+            "subnetId",
             "tokenURL",
             "apiURL",
             "mqttPort",

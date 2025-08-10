@@ -29,6 +29,8 @@ import {
 
 import { YoLinkPlatformAccessory } from './platformAccessory';
 import { YoLinkAPI } from './yolinkAPI';
+import { YoLinkLocalAPI } from './yolinkLocalAPI';
+import { IYoLinkAPI } from './yolinkAPIInterface';
 import Semaphore from 'semaphore-promise';
 import * as packageJSON from '../package.json';
 
@@ -60,7 +62,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   private readonly addDeviceSemaphore = new Semaphore();
 
   public initializeCount = 0;
-  public readonly yolinkAPI: YoLinkAPI;
+  public readonly yolinkAPI: IYoLinkAPI;
   // We need to serialize requests to YoLink API.  Multiple threads can request state
   // updates for a device at the same time.  This would not be good, so we need a
   // semaphore to make sure we don't send a 2nd request before prior one has completed.
@@ -93,9 +95,14 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     this.config.enableExperimental = this.makeBoolean(this.config.enableExperimental, false);
     this.config.deviceTemperatures = this.makeBoolean(this.config.deviceTemperatures, false);
     this.config.powerFailureSensorAs ??= 'Outlet';
-    this.config.mqttPort ??= YOLINK_MQTT_PORT;
-    this.config.apiURL ??= YOLINK_API_URL;
-    this.config.tokenURL ??= YOLINK_TOKEN_URL;
+    this.config.hubType ??= 'cloud'; // Default to cloud for backward compatibility
+
+    // Set defaults based on hub type
+    if (this.config.hubType === 'cloud') {
+      this.config.mqttPort ??= YOLINK_MQTT_PORT;
+      this.config.apiURL ??= YOLINK_API_URL;
+      this.config.tokenURL ??= YOLINK_TOKEN_URL;
+    }
     this.config.version ??= packageJSON.version;
     this.config.garageDoors ??= [];
     this.config.refreshAfter ??= YOLINK_REFRESH_INTERVAL;
@@ -105,7 +112,14 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       `Copyright (c) 2022-2024 David A. Kerr${this.reportError}`);
     this.verboseLog(`Loaded configuration:\n${JSON.stringify(this.config, null, 2)}`);
 
-    this.yolinkAPI = new YoLinkAPI(this);
+    // Initialize the appropriate API implementation based on hub type
+    if (this.config.hubType === 'local') {
+      this.log.info('Initializing YoLink Local Hub API');
+      this.yolinkAPI = new YoLinkLocalAPI(this);
+    } else {
+      this.log.info('Initializing YoLink Cloud API');
+      this.yolinkAPI = new YoLinkAPI(this);
+    }
 
     // When this event is fired it means Homebridge has restored all cached accessories from disk.
     // Dynamic Platform plugins should only register new accessories after this event was fired,
