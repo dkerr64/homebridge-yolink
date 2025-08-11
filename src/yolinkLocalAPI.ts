@@ -1,16 +1,16 @@
 /***********************************************************************
- * YoLink API class
+ * YoLink Local API class
  *
  * Copyright (c) 2022-2024 David Kerr
  *
- * Based on documentation at http://doc.yosmart.com
+ * Based on documentation at http://doc.yosmart.com/docs/protocol/local_hub/openAPILocal
  *
- * Manages login with User Access Credentials (UAC), obtaining list
- * of devices from YoLink servers, getting and setting values, and
+ * Manages login with Local Hub credentials, obtaining list
+ * of devices from local YoLink hub, getting and setting values, and
  * subscribing to alerts and messages with MQTT
  */
 
-import { URL, URLSearchParams } from 'url';
+import { URLSearchParams } from 'url';
 import { YoLinkHomebridgePlatform, YoLinkDevice } from './platform';
 import { IYoLinkAPI, yolinkBDDP, yolinkBUDP, yolinkAccessTokens } from './yolinkAPIInterface';
 import fetch from 'node-fetch';
@@ -18,9 +18,8 @@ import Semaphore from 'semaphore-promise';
 import mqtt, { IClientOptions } from 'mqtt';
 
 /***********************************************************************
- * Support functions for HTTP calls to YoLink API
- * retryFn
- *
+ * Support functions for HTTP calls to YoLink Local API
+ * retryFn - reused from main API file pattern
  */
 function retryFn(platform: YoLinkHomebridgePlatform, fn, retriesLeft = 5, interval = 15000, intervalInc = 15000, intervalMax = 60000) {
   return new Promise((resolve, reject) => {
@@ -53,13 +52,13 @@ function checkHttpStatus(response) {
 function checkBudpStatus(platform: YoLinkHomebridgePlatform, budp, device: YoLinkDevice | undefined = undefined) {
   const devName = device ? `[${device.deviceMsgName}] ` : '';
   if (!budp) {
-    throw (new Error(`${devName}YoLink API error: BUDP undefined or null`));
+    throw (new Error(`${devName}YoLink Local API error: BUDP undefined or null`));
   }
   if (budp.state && budp.state === 'error') {
     if (device) {
       device.errorState = true;
     }
-    throw (new Error(`${devName}YoLink API error: ${budp.msg}`));
+    throw (new Error(`${devName}YoLink Local API error: ${budp.msg}`));
   }
   if (!budp.code) {
     // If no return code part of the packet then can return now without further checking.
@@ -68,26 +67,25 @@ function checkBudpStatus(platform: YoLinkHomebridgePlatform, budp, device: YoLin
   if (budp.code !== '000000') {
     if ((budp.code === '000201') || (budp.code === '010301') || (budp.code === '020104')) {
       // Common errors from YoLink API that I want user to see.
-      platform.log.warn(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`);
+      platform.log.warn(`${devName}YoLink Local API error code: ${budp.code} ${budp.desc} (${budp.method})`);
     } else {
       // Unexpected error?
-      platform.log.error(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`);
+      platform.log.error(`${devName}YoLink Local API error code: ${budp.code} ${budp.desc} (${budp.method})`);
     }
     if (device) {
       device.errorState = true;
     }
-    throw (new Error(`${devName}YoLink API error code: ${budp.code} ${budp.desc} (${budp.method})`));
+    throw (new Error(`${devName}YoLink Local API error code: ${budp.code} ${budp.desc} (${budp.method})`));
   } else if (!budp.data) {
-    platform.log.warn(`${devName}Successful YoLink API call but no data field:\n${JSON.stringify(budp, null, 2)}`);
+    platform.log.warn(`${devName}Successful YoLink Local API call but no data field:\n${JSON.stringify(budp, null, 2)}`);
   }
   return true;
 }
 
 /***********************************************************************
- * YoLinkAPI class and constructor
- *
+ * YoLinkLocalAPI class and constructor
  */
-export class YoLinkAPI implements IYoLinkAPI {
+export class YoLinkLocalAPI implements IYoLinkAPI {
 
   private yolinkTokens: yolinkAccessTokens = {
     access_token: '',
@@ -95,49 +93,54 @@ export class YoLinkAPI implements IYoLinkAPI {
     expires_in: 0,
     token_type: '',
   };
-  // yolinkTokens object members match JSON returned from YoLink API.
-  // see... http://doc.yosmart.com/docs/overall/intro
 
-  private yolinkHomeId: string;
   private yolinkLoggedIn: boolean;
   private accessSemaphore: Semaphore;
 
   private accessTokenRefreshAt = 0.90;    // test with 0.005, production 0.90
   private accessTokenHeartbeatAt = 0.95;  // test with 0.008, production 0.95
-  // Access Token heartbeat and refresh are percentage of the expire_in time.
-  // HeartbeatAt must be larger than refresh at to ensure that when the interval
-  // timer fires and calls getAccessToken, the refresh time has already expired
-  // which will force requesting new access token from YoLink.
-  // At time of writing, YoLink access tokens have a 7200 second (2 hour) expire
-  // time.  We will refresh at 90% of this (108 minutes) on request and fire the
-  // interval timer at 95% (114 minutes) to force refresh.
   private accessTokenExpireTime = 0;
   private accessTokenHeartbeat;
 
   private mqttTokenExpireTime = 0;
-  private mqttHost: string;
   private mqttClient;
   private mqttTimer: null | ReturnType<typeof setTimeout> = null;
 
+  private baseURL: string;
+  private tokenURL: string;
+  private apiURL: string;
+  private subnetId: string;
+
   constructor(private readonly platform: YoLinkHomebridgePlatform) {
-    platform.verboseLog('YoLinkAPI.constructor');
+    platform.verboseLog('YoLinkLocalAPI.constructor');
     Error.stackTraceLimit = 100;
 
     this.yolinkLoggedIn = false;
-    this.yolinkHomeId = '';
-    this.mqttHost = new URL(platform.config.apiURL).hostname;
+    
+    // Validate local hub configuration
+    if (!platform.config.hubIPAddress) {
+      throw new Error('FATAL: Local hub IP address is required for local API');
+    }
+    if (!platform.config.subnetId) {
+      throw new Error('FATAL: Subnet ID is required for local API MQTT subscriptions');
+    }
+    
+    // Basic IP address validation
+    const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    if (!ipRegex.test(platform.config.hubIPAddress)) {
+      platform.log.warn(`Local hub IP address format may be invalid: ${platform.config.hubIPAddress}`);
+    }
 
-    // We need to serialize requests for an accessToken.  Multiple threads can request
-    // state updates from multiple devices at the same time.  If the accessToken has
-    // expired then we need to request a new one, but we can't have multiple threads
-    // all requesting a new one at the same time.  Hence need for a semaphore.
-    // We do allow multiple access for get/set status requests, those are not serialized.
+    this.baseURL = `http://${platform.config.hubIPAddress}:1080`;
+    this.tokenURL = `${this.baseURL}/open/yolink/token`;
+    this.apiURL = `${this.baseURL}/open/yolink/v2/api`;
+    this.subnetId = platform.config.subnetId;
+
     this.accessSemaphore = new Semaphore();
   }
 
   /*********************************************************************
    * login
-   *
    */
   async login(platform: YoLinkHomebridgePlatform) {
     // Infinitely retry. On failure retry after 15 seconds.  Add 15 seconds for
@@ -148,44 +151,63 @@ export class YoLinkAPI implements IYoLinkAPI {
   async tryLogin(platform: YoLinkHomebridgePlatform) {
     this.yolinkLoggedIn = false;
     if (!platform.config.userAccessId || !platform.config.secretKey) {
-      throw (new Error('FATAL: Missing userAccessId or secretKey credentials in config.'));
+      throw (new Error('FATAL: Missing userAccessId (Client ID) or secretKey (Client Secret) credentials in config.'));
     }
-    platform.log.info('Login to YoLink API with credentials from config');
+    
+    // Validate credentials format
+    const clientId = platform.config.userAccessId.trim();
+    const clientSecret = platform.config.secretKey.trim();
+    
+    if (clientSecret.length === 0) {
+      throw (new Error('FATAL: Client Secret is empty after trimming whitespace.'));
+    }
+    
+    platform.log.info('Login to YoLink Local API with credentials from config');
+    platform.verboseLog(`Client ID length: ${clientId.length}, Client Secret length: ${clientSecret.length}`);
 
-    // Login to retrieve YoLink tokens
+    // Login to retrieve YoLink tokens from local hub
     const timestamp = new Date().getTime();
     const params = new URLSearchParams();
     params.append('grant_type', 'client_credentials');
-    params.append('client_id', platform.config.userAccessId.trim());
-    params.append('client_secret', platform.config.secretKey.trim());
-    platform.verboseLog('SENDING:\n' + params);
-    let response = await fetch(platform.config.tokenURL, { method: 'POST', body: params });
-    checkHttpStatus(response);
-    this.yolinkTokens = await response.json();
-    platform.verboseLog('RECEIVED:\n' + JSON.stringify(this.yolinkTokens));
-    checkBudpStatus(platform, this.yolinkTokens);
-    this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp / 1000);
-    this.yolinkLoggedIn = true;
-
-    // Now retrieve YoLink Home ID
-    const bddp: yolinkBDDP = {
-      time: new Date().getTime(),
-      method: 'Home.getGeneralInfo',
-    };
-    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
-    response = await fetch(platform.config.apiURL,
-      {
-        method: 'POST', body: JSON.stringify(bddp),
+    params.append('client_id', clientId);
+    params.append('client_secret', clientSecret);
+    
+    // Log for debugging (with masked secret)
+    const debugParams = new URLSearchParams();
+    debugParams.append('grant_type', 'client_credentials');
+    debugParams.append('client_id', clientId);
+    debugParams.append('client_secret', '***MASKED***');
+    platform.verboseLog('SENDING TO LOCAL HUB:\n' + debugParams);
+    platform.verboseLog(`Secret contains special chars: ${/[^a-zA-Z0-9]/.test(clientSecret)}`);
+    platform.verboseLog(`Request URL: ${this.tokenURL}`);
+    
+    try {
+      const response = await fetch(this.tokenURL, { 
+        method: 'POST', 
+        body: params,
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + this.yolinkTokens.access_token,
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
-    checkHttpStatus(response);
-    const budp: yolinkBUDP = await response.json();
-    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
-    checkBudpStatus(platform, budp);
-    this.yolinkHomeId = budp.data.id;
+      platform.verboseLog(`Response status: ${response.status} ${response.statusText}`);
+      checkHttpStatus(response);
+      this.yolinkTokens = await response.json();
+      platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(this.yolinkTokens));
+      checkBudpStatus(platform, this.yolinkTokens);
+      this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp / 1000);
+      this.yolinkLoggedIn = true;
+    } catch (error) {
+      // Enhanced error reporting for authentication issues
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage?.includes('401') || errorMessage?.includes('Unauthorized')) {
+        platform.log.error(`Authentication failed with local hub. Please verify:
+1. Client ID: ${platform.config.userAccessId ? 'Set' : 'Missing'}
+2. Client Secret: ${platform.config.secretKey ? 'Set (length: ' + platform.config.secretKey.length + ')' : 'Missing'}
+3. Hub IP: ${this.baseURL}
+4. Local API is enabled in YoLink app: Local Hub -> Local Network -> Integrations -> Local API`);
+      }
+      throw new Error(`Failed to connect to local hub at ${this.baseURL}: ${errorMessage}`);
+    }
 
     if (this.accessTokenHeartbeat) {
       // If interval timer already running, kill it so we can start a new one.
@@ -201,7 +223,6 @@ export class YoLinkAPI implements IYoLinkAPI {
 
   /*********************************************************************
    * getAccessToken
-   *
    */
   async getAccessToken(platform: YoLinkHomebridgePlatform): Promise<string> {
     // Infinitely retry. On failure retry after 15 seconds.  Add 15 seconds for
@@ -213,34 +234,37 @@ export class YoLinkAPI implements IYoLinkAPI {
     // need to serialize this
     const releaseSemaphore = await this.accessSemaphore.acquire();
     try {
-      platform.verboseLog('YoLinkAPI.getAccessToken');
+      platform.verboseLog('YoLinkLocalAPI.getAccessToken');
 
       if (!this.yolinkLoggedIn) {
-        platform.log.error('Not logged in to YoLink API, try to login');
+        platform.log.error('Not logged in to YoLink Local API, try to login');
         await this.login(platform);
       }
 
       const timestamp = new Date().getTime();
       if (this.accessTokenExpireTime < Math.floor(timestamp / 1000)) {
         // We need to get a new access token, current one has or is about to expire
-        platform.verboseLog('Current access token expired, or close to expiry, requesting new one');
+        platform.verboseLog('Current access token expired, or close to expiry, requesting new one from local hub');
         const params = new URLSearchParams();
         params.append('grant_type', 'refresh_token');
         params.append('client_id', platform.config.userAccessId.trim());
-        // TEST with bad refresh token
         params.append('refresh_token', this.yolinkTokens.refresh_token);
-        platform.verboseLog('SENDING:\n' + params);
-        const response = await fetch(platform.config.tokenURL, { method: 'POST', body: params });
+        platform.verboseLog('SENDING TO LOCAL HUB:\n' + params);
+        const response = await fetch(this.tokenURL, { 
+          method: 'POST', 
+          body: params,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
         checkHttpStatus(response);
         this.yolinkTokens = await response.json();
-        platform.verboseLog('RECEIVED:\n' + JSON.stringify(this.yolinkTokens));
+        platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(this.yolinkTokens));
         checkBudpStatus(platform, this.yolinkTokens);
         this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp / 1000);
       }
     } catch (e) {
       // If error occurred that we probably need to login again.  Propagate the error up.
-      //const msg = (e instanceof Error) ? e.message : e;
-      //platform.log.error(`Error retrieving access token: ${msg}`);
       this.yolinkLoggedIn = false;
       throw (e);
     } finally {
@@ -251,7 +275,6 @@ export class YoLinkAPI implements IYoLinkAPI {
 
   /*********************************************************************
    * getDeviceList
-   *
    */
   async getDeviceList(platform: YoLinkHomebridgePlatform): Promise<YoLinkDevice[]> {
     // Infinitely retry. On failure retry after 15 seconds.  Add 15 seconds for
@@ -260,15 +283,15 @@ export class YoLinkAPI implements IYoLinkAPI {
   }
 
   async tryGetDeviceList(platform: YoLinkHomebridgePlatform): Promise<YoLinkDevice[]> {
-    platform.verboseLog('YoLinkAPI.getDeviceList');
+    platform.verboseLog('YoLinkLocalAPI.getDeviceList');
     const accessToken = await this.getAccessToken(platform);
 
     const bddp: yolinkBDDP = {
       time: new Date().getTime(),
       method: 'Home.getDeviceList',
     };
-    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
-    const response = await fetch(platform.config.apiURL,
+    platform.verboseLog('SENDING TO LOCAL HUB:\n' + JSON.stringify(bddp));
+    const response = await fetch(this.apiURL,
       {
         method: 'POST', body: JSON.stringify(bddp),
         headers: {
@@ -278,15 +301,21 @@ export class YoLinkAPI implements IYoLinkAPI {
       });
     checkHttpStatus(response);
     const budp: yolinkBUDP = await response.json();
-    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
+    platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp));
     checkBudpStatus(platform, budp);
-    platform.liteLog(`YoLinkAPI.getDeviceList found ${budp.data.devices.length} devices`);
-    return budp.data.devices;
+    
+    // Local API returns devices array directly or single device
+    let devices = budp.data.devices || [budp.data];
+    if (!Array.isArray(devices)) {
+      devices = [devices];
+    }
+    
+    platform.liteLog(`YoLinkLocalAPI.getDeviceList found ${devices.length} devices`);
+    return devices;
   }
 
   /*********************************************************************
    * getDeviceState
-   *
    */
   async getDeviceState(platform: YoLinkHomebridgePlatform, device): Promise<yolinkBUDP> {
     // Retry 30 times. On failure retry after 5 seconds.  Add 5 seconds for
@@ -295,7 +324,7 @@ export class YoLinkAPI implements IYoLinkAPI {
   }
 
   async tryGetDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice) {
-    platform.liteLog(`[${device.deviceMsgName}] YoLinkAPI.getDeviceState`);
+    platform.liteLog(`[${device.deviceMsgName}] YoLinkLocalAPI.getDeviceState`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
     const bddp: yolinkBDDP = {
@@ -304,8 +333,8 @@ export class YoLinkAPI implements IYoLinkAPI {
       targetDevice: device.deviceId,
       token: device.token,
     };
-    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp, null, 2));
-    const response = await fetch(platform.config.apiURL,
+    platform.verboseLog('SENDING TO LOCAL HUB:\n' + JSON.stringify(bddp, null, 2));
+    const response = await fetch(this.apiURL,
       {
         method: 'POST', body: JSON.stringify(bddp),
         headers: {
@@ -315,41 +344,21 @@ export class YoLinkAPI implements IYoLinkAPI {
       });
     checkHttpStatus(response);
     budp = await response.json();
-    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
+    platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp, null, 2));
     checkBudpStatus(platform, budp, device);
     return budp;
   }
 
   /*********************************************************************
    * setDeviceState
-   *
    */
   async setDeviceState(platform: YoLinkHomebridgePlatform, device: YoLinkDevice, state, method = 'setState'): Promise<yolinkBUDP | undefined> {
-    /*
-     * Hummm.... whether to retry on failure or not.  I keep changing my mind.  But,
-     * twice now my towel heater has not switched on in the morning with a 00201 error.
-     * So, I'm back to retrying!
-     *
-    try {
-      return await this.trySetDeviceState.bind(this)(platform, device, state, method);
-    } catch (e) {
-      const msg = ((e instanceof Error) ? e.stack : e) as string;
-      const errCode = msg.split('YoLink API error code: ').pop()?.substring(0, 6);
-      if (!((errCode === '000201') || (errCode === '010301') || (errCode === '020104'))) {
-        // ignore common errors, will have been logged already.
-        platform.log.error('Error in setDeviceState' + platform.reportError + msg);
-      }
-      return (undefined);
-    }
-    */
-
     // Retry 5 times. On failure retry after 10 seconds.  Add 10 seconds for
     // each failure with maximum of 30 seconds between each retry.
     return await retryFn(platform, this.trySetDeviceState.bind(this, platform, device, state, method), 5, 10000, 10000, 30000) as yolinkBUDP;
   }
 
   async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state, method = 'setState'): Promise<yolinkBUDP> {
-    //platform.log.info(`[${device.deviceMsgName}] YoLinkAPI.setDeviceState: ${(state)?JSON.stringify(state):method}`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
     const bddp: yolinkBDDP = {
@@ -361,8 +370,8 @@ export class YoLinkAPI implements IYoLinkAPI {
     if (state) {
       bddp.params = state;
     }
-    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp, null, 2));
-    const response = await fetch(platform.config.apiURL,
+    platform.verboseLog('SENDING TO LOCAL HUB:\n' + JSON.stringify(bddp, null, 2));
+    const response = await fetch(this.apiURL,
       {
         method: 'POST', body: JSON.stringify(bddp),
         headers: {
@@ -372,7 +381,7 @@ export class YoLinkAPI implements IYoLinkAPI {
       });
     checkHttpStatus(response);
     budp = await response.json();
-    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
+    platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp, null, 2));
     checkBudpStatus(platform, budp, device);
     platform.log.info(`[${device.deviceMsgName}] Device state set: ${(state) ? JSON.stringify(state) : method}`);
     return budp;
@@ -381,7 +390,7 @@ export class YoLinkAPI implements IYoLinkAPI {
   /*********************************************************************
    * mqtt
    *
-   * Open a MQTT session with YoLink API server to receive update
+   * Open a MQTT session with YoLink Local Hub to receive update
    * messages from YoLink for each device.
    */
   mqtt(platform: YoLinkHomebridgePlatform, msgCallback) {
@@ -391,13 +400,15 @@ export class YoLinkAPI implements IYoLinkAPI {
       clearTimeout(this.mqttTimer);
       this.mqttTimer = null;
     }
-    const url = `mqtt://${this.mqttHost}:${platform.config.mqttPort.toString()}`;
-    const reports = `yl-home/${this.yolinkHomeId}/+/report`;
+    
+    const url = `mqtt://${platform.config.hubIPAddress}:18080`;
+    const reports = `ylsubnet/${this.subnetId}/+/report`;
 
-    platform.log.info('Create MQTT client to connect to YoLink message service');
+    platform.log.info('Create MQTT client to connect to YoLink Local Hub message service');
     const options: IClientOptions = {
       clean: true,
-      username: this.yolinkTokens.access_token,
+      username: platform.config.userAccessId,
+      password: platform.config.secretKey, // Use client secret for MQTT auth per YoLink docs
       reconnectPeriod: 30 * 1000,
       connectTimeout: 30 * 1000,
     };
@@ -406,57 +417,58 @@ export class YoLinkAPI implements IYoLinkAPI {
     // the MQTT session. If we need to restart the MQTT session then we may need
     // to do so with a new access token.
     this.mqttTokenExpireTime = this.accessTokenExpireTime;
-    platform.verboseLog(`MQTT options: ${JSON.stringify(options)}`);
+    platform.verboseLog(`Local MQTT options: ${JSON.stringify(options)}`);
     this.mqttClient = mqtt.connect(url, options);
 
     this.mqttClient.on('connect', () => {
-      platform.verboseLog(`MQTT connect: subscribe to messages for '${reports}'`);
+      platform.verboseLog(`Local MQTT connect: subscribe to messages for '${reports}'`);
       this.mqttClient.subscribe(reports, (error) => {
         if (error) {
-          throw (new Error(`MQTT subscribe error: ${error}`));
+          platform.log.error(`Local MQTT subscribe error: ${error}`);
+          // Don't throw error here as it causes the whole plugin to crash
         } else {
-          platform.log.info(`MQTT subscribed: ${reports}`);
+          platform.log.info(`Local MQTT subscribed: ${reports}`);
         }
       });
     });
 
     this.mqttClient.on('message', (topic, message: Buffer) => {
-      platform.verboseLog(`MQTT message: ${topic}\n${JSON.stringify(JSON.parse(message.toString()), null, 2)}`);
+      platform.verboseLog(`Local MQTT message: ${topic}\n${JSON.stringify(JSON.parse(message.toString()), null, 2)}`);
       msgCallback(message);
     });
 
     this.mqttClient.on('reconnect', () => {
       if (Math.floor(new Date().getTime() / 1000) >= this.mqttTokenExpireTime) {
-        platform.log.info(`MQTT reconnect:  Connected: ${this.mqttClient.connected}, Access token expired, restart MQTT client`);
+        platform.log.info(`Local MQTT reconnect:  Connected: ${this.mqttClient.connected}, Access token expired, restart MQTT client`);
         this.mqttClient.end(true, undefined);
         this.mqtt(platform, msgCallback);
       } else {
-        platform.log.info(`MQTT reconnect: Connected: ${this.mqttClient.connected}`);
+        platform.log.info(`Local MQTT reconnect: Connected: ${this.mqttClient.connected}`);
       }
     });
 
     this.mqttClient.on('close', () => {
-      platform.verboseLog(`MQTT close: Connected: ${this.mqttClient.connected}`);
+      platform.verboseLog(`Local MQTT close: Connected: ${this.mqttClient.connected}`);
     });
 
     this.mqttClient.on('disconnect', (packet) => {
-      platform.verboseLog('MQTT disconnect:' + packet);
+      platform.verboseLog('Local MQTT disconnect:' + packet);
     });
 
     this.mqttClient.on('offline', () => {
-      platform.verboseLog(`MQTT offline: Connected: ${this.mqttClient.connected}`);
+      platform.verboseLog(`Local MQTT offline: Connected: ${this.mqttClient.connected}`);
     });
 
     this.mqttClient.on('end', () => {
-      platform.verboseLog('MQTT end');
+      platform.verboseLog('Local MQTT end');
     });
 
     this.mqttClient.on('error', (error) => {
-      platform.log.error(`MQTT error: '${error}' Connected: ${this.mqttClient.connected}`);
+      platform.log.error(`Local MQTT error: '${error}' Connected: ${this.mqttClient.connected}`);
       if (!this.mqttClient.connected) {
         this.mqttClient.end(true, undefined);
         if (this.mqttTimer === null) {
-          platform.log.info('MQTT client not connected, wait 5 seconds and then attempt restart');
+          platform.log.info('Local MQTT client not connected, wait 5 seconds and then attempt restart');
           // We wait 5 seconds so as not to get into a really fast loop of retries if we
           // keep getting an error. Don't start new timer if one already running.
           this.mqttTimer = setTimeout(() => {
@@ -466,6 +478,5 @@ export class YoLinkAPI implements IYoLinkAPI {
         }
       }
     });
-
   }
 }
