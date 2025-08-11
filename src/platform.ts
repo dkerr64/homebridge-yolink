@@ -102,6 +102,12 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       this.config.mqttPort ??= YOLINK_MQTT_PORT;
       this.config.apiURL ??= YOLINK_API_URL;
       this.config.tokenURL ??= YOLINK_TOKEN_URL;
+    } else if (this.config.hubType === 'local') {
+      // For local mode, explicitly ignore any cloud URL settings that might have been added by Config UI
+      delete this.config.tokenURL;
+      delete this.config.apiURL;
+      delete this.config.mqttPort;
+      this.log.info('Local hub mode: ignoring any cloud API settings');
     }
     this.config.version ??= packageJSON.version;
     this.config.garageDoors ??= [];

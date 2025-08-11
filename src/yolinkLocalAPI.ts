@@ -124,6 +124,12 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
     if (!platform.config.subnetId) {
       throw new Error('FATAL: Subnet ID is required for local API MQTT subscriptions');
     }
+    
+    // Basic IP address validation
+    const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    if (!ipRegex.test(platform.config.hubIPAddress)) {
+      platform.log.warn(`Local hub IP address format may be invalid: ${platform.config.hubIPAddress}`);
+    }
 
     this.baseURL = `http://${platform.config.hubIPAddress}:1080`;
     this.tokenURL = `${this.baseURL}/open/yolink/token`;
@@ -147,18 +153,43 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
     if (!platform.config.userAccessId || !platform.config.secretKey) {
       throw (new Error('FATAL: Missing userAccessId (Client ID) or secretKey (Client Secret) credentials in config.'));
     }
+    
+    // Validate credentials format
+    const clientId = platform.config.userAccessId.trim();
+    const clientSecret = platform.config.secretKey.trim();
+    
+    if (clientSecret.length === 0) {
+      throw (new Error('FATAL: Client Secret is empty after trimming whitespace.'));
+    }
+    
     platform.log.info('Login to YoLink Local API with credentials from config');
+    platform.verboseLog(`Client ID length: ${clientId.length}, Client Secret length: ${clientSecret.length}`);
 
     // Login to retrieve YoLink tokens from local hub
     const timestamp = new Date().getTime();
     const params = new URLSearchParams();
     params.append('grant_type', 'client_credentials');
-    params.append('client_id', platform.config.userAccessId.trim());
-    params.append('client_secret', platform.config.secretKey.trim());
-    platform.verboseLog('SENDING TO LOCAL HUB:\n' + params);
+    params.append('client_id', clientId);
+    params.append('client_secret', clientSecret);
+    
+    // Log for debugging (with masked secret)
+    const debugParams = new URLSearchParams();
+    debugParams.append('grant_type', 'client_credentials');
+    debugParams.append('client_id', clientId);
+    debugParams.append('client_secret', '***MASKED***');
+    platform.verboseLog('SENDING TO LOCAL HUB:\n' + debugParams);
+    platform.verboseLog(`Secret contains special chars: ${/[^a-zA-Z0-9]/.test(clientSecret)}`);
+    platform.verboseLog(`Request URL: ${this.tokenURL}`);
     
     try {
-      const response = await fetch(this.tokenURL, { method: 'POST', body: params });
+      const response = await fetch(this.tokenURL, { 
+        method: 'POST', 
+        body: params,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+      platform.verboseLog(`Response status: ${response.status} ${response.statusText}`);
       checkHttpStatus(response);
       this.yolinkTokens = await response.json();
       platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(this.yolinkTokens));
@@ -166,7 +197,16 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
       this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp / 1000);
       this.yolinkLoggedIn = true;
     } catch (error) {
-      throw new Error(`Failed to connect to local hub at ${this.baseURL}: ${error.message}`);
+      // Enhanced error reporting for authentication issues
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage?.includes('401') || errorMessage?.includes('Unauthorized')) {
+        platform.log.error(`Authentication failed with local hub. Please verify:
+1. Client ID: ${platform.config.userAccessId ? 'Set' : 'Missing'}
+2. Client Secret: ${platform.config.secretKey ? 'Set (length: ' + platform.config.secretKey.length + ')' : 'Missing'}
+3. Hub IP: ${this.baseURL}
+4. Local API is enabled in YoLink app: Local Hub -> Local Network -> Integrations -> Local API`);
+      }
+      throw new Error(`Failed to connect to local hub at ${this.baseURL}: ${errorMessage}`);
     }
 
     if (this.accessTokenHeartbeat) {
@@ -210,7 +250,13 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
         params.append('client_id', platform.config.userAccessId.trim());
         params.append('refresh_token', this.yolinkTokens.refresh_token);
         platform.verboseLog('SENDING TO LOCAL HUB:\n' + params);
-        const response = await fetch(this.tokenURL, { method: 'POST', body: params });
+        const response = await fetch(this.tokenURL, { 
+          method: 'POST', 
+          body: params,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        });
         checkHttpStatus(response);
         this.yolinkTokens = await response.json();
         platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(this.yolinkTokens));
@@ -362,7 +408,7 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
     const options: IClientOptions = {
       clean: true,
       username: platform.config.userAccessId,
-      password: this.yolinkTokens.access_token,
+      password: platform.config.secretKey, // Use client secret for MQTT auth per YoLink docs
       reconnectPeriod: 30 * 1000,
       connectTimeout: 30 * 1000,
     };
@@ -378,7 +424,8 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
       platform.verboseLog(`Local MQTT connect: subscribe to messages for '${reports}'`);
       this.mqttClient.subscribe(reports, (error) => {
         if (error) {
-          throw (new Error(`Local MQTT subscribe error: ${error}`));
+          platform.log.error(`Local MQTT subscribe error: ${error}`);
+          // Don't throw error here as it causes the whole plugin to crash
         } else {
           platform.log.info(`Local MQTT subscribed: ${reports}`);
         }

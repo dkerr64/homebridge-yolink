@@ -411,6 +411,45 @@
       }
     }
   },
+  "dependencies": {
+    "hubType": {
+      "oneOf": [
+        {
+          "properties": {
+            "hubType": { "enum": ["cloud"] },
+            "tokenURL": {
+              "title": "YoLink authentication server URL address",
+              "type": "string",
+              "default": "https://api.yosmart.com/open/yolink/token"
+            },
+            "apiURL": {
+              "title": "YoLink API server URL address", 
+              "type": "string",
+              "default": "https://api.yosmart.com/open/yolink/v2/api"
+            },
+            "mqttPort": {
+              "title": "Port number for MQTT service",
+              "type": "number",
+              "default": 8003
+            }
+          }
+        },
+        {
+          "properties": {
+            "hubType": { "enum": ["local"] },
+            "hubIPAddress": {
+              "title": "Local Hub IP Address",
+              "type": "string"
+            },
+            "subnetId": {
+              "title": "Subnet ID", 
+              "type": "string"
+            }
+          }
+        }
+      ]
+    }
+  },
   "layout": [
     {
       "items": [
