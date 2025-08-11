@@ -186,8 +186,8 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
         method: 'POST', 
         body: params,
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       });
       platform.verboseLog(`Response status: ${response.status} ${response.statusText}`);
       checkHttpStatus(response);
@@ -254,8 +254,8 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
           method: 'POST', 
           body: params,
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
         });
         checkHttpStatus(response);
         this.yolinkTokens = await response.json();
