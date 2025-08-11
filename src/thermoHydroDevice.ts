@@ -265,8 +265,8 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery) ? ((message.data.battery) ? `, Battery: ${message.data.battery}` :
-      (message.data.state.battery) ? `, Battery: ${message.data.state.battery}` : '') : '';
+    const batteryMsg = (device.hasBattery) ? ((message.data?.battery) ? `, Battery: ${message.data?.battery}` :
+      (message.data?.state?.battery) ? `, Battery: ${message.data?.state?.battery}` : '') : '';
     const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
 
     switch (event[1]) {
