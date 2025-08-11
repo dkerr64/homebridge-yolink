@@ -450,6 +450,45 @@ async function handleType(this: YoLinkPlatformAccessory): Promise<Characteristic
  *   },
  *   "deviceId": "abcdef1234567890"
  * }
+ * 
+ * The YS5008-UC may also report...
+ * {
+ *  "event": "WaterMeterController.HourlyUsageReport",
+ *  "method": "HourlyUsageReport",
+ *  "time": 1754676123516,
+ *  "msgid": "1754676123516",
+ *  "data": {
+ *    "time": 1754676000000,
+ *    "usageAmount": 230308
+ *  },
+ *  "deviceId": "abcdef1234567890"
+ * }
+ * 
+ * The YS5008-UC may also report...
+ * {
+ *  "event": "WaterMeterController.getValveSchedules",
+ *  "method": "getValveSchedules",
+ *  "time": 1754001577752,
+ *  "msgid": "1754001577751",
+ *  "data": {
+ *    "0": {
+ *      "isValid": true,
+ *      "week": 62,
+ *      "index": 0,
+ *      "on": "18:30",
+ *      "off": "20:30"
+ *    },
+ *    "1": {
+ *      "isValid": true,
+ *      "week": 64,
+ *      "index": 1,
+ *      "on": "20:0",
+ *      "off": "21:30"
+ *    },
+ *    "supportLeakVolume": false
+ *  },
+ *  "deviceId": "abcdef1234567890"
+ * }
  */
 export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -507,6 +546,10 @@ export async function mqttValveDevice(this: YoLinkPlatformAccessory, message): P
               : platform.api.hap.Characteristic.StatusFault.NO_FAULT);
         }
         break;
+      case 'HourlyUsageReport':
+      // falls through
+      case 'getValveSchedules':
+      // falls through
       case 'setTimeZone':
         // nothing to update in HomeKit
         this.logDeviceState(device, `Unsupported message (MQTT: ${message.event})`);
