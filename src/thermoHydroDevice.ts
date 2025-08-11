@@ -211,6 +211,50 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'thermo
  *   },
  *   "deviceId": "abcdef1234567890"
  * }
+ * 
+ * The newer X3 sensor also sends a getState..
+ * {
+ *  "code": "000000",
+ *  "time": 1665666280911,
+ *  "msgid": 1665666280911,
+ *  "method": "THSensor.getState",
+ *  "desc": "Success",
+ *  "data": {
+ *    "online": true,
+ *    "state": {
+ *      "alarm": {
+ *        "lowBattery": false,
+ *        "lowTemp": false,
+ *        "highTemp": false,
+ *        "lowHumidity": false,
+ *        "highHumidity": false,
+ *        "period": false,
+ *        "code": 0
+ *      },
+ *      "battery": 4,
+ *      "batteryType": "Li",
+ *      "humidity": 63.8,
+ *      "humidityCorrection": 0,
+ *      "humidityLimit": {
+ *        "max": 100,
+ *        "min": 0
+ *      },
+ *      "interval": 0,
+ *      "mode": "c",
+ *      "recordInterval": 10,
+ *      "state": "normal",
+ *      "tempCorrection": 0,
+ *      "tempLimit": {
+ *        "max": 35,
+ *        "min": 18
+ *      },
+ *      "temperature": 28.9,
+ *      "version": "0602"
+ *    },
+ *    "deviceId": "d88b4c0100xxxxxx",
+ *    "reportAt": "2022-10-13T12:50:01.000Z"
+ *  }
+ * }
  */
 export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, message): Promise<void> {
   const platform: YoLinkHomebridgePlatform = this.platform;
@@ -221,10 +265,20 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
     device.updateTime = Math.floor(new Date().getTime() / 1000) + device.config.refreshAfter;
     const mqttMessage = `MQTT: ${message.event} for device ${device.deviceMsgName}`;
     const event = message.event.split('.');
-    const batteryMsg = (device.hasBattery && message.data.battery) ? `, Battery: ${message.data.battery}` : '';
+    const batteryMsg = (device.hasBattery) ? ((message.data.battery) ? `, Battery: ${message.data.battery}` :
+      (message.data.state.battery) ? `, Battery: ${message.data.state.battery}` : '') : '';
     const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
 
     switch (event[1]) {
+      case 'getState':
+        // getState is similar to Report but the data is nested under a "state" object
+        // for ease of handling we will copy up the ones we care about to the "data" level
+        message.data.temperature = message.data.state.temperature;
+        message.data.humidity = message.data.state.humidity;
+        message.data.battery = message.data.state.battery;
+        message.data.alarm = message.data.state.alarm;
+      // Now we sohould be able to handle the message as if it was a "Report"
+      // falls through
       case 'Alert':
       // I can see no way in HomeKit documentation for a thermo/hydro sensor
       // to generate an alert.  I think bounds testing / alerting all has to be
