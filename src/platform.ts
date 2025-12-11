@@ -50,8 +50,8 @@ export type YoLinkDevice = {
 };
 
 export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
-  public readonly Service: typeof Service = this.api.hap.Service;
-  public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
+  public readonly Service: typeof Service;
+  public readonly Characteristic: typeof Characteristic;
 
   // this is used to track restored cached accessories
   private readonly accessories: PlatformAccessory[] = [];
@@ -81,6 +81,10 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     public readonly api: API) {
 
     Error.stackTraceLimit = 100;
+
+    this.Service = api.hap.Service;
+    this.Characteristic = api.hap.Characteristic;
+
     // transforms array of devices into object that can be referenced by deviceId...
     const devices = {};
     if (this.config.devices) {
