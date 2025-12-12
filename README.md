@@ -105,6 +105,7 @@ If you see an error message in the log similar to the following then you are lik
             "powerFailureSensorAs": "Outlet",
             "deviceTemperatures": false,
             "useWaterFlowing": false,
+            "leakAsContact": false,
             "devices": [
                 {
                     "deviceId": "0123456789abcdef",
@@ -116,6 +117,7 @@ If you see an error message in the log similar to the following then you are lik
                         "nOutlets": 5,
                         "temperature": false,
                         "useWaterFlowing": false,
+                        "leakAsContact": false,
                         "enableExperimental": false
                     }
                 }
@@ -151,6 +153,7 @@ If you see an error message in the log similar to the following then you are lik
   * **powerFailureSensorAs** *(optional)*: How to represent the YoLink power failure alarm sensor in HomeKit, can be either *Outlet* or *Contact*, defaults to Outlet.
   * **deviceTemperatures** *(optional)*: If set to true then create a temperature service for those devices that report temperature in addition to their main function. See Device Notes below.
   * **useWaterFlowing** *(optional)*: If set to true then the plugin will use the *waterFlowing* status from YoLink *WaterMeterController* valves to report the *InUse* status to HomeKit. See Device Notes below.
+  * **leakAsContact** *(optional)*: If set to true then the plugin will use HomeKit contact sensor accessory type instead of leak sensor accessory type. See Device Notes below.
   * **devices** *(optional)*: Optional array of device settings, see below.
   * **garageDoors** *(optional)*: Optional array of sensor/controller pairs, see below.
 
@@ -164,6 +167,7 @@ If you see an error message in the log similar to the following then you are lik
     * **nOutlets** *(optional)*: For power strip or multi-outlet devices, number of controllable outlets. See device notes below.
     * **temperature** *(optional)*: If set to true then create a temperature service in addition to the main function. See Device Notes below.
     * **useWaterFlowing** *(optional)*: Device specific override of global *useWaterFlowing*, see above.  Defaults to global setting.
+    * **leakAsContact** *(optional)*: Device specific override of global *leakAsContact*, see above.  Defaults to global setting.
     * **enableExperimental** *(optional)*: Device specific override of global *enableExperimental*, see above. Defaults to global setting.
 
 * **garageDoors** are an array of objects that allow you to pair two devices, either a *GarageDoor* or *Finger* controller with a *DoorSensor* that together represent a single garage door. The garage door inherits properties of the individual devices. The garage door *name* is taken from the controller device. See device notes below.
@@ -248,6 +252,8 @@ Sending an IR signal is stateless and so the switch does not remain in the on po
 Normal status reporting occurs every 4 hours. Alerts will be reported immediately. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
 
 YoLink leak sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
+
+You can optionally use HomeKit contact sensor accessory type instead of leak sensor type, this changes how the device appears in Apple Home and the importance / severity of an alert and notification. This may be useful if the leak sensor is used to detect presence of water that may be less urgent/critical than an actual water leak.
 
 ### Lock
 

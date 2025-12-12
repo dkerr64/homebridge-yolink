@@ -18,16 +18,27 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
   const accessory: PlatformAccessory = this.accessory;
   const device: YoLinkDevice = accessory.context.device;
 
-  this.leakService = accessory.getService(platform.Service.LeakSensor)
-    || accessory.addService(platform.Service.LeakSensor);
-  this.leakService.setCharacteristic(platform.Characteristic.Name, device.name);
-
+  if (device.config.leakAsContact) {
+    // User requests that we report to HomeKit as a contact sensor
+    // Remove the leak sensor accessory if we previously used that
+    accessory.removeService(accessory.getService(platform.Service.LeakSensor)!);
+    // And now add it as a contact sensor.
+    this.leakService = accessory.getService(platform.Service.ContactSensor)
+      || accessory.addService(platform.Service.ContactSensor);
+    this.leakService.setCharacteristic(platform.Characteristic.Name, device.name);
+  } else {
+    // Remove the contact sensor accessory if we previously used that
+    accessory.removeService(accessory.getService(platform.Service.ContactSensor)!);
+    // And now add it as a leak sensor.
+    this.leakService = accessory.getService(platform.Service.LeakSensor)
+      || accessory.addService(platform.Service.LeakSensor);
+    this.leakService.setCharacteristic(platform.Characteristic.Name, device.name);
+  }
   if (device.config.temperature) {
     // If requested add a service for the internal device temperature.
     this.thermoService = accessory.getService(platform.Service.TemperatureSensor)
       || accessory.addService(platform.Service.TemperatureSensor);
     this.thermoService.setCharacteristic(platform.Characteristic.Name, device.name + ' Temperature');
-
   } else {
     // If not requested then remove it if it already exists.
     accessory.removeService(accessory.getService(platform.Service.TemperatureSensor)!);
@@ -38,8 +49,13 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
   await this.refreshDataTimer(handleGetBlocking.bind(this));
 
   // Once we have initial data, setup all the Homebridge handlers
-  this.leakService.getCharacteristic(platform.Characteristic.LeakDetected)
-    .onGet(handleGet.bind(this));
+  if (device.config.leakAsContact) {
+    this.leakService.getCharacteristic(platform.Characteristic.ContactSensorState)
+      .onGet(handleGet.bind(this, 'contact'));
+  } else {
+    this.leakService.getCharacteristic(platform.Characteristic.LeakDetected)
+      .onGet(handleGet.bind(this));
+  }
   this.thermoService?.getCharacteristic(platform.Characteristic.CurrentTemperature)
     .onGet(handleGet.bind(this, 'thermo'));
 }
@@ -71,16 +87,29 @@ async function handleGet(this: YoLinkPlatformAccessory, devSensor = 'main'): Pro
   const device: YoLinkDevice = this.accessory.context.device;
   handleGetBlocking.bind(this, devSensor)()
     .then((v) => {
-      if (devSensor === 'thermo') {
-        this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
-      } else {
-        this.leakService.updateCharacteristic(platform.Characteristic.LeakDetected, v);
+      switch (devSensor) {
+        case 'thermo':
+          this.thermoService.updateCharacteristic(platform.Characteristic.CurrentTemperature, v);
+          break;
+        case 'contact':
+          this.leakService.updateCharacteristic(platform.Characteristic.ContactSensorState, v);
+          break;
+        default:
+          this.leakService.updateCharacteristic(platform.Characteristic.LeakDetected, v);
+          break;
       }
     });
   // Return current state of the device pending completion of the blocking function
-  return ((devSensor === 'thermo')
-    ? (device.data?.state?.devTemperature ?? -270)
-    : (device.data?.state?.state === 'alert'));
+  switch (devSensor) {
+    case 'thermo':
+      return (device.data?.state?.devTemperature ?? -270);
+    case 'contact':
+      return ((device.data?.state?.state === 'closed')
+        ? platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED
+        : platform.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED);
+    default:
+      return (device.data?.state?.state === 'alert');
+  }
 }
 
 async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'main'): Promise<CharacteristicValue> {
@@ -99,10 +128,16 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, devSensor = 'mai
         case 'thermo':
           rc = device.data.state.devTemperature;
           break;
+        case 'contact':
+          rc = (device.data.state.state === 'closed')
+            ? platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED
+            : platform.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
+          break;
         default:
           if (device.data.state.state === 'alert') {
             rc = platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED;
           }
+          break;
       }
       this.logDeviceState(device, `Leak: ${device.data.state.state}, Battery: ${device.data.state.battery}, ` +
         `DevTemp: ${device.data.state.devTemperature}\u00B0C ` +
@@ -185,11 +220,20 @@ export async function mqttLeakSensor(this: YoLinkPlatformAccessory, message): Pr
           device.data.reportAt = device.reportAtTime.toISOString();
         }
         this.logDeviceState(device, `Leak: ${device.data.state.state}${alertMsg}${batteryMsg}${devTempMsg} (MQTT: ${message.event})`);
+        if (device.config.leakAsContact) {
+          this.leakService
+            .updateCharacteristic(platform.Characteristic.ContactSensorState,
+              (message.data.state === 'alert')
+                ? platform.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED
+                : platform.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED);
+        } else {
+          this.leakService
+            .updateCharacteristic(platform.Characteristic.LeakDetected,
+              (message.data.state === 'alert')
+                ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
+                : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED);
+        }
         this.leakService
-          .updateCharacteristic(platform.Characteristic.LeakDetected,
-            (message.data.state === 'alert')
-              ? platform.api.hap.Characteristic.LeakDetected.LEAK_DETECTED
-              : platform.api.hap.Characteristic.LeakDetected.LEAK_NOT_DETECTED)
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
         this.thermoService?.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.devTemperature);

@@ -102,6 +102,7 @@ export class YoLinkPlatformAccessory {
     device.config.refreshAfter ??= platform.config.refreshAfter;
     device.config.enableExperimental = platform.makeBoolean(device.config.enableExperimental, platform.config.enableExperimental);
     device.config.temperature = platform.makeBoolean(device.config.temperature, platform.config.deviceTemperatures);
+    device.config.leakAsContact = platform.makeBoolean(device.config.leakAsContact, platform.config.leakAsContact);
     device.config.powerFailureSensorAs ??= platform.config.powerFailureSensorAs;
     device.hasBattery = deviceFeatures[device.type]?.hasBattery ?? false;
     // Set updateTime to now, which will ensure retrieving data from YoLink

@@ -1,7 +1,7 @@
 {
   "pluginAlias": "YoLink",
   "pluginType": "platform",
-  "headerDisplay": "This plugin is currently experimental and under development.  Please report [bugs](https://github.com/dkerr64/homebridge-yolink/issues)",
+  "headerDisplay": "Thank you for using the YoLink plugin.  Please report bugs [here](https://github.com/dkerr64/homebridge-yolink/issues).",
   "footerDisplay": "For help please see the [homepage](https://github.com/dkerr64/homebridge-yolink)",
   "singular": true,
   "schema": {
@@ -27,11 +27,15 @@
         "oneOf": [
           {
             "title": "Cloud Hub (YoLink Cloud API)",
-            "enum": ["cloud"]
+            "enum": [
+              "cloud"
+            ]
           },
           {
             "title": "Local Hub (Local API)",
-            "enum": ["local"]
+            "enum": [
+              "local"
+            ]
           }
         ],
         "description": "Choose whether to connect to YoLink devices through the cloud API or a local hub. Local hub provides faster response times and works without internet connectivity."
@@ -244,6 +248,12 @@
         "required": false,
         "description": "YoLink water meter controller valves can report whether water is flowing. This sets whether to use this when informing HomeKit that a valve is InUse. Default is to assume InUse if valve is open."
       },
+      "leakAsContact": {
+        "title": "Use HomeKit contact instead of leak sensor",
+        "type": "boolean",
+        "required": false,
+        "description": "Instead of using HomeKit leak sensors, create a conact sensor. This changes how the sensor is shown in Apple Home and the severity of any alerts or notifications."
+      },
       "powerFailureSensorAs": {
         "title": "Represent YoLink Power Failure Alarm as",
         "type": "string",
@@ -372,6 +382,12 @@
                   "type": "boolean",
                   "required": false,
                   "description": "YoLink water meter controller valves can report whether water is flowing. This sets whether to use this when informing HomeKit that a valve is InUse. Default is to assume InUse if valve is open."
+                },
+                "leakAsContact": {
+                  "title": "Use HomeKit contact instead of leak sensor",
+                  "type": "boolean",
+                  "required": false,
+                  "description": "Instead of using HomeKit leak sensors, create a conact sensor. This changes how the sensor is shown in Apple Home and the severity of any alerts or notifications."
                 }
               }
             }
@@ -416,14 +432,18 @@
       "oneOf": [
         {
           "properties": {
-            "hubType": { "enum": ["cloud"] },
+            "hubType": {
+              "enum": [
+                "cloud"
+              ]
+            },
             "tokenURL": {
               "title": "YoLink authentication server URL address",
               "type": "string",
               "default": "https://api.yosmart.com/open/yolink/token"
             },
             "apiURL": {
-              "title": "YoLink API server URL address", 
+              "title": "YoLink API server URL address",
               "type": "string",
               "default": "https://api.yosmart.com/open/yolink/v2/api"
             },
@@ -436,13 +456,17 @@
         },
         {
           "properties": {
-            "hubType": { "enum": ["local"] },
+            "hubType": {
+              "enum": [
+                "local"
+              ]
+            },
             "hubIPAddress": {
               "title": "Local Hub IP Address",
               "type": "string"
             },
             "subnetId": {
-              "title": "Subnet ID", 
+              "title": "Subnet ID",
               "type": "string"
             }
           }
@@ -483,6 +507,7 @@
             "doublePress",
             "deviceTemperatures",
             "useWaterFlowing",
+            "leakAsContact",
             "powerFailureSensorAs",
             "verboseLog",
             "liteLog",
@@ -520,7 +545,8 @@
                     "devices[].config.doublePress",
                     "devices[].config.nOutlets",
                     "devices[].config.temperature",
-                    "devices[].config.useWaterFlowing"
+                    "devices[].config.useWaterFlowing",
+                    "devices[].config.leakAsContact"
                   ]
                 }
               ]
