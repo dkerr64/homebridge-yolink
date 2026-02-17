@@ -261,26 +261,33 @@ export class YoLinkAPI implements IYoLinkAPI {
 
   async tryGetDeviceList(platform: YoLinkHomebridgePlatform): Promise<YoLinkDevice[]> {
     platform.verboseLog('YoLinkAPI.getDeviceList');
+    let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
 
-    const bddp: yolinkBDDP = {
-      time: new Date().getTime(),
-      method: 'Home.getDeviceList',
-    };
-    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
-    const response = await fetch(platform.config.apiURL,
-      {
-        method: 'POST', body: JSON.stringify(bddp),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + accessToken,
-        },
-      });
-    checkHttpStatus(response);
-    const budp: yolinkBUDP = await response.json();
-    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
-    checkBudpStatus(platform, budp);
-    platform.liteLog(`YoLinkAPI.getDeviceList found ${budp.data.devices.length} devices`);
+    const releaseSemaphore = await platform.yolinkRequestSemaphore.acquire();
+    try {
+      const bddp: yolinkBDDP = {
+        time: new Date().getTime(),
+        method: 'Home.getDeviceList',
+      };
+      platform.verboseLog('SENDING:\n' + JSON.stringify(bddp));
+      const response = await fetch(platform.config.apiURL,
+        {
+          method: 'POST', body: JSON.stringify(bddp),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + accessToken,
+          },
+        });
+      checkHttpStatus(response);
+      budp = await response.json();
+      platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
+      checkBudpStatus(platform, budp);
+      platform.liteLog(`YoLinkAPI.getDeviceList found ${budp.data.devices.length} devices`);
+    } finally {
+      releaseSemaphore();
+    }
+
     return budp.data.devices;
   }
 
@@ -298,25 +305,34 @@ export class YoLinkAPI implements IYoLinkAPI {
     platform.liteLog(`[${device.deviceMsgName}] YoLinkAPI.getDeviceState`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
-    const bddp: yolinkBDDP = {
-      time: new Date().getTime(),
-      method: device.type + '.getState',
-      targetDevice: device.deviceId,
-      token: device.token,
-    };
-    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp, null, 2));
-    const response = await fetch(platform.config.apiURL,
-      {
-        method: 'POST', body: JSON.stringify(bddp),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + accessToken,
-        },
-      });
-    checkHttpStatus(response);
-    budp = await response.json();
-    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
-    checkBudpStatus(platform, budp, device);
+
+    const releaseSemaphore = await platform.yolinkRequestSemaphore.acquire();
+    try {
+      const bddp: yolinkBDDP = {
+        time: new Date().getTime(),
+        method: device.type + '.getState',
+        targetDevice: device.deviceId,
+        token: device.token,
+      };
+      platform.verboseLog('SENDING:\n' + JSON.stringify(bddp, null, 2));
+      const response = await fetch(platform.config.apiURL,
+        {
+          method: 'POST', body: JSON.stringify(bddp),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + accessToken,
+          },
+        });
+      checkHttpStatus(response);
+      budp = await response.json();
+      platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
+      checkBudpStatus(platform, budp, device);
+    } finally {
+      // Avoid flooding YoLink device with rapid succession of requests.
+      const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+      await sleep(250);
+      releaseSemaphore();
+    }
     return budp;
   }
 
@@ -352,29 +368,38 @@ export class YoLinkAPI implements IYoLinkAPI {
     //platform.log.info(`[${device.deviceMsgName}] YoLinkAPI.setDeviceState: ${(state)?JSON.stringify(state):method}`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
-    const bddp: yolinkBDDP = {
-      time: new Date().getTime(),
-      method: device.type + '.' + method,
-      targetDevice: device.deviceId,
-      token: device.token,
-    };
-    if (state) {
-      bddp.params = state;
+
+    const releaseSemaphore = await platform.yolinkRequestSemaphore.acquire();
+    try {
+      const bddp: yolinkBDDP = {
+        time: new Date().getTime(),
+        method: device.type + '.' + method,
+        targetDevice: device.deviceId,
+        token: device.token,
+      };
+      if (state) {
+        bddp.params = state;
+      }
+      platform.verboseLog('SENDING:\n' + JSON.stringify(bddp, null, 2));
+      const response = await fetch(platform.config.apiURL,
+        {
+          method: 'POST', body: JSON.stringify(bddp),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + accessToken,
+          },
+        });
+      checkHttpStatus(response);
+      budp = await response.json();
+      platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
+      checkBudpStatus(platform, budp, device);
+      platform.log.info(`[${device.deviceMsgName}] Device state set: ${(state) ? JSON.stringify(state) : method}`);
+    } finally {
+      // Avoid flooding YoLink device with rapid succession of requests.
+      const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+      await sleep(250);
+      releaseSemaphore();
     }
-    platform.verboseLog('SENDING:\n' + JSON.stringify(bddp, null, 2));
-    const response = await fetch(platform.config.apiURL,
-      {
-        method: 'POST', body: JSON.stringify(bddp),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + accessToken,
-        },
-      });
-    checkHttpStatus(response);
-    budp = await response.json();
-    platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
-    checkBudpStatus(platform, budp, device);
-    platform.log.info(`[${device.deviceMsgName}] Device state set: ${(state) ? JSON.stringify(state) : method}`);
     return budp;
   }
 

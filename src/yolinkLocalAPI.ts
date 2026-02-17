@@ -116,7 +116,7 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
     Error.stackTraceLimit = 100;
 
     this.yolinkLoggedIn = false;
-    
+
     // Validate local hub configuration
     if (!platform.config.hubIPAddress) {
       throw new Error('FATAL: Local hub IP address is required for local API');
@@ -124,7 +124,7 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
     if (!platform.config.subnetId) {
       throw new Error('FATAL: Subnet ID is required for local API MQTT subscriptions');
     }
-    
+
     // Basic IP address validation
     const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
     if (!ipRegex.test(platform.config.hubIPAddress)) {
@@ -153,15 +153,15 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
     if (!platform.config.userAccessId || !platform.config.secretKey) {
       throw (new Error('FATAL: Missing userAccessId (Client ID) or secretKey (Client Secret) credentials in config.'));
     }
-    
+
     // Validate credentials format
     const clientId = platform.config.userAccessId.trim();
     const clientSecret = platform.config.secretKey.trim();
-    
+
     if (clientSecret.length === 0) {
       throw (new Error('FATAL: Client Secret is empty after trimming whitespace.'));
     }
-    
+
     platform.log.info('Login to YoLink Local API with credentials from config');
     platform.verboseLog(`Client ID length: ${clientId.length}, Client Secret length: ${clientSecret.length}`);
 
@@ -171,7 +171,7 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
     params.append('grant_type', 'client_credentials');
     params.append('client_id', clientId);
     params.append('client_secret', clientSecret);
-    
+
     // Log for debugging (with masked secret)
     const debugParams = new URLSearchParams();
     debugParams.append('grant_type', 'client_credentials');
@@ -180,10 +180,10 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
     platform.verboseLog('SENDING TO LOCAL HUB:\n' + debugParams);
     platform.verboseLog(`Secret contains special chars: ${/[^a-zA-Z0-9]/.test(clientSecret)}`);
     platform.verboseLog(`Request URL: ${this.tokenURL}`);
-    
+
     try {
-      const response = await fetch(this.tokenURL, { 
-        method: 'POST', 
+      const response = await fetch(this.tokenURL, {
+        method: 'POST',
         body: params,
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -250,8 +250,8 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
         params.append('client_id', platform.config.userAccessId.trim());
         params.append('refresh_token', this.yolinkTokens.refresh_token);
         platform.verboseLog('SENDING TO LOCAL HUB:\n' + params);
-        const response = await fetch(this.tokenURL, { 
-          method: 'POST', 
+        const response = await fetch(this.tokenURL, {
+          method: 'POST',
           body: params,
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -284,33 +284,39 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
 
   async tryGetDeviceList(platform: YoLinkHomebridgePlatform): Promise<YoLinkDevice[]> {
     platform.verboseLog('YoLinkLocalAPI.getDeviceList');
+    let devices;
     const accessToken = await this.getAccessToken(platform);
 
-    const bddp: yolinkBDDP = {
-      time: new Date().getTime(),
-      method: 'Home.getDeviceList',
-    };
-    platform.verboseLog('SENDING TO LOCAL HUB:\n' + JSON.stringify(bddp));
-    const response = await fetch(this.apiURL,
-      {
-        method: 'POST', body: JSON.stringify(bddp),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + accessToken,
-        },
-      });
-    checkHttpStatus(response);
-    const budp: yolinkBUDP = await response.json();
-    platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp));
-    checkBudpStatus(platform, budp);
-    
-    // Local API returns devices array directly or single device
-    let devices = budp.data.devices || [budp.data];
-    if (!Array.isArray(devices)) {
-      devices = [devices];
+    const releaseSemaphore = await platform.yolinkRequestSemaphore.acquire();
+    try {
+      const bddp: yolinkBDDP = {
+        time: new Date().getTime(),
+        method: 'Home.getDeviceList',
+      };
+      platform.verboseLog('SENDING TO LOCAL HUB:\n' + JSON.stringify(bddp));
+      const response = await fetch(this.apiURL,
+        {
+          method: 'POST', body: JSON.stringify(bddp),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + accessToken,
+          },
+        });
+      checkHttpStatus(response);
+      const budp: yolinkBUDP = await response.json();
+      platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp));
+      checkBudpStatus(platform, budp);
+
+      // Local API returns devices array directly or single device
+      devices = budp.data.devices || [budp.data];
+      if (!Array.isArray(devices)) {
+        devices = [devices];
+      }
+
+      platform.liteLog(`YoLinkLocalAPI.getDeviceList found ${devices.length} devices`);
+    } finally {
+      releaseSemaphore();
     }
-    
-    platform.liteLog(`YoLinkLocalAPI.getDeviceList found ${devices.length} devices`);
     return devices;
   }
 
@@ -327,25 +333,34 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
     platform.liteLog(`[${device.deviceMsgName}] YoLinkLocalAPI.getDeviceState`);
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
-    const bddp: yolinkBDDP = {
-      time: new Date().getTime(),
-      method: device.type + '.getState',
-      targetDevice: device.deviceId,
-      token: device.token,
-    };
-    platform.verboseLog('SENDING TO LOCAL HUB:\n' + JSON.stringify(bddp, null, 2));
-    const response = await fetch(this.apiURL,
-      {
-        method: 'POST', body: JSON.stringify(bddp),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + accessToken,
-        },
-      });
-    checkHttpStatus(response);
-    budp = await response.json();
-    platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp, null, 2));
-    checkBudpStatus(platform, budp, device);
+
+    const releaseSemaphore = await platform.yolinkRequestSemaphore.acquire();
+    try {
+      const bddp: yolinkBDDP = {
+        time: new Date().getTime(),
+        method: device.type + '.getState',
+        targetDevice: device.deviceId,
+        token: device.token,
+      };
+      platform.verboseLog('SENDING TO LOCAL HUB:\n' + JSON.stringify(bddp, null, 2));
+      const response = await fetch(this.apiURL,
+        {
+          method: 'POST', body: JSON.stringify(bddp),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + accessToken,
+          },
+        });
+      checkHttpStatus(response);
+      budp = await response.json();
+      platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp, null, 2));
+      checkBudpStatus(platform, budp, device);
+    } finally {
+      // Avoid flooding YoLink device with rapid succession of requests.
+      const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+      await sleep(100);
+      releaseSemaphore();
+    }
     return budp;
   }
 
@@ -361,29 +376,38 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
   async trySetDeviceState(platform: YoLinkHomebridgePlatform, device, state, method = 'setState'): Promise<yolinkBUDP> {
     let budp: yolinkBUDP = undefined!;
     const accessToken = await this.getAccessToken(platform);
-    const bddp: yolinkBDDP = {
-      time: new Date().getTime(),
-      method: device.type + '.' + method,
-      targetDevice: device.deviceId,
-      token: device.token,
-    };
-    if (state) {
-      bddp.params = state;
+
+    const releaseSemaphore = await platform.yolinkRequestSemaphore.acquire();
+    try {
+      const bddp: yolinkBDDP = {
+        time: new Date().getTime(),
+        method: device.type + '.' + method,
+        targetDevice: device.deviceId,
+        token: device.token,
+      };
+      if (state) {
+        bddp.params = state;
+      }
+      platform.verboseLog('SENDING TO LOCAL HUB:\n' + JSON.stringify(bddp, null, 2));
+      const response = await fetch(this.apiURL,
+        {
+          method: 'POST', body: JSON.stringify(bddp),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + accessToken,
+          },
+        });
+      checkHttpStatus(response);
+      budp = await response.json();
+      platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp, null, 2));
+      checkBudpStatus(platform, budp, device);
+      platform.log.info(`[${device.deviceMsgName}] Device state set: ${(state) ? JSON.stringify(state) : method}`);
+    } finally {
+      // Avoid flooding YoLink device with rapid succession of requests.
+      const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+      await sleep(100);
+      releaseSemaphore();
     }
-    platform.verboseLog('SENDING TO LOCAL HUB:\n' + JSON.stringify(bddp, null, 2));
-    const response = await fetch(this.apiURL,
-      {
-        method: 'POST', body: JSON.stringify(bddp),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + accessToken,
-        },
-      });
-    checkHttpStatus(response);
-    budp = await response.json();
-    platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp, null, 2));
-    checkBudpStatus(platform, budp, device);
-    platform.log.info(`[${device.deviceMsgName}] Device state set: ${(state) ? JSON.stringify(state) : method}`);
     return budp;
   }
 
@@ -400,7 +424,7 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
       clearTimeout(this.mqttTimer);
       this.mqttTimer = null;
     }
-    
+
     const url = `mqtt://${platform.config.hubIPAddress}:18080`;
     const reports = `ylsubnet/${this.subnetId}/+/report`;
 

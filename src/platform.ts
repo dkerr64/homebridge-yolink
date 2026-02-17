@@ -328,7 +328,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     device2: YoLinkDevice | undefined = undefined): PlatformAccessory {
     if (existingAccessory) {
       // update existing accessory
-      this.verboseLog(`[${device.deviceMsgName}] Restoring accessory from cache`);
+      this.log.info(`[${device.deviceMsgName}] Restoring accessory from cache`);
       existingAccessory.context.device = device;
       existingAccessory.context.device2 = device2;
       this.api.updatePlatformAccessories([existingAccessory]);
