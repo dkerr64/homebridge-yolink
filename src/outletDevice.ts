@@ -155,7 +155,9 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, outlet = -1): Pr
         // if function was called with negative outlet number then we're being asked to try and
         // automatically detect the number of outlets on the device based on the returned data.
         // "ch" values start from 0 (a two outlet device is 0 and 1).
-        return (Math.max(...device.data.delays?.map(o => o.ch) ?? [0]) + 1);
+        const nOutlets = (Math.max(...device.data.delays?.map(o => o.ch) ?? [0]) + 1);
+        platform.liteLog(`[${device.deviceMsgName}] Detected ${nOutlets} outlets based on returned data`);
+        return (nOutlets);
       }
       this.logDeviceState(device, `nOutlets: ${this.nOutlets}, Outlet (0..n-1) ${outlet}: ${device.data.state}`);
       if (this.nOutlets === 1) {
@@ -249,9 +251,6 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, outlet: number, 
     const msg = ((e instanceof Error) ? e.stack : e) as string;
     platform.log.error('Error in OutletDevice handleSet' + platform.reportError + msg);
   } finally {
-    // Avoid flooding YoLink device with rapid succession of requests.
-    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    await sleep(250);
     releaseSemaphore();
   }
 }

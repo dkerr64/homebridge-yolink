@@ -161,11 +161,8 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, keyNumber = -1, 
     }
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error(`[${device.deviceMsgName}] Error in SwitchDevice handleGet` + platform.reportError + msg);
+    platform.log.error(`[${device.deviceMsgName}] Error in SwitchDevice handleSet` + platform.reportError + msg);
   } finally {
-    // Avoid flooding YoLink device with rapid succession of requests.
-    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    await sleep(250);
     releaseSemaphore();
   }
 }

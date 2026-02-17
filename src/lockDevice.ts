@@ -227,11 +227,8 @@ async function handleSetBlocking(this: YoLinkPlatformAccessory, value: Character
     }, 50);
   } catch (e) {
     const msg = (e instanceof Error) ? e.stack : e;
-    platform.log.error('Error in LockDevice handleGet' + platform.reportError + msg);
+    platform.log.error('Error in LockDevice handleSet' + platform.reportError + msg);
   } finally {
-    // Avoid flooding YoLink device with rapid succession of requests.
-    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    await sleep(250);
     releaseSemaphore();
   }
 }

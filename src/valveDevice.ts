@@ -329,9 +329,6 @@ async function handleSet(this: YoLinkPlatformAccessory, key: string, value: Char
     const msg = (e instanceof Error) ? e.stack : e;
     platform.log.error('Error in ValveDevice handleSet' + platform.reportError + msg);
   } finally {
-    // Avoid flooding YoLink device with rapid succession of requests.
-    const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    await sleep(250);
     releaseSemaphore();
   }
 }

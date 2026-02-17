@@ -20,6 +20,7 @@ export async function initLeakSensor(this: YoLinkPlatformAccessory): Promise<voi
 
   if (device.config.leakAsContact) {
     // User requests that we report to HomeKit as a contact sensor
+    platform.log.info(`[${device.deviceMsgName}] Creating HomeKit contact sensor instead of leak sensor`);
     // Remove the leak sensor accessory if we previously used that
     accessory.removeService(accessory.getService(platform.Service.LeakSensor)!);
     // And now add it as a contact sensor.
