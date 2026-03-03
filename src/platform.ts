@@ -49,6 +49,11 @@ export type YoLinkDevice = {
   [key: string]: any;
 };
 
+// Module-level shared cache so all instances can access cached accessories.
+// Homebridge delivers ALL cached accessories for this plugin to only ONE instance,
+// so other instances need a way to find their own accessories.
+const sharedAccessoryCache: Map<string, PlatformAccessory> = new Map();
+
 export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service;
   public readonly Characteristic: typeof Characteristic;
@@ -146,6 +151,9 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    */
   configureAccessory(accessory: PlatformAccessory) {
     this.verboseLog('Loading accessory from cache:' + accessory.displayName);
+    // Store in shared cache so other instances can find their accessories.
+    // Homebridge only delivers cached accessories to one instance of this plugin.
+    sharedAccessoryCache.set(accessory.UUID, accessory);
     // add the restored accessory to the accessories cache so we can track if it has already been registered
     this.accessories.push(accessory);
   }
@@ -205,6 +213,16 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    * registerDevices
    */
   async registerDevices() {
+    // Multi-instance support: Homebridge delivers all cached accessories for this
+    // plugin to only one instance. Check the shared cache for accessories that belong
+    // to us but were delivered to another instance.
+    for (const [uuid, accessory] of sharedAccessoryCache) {
+      if (accessory.context?.platformName === this.config.name &&
+          !this.accessories.some(a => a.UUID === uuid)) {
+        this.log.info(`Claiming accessory from shared cache: ${accessory.displayName} (${accessory.context?.device?.deviceId || '?'})`);
+        this.accessories.push(accessory);
+      }
+    }
     const deviceList: YoLinkDevice[] = await this.yolinkAPI.getDeviceList(this);
     this.removeDeletedDevices(deviceList);
 
