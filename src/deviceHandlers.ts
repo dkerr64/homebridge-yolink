@@ -22,6 +22,8 @@ import { initPowerSensor, mqttPowerSensor }             from './powerDevice';
 import { initLightbulb, mqttLightbulb }                 from './lightbulbDevice';
 import { initInfraredRemoter, mqttInfraredRemoter }     from './infraredRemoter';
 import { initCoSmokeDetector, mqttCoSmokeDetector }     from './coSmokeDetector';
+import { initSprinklerV2Device, mqttSprinklerV2Device } from './sprinklerV2';
+import { initSprinklerDevice, mqttSprinklerDevice }     from './sprinkler';
 
 export const deviceFeatures = {
   Unknown:            { hasBattery: false, experimental: false },
@@ -48,6 +50,8 @@ export const deviceFeatures = {
   InfraredRemoter:    { hasBattery: true },
   COSmokeSensor:      { hasBattery: true },
   WaterMeterController: { hasBattery: true },
+  Sprinkler:          { hasBattery: false },
+  SprinklerV2:        { hasBattery: true },
 };
 
 export const initDeviceService = {
@@ -75,6 +79,8 @@ export const initDeviceService = {
   InfraredRemoter(this: YoLinkPlatformAccessory)    { initInfraredRemoter.bind(this)(); },
   COSmokeSensor(this: YoLinkPlatformAccessory)      { initCoSmokeDetector.bind(this)(); },
   WaterMeterController(this: YoLinkPlatformAccessory) { initValveDevice.bind(this)(); },
+  Sprinkler(this: YoLinkPlatformAccessory)          { initSprinklerDevice.bind(this)(); },
+  SprinklerV2(this: YoLinkPlatformAccessory)        { initSprinklerV2Device.bind(this)(); },
 };
 
 export const mqttHandler = {
@@ -102,4 +108,6 @@ export const mqttHandler = {
   InfraredRemoter(this: YoLinkPlatformAccessory, data)    { mqttInfraredRemoter.bind(this)(data); },
   COSmokeSensor(this: YoLinkPlatformAccessory, data)      { mqttCoSmokeDetector.bind(this)(data); },
   WaterMeterController(this: YoLinkPlatformAccessory, data) { mqttValveDevice.bind(this)(data); },
+  Sprinkler(this: YoLinkPlatformAccessory, data)          { mqttSprinklerDevice.bind(this)(data); },
+  SprinklerV2(this: YoLinkPlatformAccessory, data)        { mqttSprinklerV2Device.bind(this)(data); },
 };
