@@ -49,6 +49,11 @@ export type YoLinkDevice = {
   [key: string]: any;
 };
 
+// Module-level shared cache so all instances can access cached accessories.
+// Homebridge delivers ALL cached accessories for this plugin to only ONE instance,
+// so other instances need a way to find their own accessories.
+const sharedAccessoryCache: Map<string, PlatformAccessory> = new Map();
+
 export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service;
   public readonly Characteristic: typeof Characteristic;
@@ -146,6 +151,9 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    */
   configureAccessory(accessory: PlatformAccessory) {
     this.verboseLog('Loading accessory from cache:' + accessory.displayName);
+    // Store in shared cache so other instances can find their accessories.
+    // Homebridge only delivers cached accessories to one instance of this plugin.
+    sharedAccessoryCache.set(accessory.UUID, accessory);
     // add the restored accessory to the accessories cache so we can track if it has already been registered
     this.accessories.push(accessory);
   }
@@ -205,6 +213,16 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
    * registerDevices
    */
   async registerDevices() {
+    // Multi-instance support: Homebridge delivers all cached accessories for this
+    // plugin to only one instance. Check the shared cache for accessories that belong
+    // to us but were delivered to another instance.
+    for (const [uuid, accessory] of sharedAccessoryCache) {
+      if (accessory.context?.platformName === this.config.name &&
+          !this.accessories.some(a => a.UUID === uuid)) {
+        this.log.info(`Claiming accessory from shared cache: ${accessory.displayName} (${accessory.context?.device?.deviceId || '?'})`);
+        this.accessories.push(accessory);
+      }
+    }
     const deviceList: YoLinkDevice[] = await this.yolinkAPI.getDeviceList(this);
     this.removeDeletedDevices(deviceList);
 
@@ -331,6 +349,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       this.log.info(`[${device.deviceMsgName}] Restoring accessory from cache`);
       existingAccessory.context.device = device;
       existingAccessory.context.device2 = device2;
+      existingAccessory.context.platformName = this.config.name;
       this.api.updatePlatformAccessories([existingAccessory]);
       this.deviceAccessories.push(new YoLinkPlatformAccessory(this, existingAccessory));
       return (existingAccessory);
@@ -340,6 +359,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       const accessory = new this.api.platformAccessory(device.name, uuid);
       accessory.context.device = device;
       accessory.context.device2 = device2;
+      accessory.context.platformName = this.config.name;
       this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       this.deviceAccessories.push(new YoLinkPlatformAccessory(this, accessory));
       return (accessory);
@@ -356,6 +376,18 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
       const accessory = this.accessories[i];
       const device: YoLinkDevice = accessory.context.device;
       if (!deviceList.some(x => x.deviceId === device.deviceId)) {
+        // Multi-instance guard: skip accessories that belong to a different platform instance.
+        // If platformName is unset (pre-fix accessory), also skip to be conservative —
+        // it will get tagged on its next restore cycle.
+        const ownerName: string | undefined = accessory.context.platformName;
+        if (ownerName !== undefined && ownerName !== this.config.name) {
+          this.verboseLog(`Skipping removal of accessory ${accessory.displayName} (${device.deviceId}) — belongs to platform "${ownerName}"`);
+          continue;
+        }
+        if (ownerName === undefined) {
+          this.verboseLog(`Skipping removal of accessory ${accessory.displayName} (${device.deviceId}) — no platformName set (pre-fix accessory)`);
+          continue;
+        }
         this.log.warn(`Removing accessory from cache: ${accessory.displayName} (${device.deviceId}), device does not exist`);
         const indexKnownDevices = this.knownDevices.indexOf(device.deviceId);
         if (indexKnownDevices >= 0) {
