@@ -35,7 +35,7 @@ Currently supports the following devices:
 * PowerFailureAlarm
 * Siren (as a switch)
 * Smoke & CO Alarm
-* Soil Temperature, Humidity and Conductivity Sensor
+* Solar Soil Sensor (Temperature, Humidity and Conductivity Sensor)
 * Sprinkler Controller (YS4102, multi-zone)
 * Sprinkler Timer (YS4103, single-zone)
 * Switch
