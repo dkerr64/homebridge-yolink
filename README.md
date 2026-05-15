@@ -35,6 +35,7 @@ Currently supports the following devices:
 * PowerFailureAlarm
 * Siren (as a switch)
 * Smoke & CO Alarm
+* Soil Temperature, Humidity and Conductivity Sensor
 * Sprinkler Controller (YS4102, multi-zone)
 * Sprinkler Timer (YS4103, single-zone)
 * Switch
@@ -147,7 +148,7 @@ If you see an error message in the log similar to the following then you are lik
   * **verboseLog** *(optional)*: Provides most detailed log information without having to enable Homebridge debug mode.
   * **liteLog** *(optional)*: HomeKit makes frequent requests for device status, this suppresses logging of every request (unless *verboseLog* is true). Requests that require message be sent to YoLink servers are still logged. Defaults to true.
   * **allDevices** *(optional)*: If set to false then only devices listed in the Devices section of the config file are loaded, and then only if the hide property is false. Defaults to true so all devices reported by YoLink are loaded (if device's *hide* property is false).
-  * **excludeTypes** *(optional)*: Array of YoLink device types that will be excluded even if *allDevices* is set to true. The currently supported list of device types is *Hub, SpeakerHub, VibrationSensor, MotionSensor, LeakSensor, Manipulator, THSensor, DoorSensor, Siren, Switch, Outlet, SmartRemoter, MultiOutlet, GarageDoor, Finger, Lock, LockV2, PowerFailureAlarm, Sprinkler* and *SprinklerV2*. Defaults to exclude Hub and Speaker Hub. Note that capitalization is important and values must be entered exactly as listed here.
+  * **excludeTypes** *(optional)*: Array of YoLink device types that will be excluded even if *allDevices* is set to true. The currently supported list of device types is *Hub, SpeakerHub, VibrationSensor, MotionSensor, LeakSensor, Manipulator, THSensor, DoorSensor, Siren, SoilThcSensor, Switch, Outlet, SmartRemoter, MultiOutlet, GarageDoor, Finger, Lock, LockV2, PowerFailureAlarm, Sprinkler* and *SprinklerV2*. Defaults to exclude Hub and Speaker Hub. Note that capitalization is important and values must be entered exactly as listed here.
   * **includeTypes** *(optional)*: Array of YoLink device types that will be included even if *allDevices* is set to false. Same list of device types as above with no default.
   * **checkNewDeviceInterval** *(optional)*: Interval (in seconds) to check for new YoLink devices added *or removed* from YoLink.  Defaults to zero (feature disabled). This feature will allow new devices to be detected and added to Homebridge/HomeKit without restarting the plugin. Also will detect when a device is deleted and remove it from Homebridge/HomeKit. Note that if a device requires config file changes then the plugin must be restarted to pick up config file changes. As this polls the YoLink server, a value less than 60 seconds is not recommended.
   * **enableExperimental** *(optional)*: If set to true, enables support for devices still considered experimental, see Device Notes below.
@@ -288,6 +289,23 @@ The YoLink power failure alarm can be represented in Homebridge/HomeKit as eithe
 ### Siren
 
 A YoLink siren has been implemented as a switch which can be turned on or off in Homebridge/HomeKit.
+
+### Soil Temperature, Humidity and Conductivity Sensor
+
+The YoLink Solar Soil Detector (e.g. YS8009-UC, device type `SoilThcSensor`) is implemented as three HomeKit services:
+
+* **Temperature Sensor** — reports soil temperature in °C
+* **Humidity Sensor** — reports soil volumetric moisture content (%)
+* **Light Sensor** — repurposed to report soil electrical conductivity in µS/cm. HomeKit has no native conductivity service; the Light Sensor is the conventional homebridge approach for a numeric reading that has no direct HomeKit equivalent, and still supports automations based on the value.
+
+Normal status reporting is based on the device's configured *reportInterval*. Threshold alerts for high/low temperature, humidity, and conductivity are logged as warnings in Homebridge. You can build HomeKit automations directly off the sensor values for the same effect.
+
+If you only want to see a subset of the three services you can hide individual ones with the *hide* configuration parameter:
+
+* `"hide": "thermo"` — hides the temperature service
+* `"hide": "hydro"` — hides the humidity service
+* `"hide": "conductivity"` — hides the conductivity (light) service
+* `"hide": "true"` — hides the entire device
 
 ### Smoke & CO Alarm
 

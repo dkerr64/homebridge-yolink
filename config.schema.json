@@ -180,7 +180,8 @@
             "Switch",
             "THSensor",
             "VibrationSensor",
-            "WaterMeterController"
+            "WaterMeterController",
+            "SoilThcSensor"
           ]
         },
         "default": [
@@ -220,7 +221,8 @@
             "Switch",
             "THSensor",
             "VibrationSensor",
-            "WaterMeterController"
+            "WaterMeterController",
+            "SoilThcSensor"
           ]
         }
       },
@@ -342,6 +344,12 @@
                       "title": "Smoke Sensor",
                       "enum": [
                         "smoke"
+                      ]
+                    },
+                    {
+                      "title": "Conductivity Sensor",
+                      "enum": [
+                        "conductivity"
                       ]
                     }
                   ],
