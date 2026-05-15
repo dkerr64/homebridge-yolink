@@ -3,7 +3,7 @@
  * Supports device type: SoilThcSensor (e.g. YS8009-UC Solar Soil Detector)
  *
  * Copyright (c) 2022-2026 David Kerr
- * Soil sensor support contributed 2026 by https://github.com/dkerr64/homebridge-yolink/pull/XXX
+ * Soil sensor support contributed 2026 by Robert Coletti https://github.com/dkerr64/homebridge-yolink/pull/140
  *
  * Data shape from MQTT / API:
  * {
