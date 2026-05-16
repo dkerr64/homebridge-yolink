@@ -230,11 +230,11 @@ export async function mqttSoilDevice(this: YoLinkPlatformAccessory, message): Pr
 
     switch (event[1]) {
       case 'getState':
-        // getState wraps readings inside data.state — already the same shape we
-        // expect, so we fall straight through to the Report handler.
-        // falls through
+      // getState wraps readings inside data.state — already the same shape we
+      // expect, so we fall straight through to the Report handler.
+      // falls through
       case 'Alert':
-        // falls through
+      // falls through
       case 'Report': {
         if (!device.data) {
           platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
@@ -273,12 +273,24 @@ export async function mqttSoilDevice(this: YoLinkPlatformAccessory, message): Pr
         // Log threshold alarms; HomeKit itself handles alert automations based on
         // the sensor values — there is no HomeKit "alarm" characteristic for these.
         const alarm = message.data.alarm ?? {};
-        if (alarm.highTemp)          { platform.log.warn(`[${device.deviceMsgName}] High temperature alarm`); }
-        if (alarm.lowTemp)           { platform.log.warn(`[${device.deviceMsgName}] Low temperature alarm`); }
-        if (alarm.highHumidity)      { platform.log.warn(`[${device.deviceMsgName}] High humidity alarm`); }
-        if (alarm.lowHumidity)       { platform.log.warn(`[${device.deviceMsgName}] Low humidity alarm`); }
-        if (alarm.highConductivity)  { platform.log.warn(`[${device.deviceMsgName}] High conductivity alarm`); }
-        if (alarm.lowConductivity)   { platform.log.warn(`[${device.deviceMsgName}] Low conductivity alarm`); }
+        if (alarm.highTemp) {
+          platform.log.warn(`[${device.deviceMsgName}] High temperature alarm`);
+        }
+        if (alarm.lowTemp) {
+          platform.log.warn(`[${device.deviceMsgName}] Low temperature alarm`);
+        }
+        if (alarm.highHumidity) {
+          platform.log.warn(`[${device.deviceMsgName}] High humidity alarm`);
+        }
+        if (alarm.lowHumidity) {
+          platform.log.warn(`[${device.deviceMsgName}] Low humidity alarm`);
+        }
+        if (alarm.highConductivity) {
+          platform.log.warn(`[${device.deviceMsgName}] High conductivity alarm`);
+        }
+        if (alarm.lowConductivity) {
+          platform.log.warn(`[${device.deviceMsgName}] Low conductivity alarm`);
+        }
         break;
       }
       case 'setAlarm':
