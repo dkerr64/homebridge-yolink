@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink motion and vibration sensor device support.
  *
- * Copyright (c) 2022-2023 David Kerr
+ * Copyright (c) 2022-2025 David Kerr
  *
  */
 

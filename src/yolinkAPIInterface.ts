@@ -1,7 +1,8 @@
 /***********************************************************************
  * YoLink API Interface
  *
- * Copyright (c) 2022-2024 David Kerr
+ * Copyright (c) 2022-2026 David Kerr
+ * Local Hub support contributed by Dan Dorato-Hankins https://github.com/dkerr64/homebridge-yolink/pull/122
  *
  * Abstract interface for YoLink API implementations (cloud and local)
  */

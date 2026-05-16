@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink manipulator (e.g. water valve) device support
  *
- * Copyright (c) 2022-2024 David Kerr
+ * Copyright (c) 2022-2026 David Kerr
  *
  */
 

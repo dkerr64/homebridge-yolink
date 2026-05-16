@@ -3,7 +3,7 @@
  *
  * Support for the YoLink Infrared Remoter device
  *
- * Copyright (c) 2023-2024 David Kerr
+ * Copyright (c) 2023-2026 David Kerr
  *
  */
 

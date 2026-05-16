@@ -1,8 +1,9 @@
 /***********************************************************************
  * YoLink Local API class
  *
- * Copyright (c) 2022-2024 David Kerr
- *
+ * Copyright (c) 2022-2026 David Kerr
+ * Local Hub support contributed by Dan Dorato-Hankins https://github.com/dkerr64/homebridge-yolink/pull/122
+ * 
  * Based on documentation at http://doc.yosmart.com/docs/protocol/local_hub/openAPILocal
  *
  * Manages login with Local Hub credentials, obtaining list

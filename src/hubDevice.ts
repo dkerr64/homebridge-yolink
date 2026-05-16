@@ -4,7 +4,7 @@
  * Homebridge does not have a hub-like device. But we register it and
  * log data about it.
  *
- * Copyright (c) 2022-2024 David Kerr
+ * Copyright (c) 2022-2025 David Kerr
  *
  */
 

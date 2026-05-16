@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink leak sensor device support
  *
- * Copyright (c) 2022-2024 David Kerr
+ * Copyright (c) 2022-2026 David Kerr
  *
  */
 

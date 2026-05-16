@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink siren/switch/garage door/finger device support (as a HomeKit switch)
  *
- * Copyright (c) 2022-2024 David Kerr
+ * Copyright (c) 2022-2026 David Kerr
  *
  */
 

@@ -3,8 +3,8 @@
  *
  * YoLink YS4103-UC Smart Sprinkler Timer (single-zone, battery, flow meter)
  *
- * Copyright (c) 2022-2024 David Kerr
- *
+ * Copyright (c) 2022-2026 David Kerr
+ * Sprinkler support contributed 2026 by simplytoast1 https://github.com/dkerr64/homebridge-yolink/pull/138
  */
 
 import { PlatformAccessory, CharacteristicValue } from 'homebridge';

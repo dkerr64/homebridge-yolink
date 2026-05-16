@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink Platform Accessory class
  *
- * Copyright (c) 2022-2024 David Kerr
+ * Copyright (c) 2022-2026 David Kerr
  *
  * Based on https://github.com/homebridge/homebridge-plugin-template
  *

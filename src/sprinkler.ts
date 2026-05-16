@@ -7,7 +7,8 @@
  * only; it has not been verified against live YS4102 hardware.  Fields
  * and behavior may diverge from what is documented.
  *
- * Copyright (c) 2022-2024 David Kerr
+ * Copyright (c) 2022-2026 David Kerr
+ * Sprinkler support contributed 2026 by simplytoast1 https://github.com/dkerr64/homebridge-yolink/pull/138
  *
  */
 
