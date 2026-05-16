@@ -43,7 +43,6 @@
       "hubIPAddress": {
         "title": "Local Hub IP Address",
         "type": "string",
-        "required": false,
         "default": "",
         "format": "ipv4",
         "condition": {
@@ -54,7 +53,6 @@
       "subnetId": {
         "title": "Subnet ID",
         "type": "string",
-        "required": false,
         "default": "",
         "condition": {
           "functionBody": "return model.hubType === 'local';"
@@ -64,7 +62,6 @@
       "tokenURL": {
         "title": "YoLink authentication server URL address",
         "type": "string",
-        "required": false,
         "default": "https://api.yosmart.com/open/yolink/token",
         "typeahead": {
           "source": [
@@ -80,7 +77,6 @@
       "apiURL": {
         "title": "YoLink API server URL address",
         "type": "string",
-        "required": false,
         "default": "https://api.yosmart.com/open/yolink/v2/api",
         "typeahead": {
           "source": [
@@ -96,7 +92,6 @@
       "mqttPort": {
         "title": "Port number for MQTT service at YoLink API server",
         "type": "number",
-        "required": false,
         "default": 8003,
         "minimum": 0,
         "maximum": 65535,
@@ -121,7 +116,6 @@
       "refreshAfter": {
         "title": "Refresh time for data from YoLink server",
         "type": "number",
-        "required": false,
         "default": 14500,
         "minimum": 0,
         "maximum": 86400,
@@ -130,28 +124,27 @@
       "verboseLog": {
         "title": "Enable verbose logging",
         "type": "boolean",
-        "required": false,
         "default": false,
         "description": "Sometimes it is helpful to log more detail than info but somewhat less than debug. This is that half-way. If enabled then verbose messages are logged as 'info' level, else logged as 'debug'."
       },
       "liteLog": {
         "title": "Suppress logging of every get status request",
         "type": "boolean",
-        "required": false,
         "default": true,
         "description": "Homebridge / HomeKit can make very frequent requests for device status.  This suppresses logging of every request (unless verbose logging is enabled)."
       },
       "allDevices": {
         "title": "Load all devices / accessories by default",
         "type": "boolean",
-        "required": false,
         "default": true,
         "description": "This will load all devices whether an entry exists in the config file or not (see devices section below).  If set to false then only devices specifically listed in device section, with hide set to false, or devices of the Type(s) selected below, will load."
       },
       "excludeTypes": {
         "title": "When load all devices is selected, exclude devices of these types",
         "type": "array",
-        "required": false,
+        "condition": {
+          "functionBody": "return model.allDevices === true;"
+        },
         "uniqueItems": true,
         "items": {
           "title": "Exclude",
@@ -192,7 +185,9 @@
       "includeTypes": {
         "title": "When load all devices is not selected, include devices of these types",
         "type": "array",
-        "required": false,
+        "condition": {
+          "functionBody": "return model.allDevices === false;"
+        },
         "uniqueItems": true,
         "items": {
           "title": "Include",
@@ -229,7 +224,6 @@
       "checkNewDeviceInterval": {
         "title": "Time in seconds between checks for added or deleted devices",
         "type": "number",
-        "required": false,
         "minimum": 0,
         "maximum": 3600,
         "description": "Time in seconds to check if a device has been added or removed from YoLink. Zero disables device update check, maximum accepted in user interface is 3600 seconds (1 hour)."
@@ -237,7 +231,6 @@
       "doublePress": {
         "title": "Time in milliseconds between button presses to consider as a double-press",
         "type": "number",
-        "required": false,
         "minimum": 0,
         "maximum": 5000,
         "description": "Time in milliseconds between button presses to consider as a double-press. Defaults to 800ms, zero disables double-press events, maximum accepted in user interface is 5000ms (5 seconds)."
@@ -245,25 +238,22 @@
       "deviceTemperatures": {
         "title": "Create temperature service for those devices that report this",
         "type": "boolean",
-        "required": false,
         "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Alarms. This will create a temperature sensor for those."
       },
       "useWaterFlowing": {
         "title": "Use waterFlowing status from YoLink water valves",
         "type": "boolean",
-        "required": false,
         "description": "YoLink water meter controller valves can report whether water is flowing. This sets whether to use this when informing HomeKit that a valve is InUse. Default is to assume InUse if valve is open."
       },
       "leakAsContact": {
         "title": "Use HomeKit contact instead of leak sensor",
         "type": "boolean",
-        "required": false,
         "description": "Instead of using HomeKit leak sensors, create a conact sensor. This changes how the sensor is shown in Apple Home and the severity of any alerts or notifications."
       },
       "powerFailureSensorAs": {
         "title": "Represent YoLink Power Failure Alarm as",
         "type": "string",
-        "required": false,
+        "default": "Outlet",
         "oneOf": [
           {
             "title": "Outlet device",
@@ -283,7 +273,6 @@
       "enableExperimental": {
         "title": "Enable support for devices under development",
         "type": "boolean",
-        "required": false,
         "default": false,
         "description": "USE ONLY IF REQUESTED by plugin author to assist development"
       },
@@ -308,7 +297,7 @@
                 "hide": {
                   "title": "Hide device from HomeKit",
                   "type": "string",
-                  "required": false,
+                  "default": "false",
                   "oneOf": [
                     {
                       "title": "false",
@@ -358,47 +347,40 @@
                 "name": {
                   "title": "Device Name",
                   "type": "string",
-                  "required": false,
                   "default": "",
                   "description": "This will override the device name returned by YoLink for display in the Homebridge accessories page"
                 },
                 "refreshAfter": {
                   "title": "Refresh time for data from YoLink server (override global setting)",
                   "type": "number",
-                  "required": false,
                   "minimum": 0,
                   "maximum": 86400
                 },
                 "doublePress": {
                   "title": "Time in milliseconds between button presses to consider as a double-press",
                   "type": "number",
-                  "required": false,
                   "minimum": 0,
                   "maximum": 5000
                 },
                 "nOutlets": {
                   "title": "Number of outlets in a multi-outlet power strip (multiple USB ports count as one outlet). Must be between 1 and 8, defaults to 5 (YoLink smart power strip)",
                   "type": "number",
-                  "required": false,
                   "minimum": 1,
                   "maximum": 8
                 },
                 "temperature": {
                   "title": "Create temperature service for this devices",
                   "type": "boolean",
-                  "required": false,
                   "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Alarms. This will create a temperature sensor for those."
                 },
                 "useWaterFlowing": {
                   "title": "Use waterFlowing status from YoLink water valves",
                   "type": "boolean",
-                  "required": false,
                   "description": "YoLink water meter controller valves can report whether water is flowing. This sets whether to use this when informing HomeKit that a valve is InUse. Default is to assume InUse if valve is open."
                 },
                 "leakAsContact": {
                   "title": "Use HomeKit contact instead of leak sensor",
                   "type": "boolean",
-                  "required": false,
                   "description": "Instead of using HomeKit leak sensors, create a conact sensor. This changes how the sensor is shown in Apple Home and the severity of any alerts or notifications."
                 }
               }
@@ -408,7 +390,6 @@
       },
       "garageDoors": {
         "type": "array",
-        "required": false,
         "items": {
           "title": "Garage Doors",
           "type": "object",
@@ -428,7 +409,6 @@
             "timeout": {
               "title": "Time in seconds that a garage door should take to open or close",
               "type": "number",
-              "required": false,
               "minimum": 10,
               "maximum": 120,
               "description": "When you open or close a garage door its status is set to 'opening' or 'closing' until the sensor reports that it is complete. If no report is received within this timeout period then the door state is reset to either 'open' or 'closed'. Defaults to 45 seconds."
@@ -513,7 +493,7 @@
           "type": "fieldset",
           "expandable": true,
           "expanded": false,
-          "title": "Optional global configuration",
+          "title": "Global configuration (optional)",
           "items": [
             "refreshAfter",
             "doublePress",
@@ -533,26 +513,30 @@
         {
           "ref": "devices",
           "type": "fieldset",
+          "title": "Device configuration (optional)",
           "expandable": true,
           "expanded": false,
-          "title": "Device configuration",
           "items": [
             {
               "key": "devices",
-              "type": "array",
-              "add": "New",
-              "remove": "Delete",
+              "notitle": false,
+              "type": "tabarray",
+              "title": "{{ value.config?.name || 'New Device' }}",
+              "expandable": true,
+              "expanded": false,
+              "draggable": true,
+              "orderable": true,
               "items": [
+                "devices[].deviceId",
+                "devices[].config.name",
+                "devices[].config.hide",
                 {
-                  "key": "config",
+                  "key": "devices[]",
                   "type": "section",
+                  "title": "Device Specific Configuration",
                   "expandable": true,
                   "expanded": false,
-                  "title": "{{'Device ' + $index }}",
                   "items": [
-                    "devices[].deviceId",
-                    "devices[].config.hide",
-                    "devices[].config.name",
                     "devices[].config.refreshAfter",
                     "devices[].config.doublePress",
                     "devices[].config.nOutlets",
@@ -570,7 +554,7 @@
           "type": "fieldset",
           "expandable": true,
           "expanded": false,
-          "title": "Garage Doors",
+          "title": "Garage Doors (optional)",
           "items": [
             {
               "key": "garageDoors",
