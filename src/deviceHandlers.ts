@@ -2,7 +2,7 @@
 /***********************************************************************
  * YoLink device list
  *
- * Copyright (c) 2022-2024 David Kerr
+ * Copyright (c) 2022-2026 David Kerr
  *
  */
 import { initUnknownDevice, mqttUnknownDevice }         from './unknownDevice';
@@ -24,6 +24,7 @@ import { initInfraredRemoter, mqttInfraredRemoter }     from './infraredRemoter'
 import { initCoSmokeDetector, mqttCoSmokeDetector }     from './coSmokeDetector';
 import { initSprinklerV2Device, mqttSprinklerV2Device } from './sprinklerV2';
 import { initSprinklerDevice, mqttSprinklerDevice }     from './sprinkler';
+import { initSoilDevice, mqttSoilDevice }               from './soilDevice';
 
 export const deviceFeatures = {
   Unknown:            { hasBattery: false, experimental: false },
@@ -52,6 +53,7 @@ export const deviceFeatures = {
   WaterMeterController: { hasBattery: true },
   Sprinkler:          { hasBattery: false },
   SprinklerV2:        { hasBattery: true },
+  SoilThcSensor:      { hasBattery: true },
 };
 
 export const initDeviceService = {
@@ -81,6 +83,7 @@ export const initDeviceService = {
   WaterMeterController(this: YoLinkPlatformAccessory) { initValveDevice.bind(this)(); },
   Sprinkler(this: YoLinkPlatformAccessory)          { initSprinklerDevice.bind(this)(); },
   SprinklerV2(this: YoLinkPlatformAccessory)        { initSprinklerV2Device.bind(this)(); },
+  SoilThcSensor(this: YoLinkPlatformAccessory)      { initSoilDevice.bind(this)(); },
 };
 
 export const mqttHandler = {
@@ -110,4 +113,5 @@ export const mqttHandler = {
   WaterMeterController(this: YoLinkPlatformAccessory, data) { mqttValveDevice.bind(this)(data); },
   Sprinkler(this: YoLinkPlatformAccessory, data)          { mqttSprinklerDevice.bind(this)(data); },
   SprinklerV2(this: YoLinkPlatformAccessory, data)        { mqttSprinklerV2Device.bind(this)(data); },
+  SoilThcSensor(this: YoLinkPlatformAccessory, data) { mqttSoilDevice.bind(this)(data); },
 };
