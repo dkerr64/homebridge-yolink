@@ -94,7 +94,11 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     // transforms array of devices into object that can be referenced by deviceId...
     const devices = {};
     if (this.config.devices) {
-      this.config.devices.forEach(x => devices[String(x.deviceId).toLowerCase()] = x.config);
+      this.config.devices.forEach(x => {
+        if (x.deviceId) { // Don't add empty (undefined) deviceId's to the devices list
+          devices[String(x.deviceId).toLowerCase()] = x.config;
+        }
+      });
     }
     this.config.devices = devices;
     this.config.verboseLog = this.makeBoolean(this.config.verboseLog, false);
@@ -219,7 +223,7 @@ export class YoLinkHomebridgePlatform implements DynamicPlatformPlugin {
     // to us but were delivered to another instance.
     for (const [uuid, accessory] of sharedAccessoryCache) {
       if (accessory.context?.platformName === this.config.name &&
-          !this.accessories.some(a => a.UUID === uuid)) {
+        !this.accessories.some(a => a.UUID === uuid)) {
         this.log.info(`Claiming accessory from shared cache: ${accessory.displayName} (${accessory.context?.device?.deviceId || '?'})`);
         this.accessories.push(accessory);
       }
