@@ -197,7 +197,11 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'thermo
  *    "deviceId": "abcdef1234567890"
  *  }
  *
- * The newer X3 sensor also sends a DataRecord which we will quietly ignore
+ * The newer X3 family of sensors (e.g. YS8004, YS8006, YS8008) push DataRecord
+ * events. Each DataRecord carries an array of one or more historical samples,
+ * oldest first. For these devices DataRecord is frequently the only push the
+ * plugin receives, so we extract the newest sample and treat it as the current
+ * state. See https://github.com/dkerr64/homebridge-yolink/issues/62
  * {
  *   "event": "THSensor.DataRecord",
  *   "time": 1665651601414,
@@ -309,8 +313,36 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
           platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
         }
         break;
-      case 'DataRecord':
-      // falls through
+      case 'DataRecord': {
+        // X3 family THSensors (e.g. YS8004, YS8006, YS8008) often push DataRecord
+        // rather than Report; without handling this the value in HomeKit stays
+        // stuck on the last Report (or last refresh poll) until the next refresh.
+        // Each DataRecord carries an array of samples; we take the newest.
+        // See https://github.com/dkerr64/homebridge-yolink/issues/62
+        if (!device.data) {
+          platform.log.warn(`Device ${device.deviceMsgName} has no data field, is device offline?`);
+          break;
+        }
+        const records = message.data?.records;
+        if (!Array.isArray(records) || records.length === 0) {
+          platform.liteLog(mqttMessage + ' (no records in payload) ' + JSON.stringify(message, null, 2));
+          break;
+        }
+        const latest = records.reduce((a, b) =>
+          new Date(b.time).getTime() > new Date(a.time).getTime() ? b : a);
+        device.data.online = true;
+        device.data.state.temperature = latest.temperature;
+        device.data.state.humidity = latest.humidity;
+        device.data.reportAt = latest.time ?? device.reportAtTime.toISOString();
+        this.logDeviceState(device, `Temperature ${latest.temperature}°C ` +
+          `(${(latest.temperature * 9 / 5 + 32).toFixed(1)}°F), ` +
+          `Humidity ${latest.humidity}${batteryMsg} (MQTT: ${message.event})`);
+        this.thermoService?.updateCharacteristic(
+          platform.Characteristic.CurrentTemperature, latest.temperature);
+        this.hydroService?.updateCharacteristic(
+          platform.Characteristic.CurrentRelativeHumidity, latest.humidity);
+        break;
+      }
       case 'setAlarm':
         // No equivalent for this in HomeKit
         platform.liteLog(mqttMessage + ' ' + JSON.stringify(message, null, 2));
