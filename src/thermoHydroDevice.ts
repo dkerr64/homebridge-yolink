@@ -1,7 +1,7 @@
 /***********************************************************************
  * YoLink temperature / humidity sensor device support
  *
- * Copyright (c) 2022-2025 David Kerr
+ * Copyright (c) 2022-2026 David Kerr
  *
  */
 
@@ -271,7 +271,7 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
     const event = message.event.split('.');
     const batteryMsg = (device.hasBattery) ? ((message.data?.battery) ? `, Battery: ${message.data?.battery}` :
       (message.data?.state?.battery) ? `, Battery: ${message.data?.state?.battery}` : '') : '';
-    const alertMsg = (message.data.alertType) ? `, Alert: ${message.data.alertType}` : '';
+    const alertMsg = (message.data?.alertType) ? `, Alert: ${message.data?.alertType}` : '';
 
     switch (event[1]) {
       case 'getState':
