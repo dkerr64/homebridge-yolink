@@ -243,7 +243,7 @@
       "useWaterFlowing": {
         "title": "Use waterFlowing status from YoLink water valves",
         "type": "boolean",
-        "description": "YoLink water meter controller valves can report whether water is flowing. This sets whether to use this when informing HomeKit that a valve is InUse. Default is to assume InUse if valve is open."
+        "description": "YoLink water meter controller valves and the YS4103 sprinkler timer can report whether water is flowing. This sets whether to use this when informing HomeKit that the device is InUse. Default is to assume InUse if the valve is open or the sprinkler is running."
       },
       "leakAsContact": {
         "title": "Use HomeKit contact instead of leak sensor",
@@ -376,7 +376,7 @@
                 "useWaterFlowing": {
                   "title": "Use waterFlowing status from YoLink water valves",
                   "type": "boolean",
-                  "description": "YoLink water meter controller valves can report whether water is flowing. This sets whether to use this when informing HomeKit that a valve is InUse. Default is to assume InUse if valve is open."
+                  "description": "YoLink water meter controller valves and the YS4103 sprinkler timer can report whether water is flowing. This sets whether to use this when informing HomeKit that the device is InUse. Default is to assume InUse if the valve is open or the sprinkler is running."
                 },
                 "leakAsContact": {
                   "title": "Use HomeKit contact instead of leak sensor",

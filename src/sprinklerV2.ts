@@ -28,6 +28,12 @@ export async function initSprinklerV2Device(this: YoLinkPlatformAccessory): Prom
   // timer to regularly update the data.
   await this.refreshDataTimer(handleGetBlocking.bind(this, 'valve'));
 
+  // Check config for whether we should use the waterFlowing value for the InUse
+  // characteristic, and that the device actually returns a waterFlowing state.
+  this.useWaterFlowing = (device.config.useWaterFlowing ?? false)
+    && Object.prototype.hasOwnProperty.call(device.data ?? {}, 'waterFlowing');
+  platform.verboseLog(`Device ${device.deviceMsgName} InUse set based on waterFlowing state: ${this.useWaterFlowing}`);
+
   // Once we have initial data, setup all the Homebridge handlers
   this.valveService.getCharacteristic(platform.Characteristic.Active)
     .onGet(handleGet.bind(this, 'valve'))
@@ -91,8 +97,14 @@ function computeCachedValue(this: YoLinkPlatformAccessory, devSensor: string): C
   const platform: YoLinkHomebridgePlatform = this.platform;
   const device: YoLinkDevice = this.accessory.context.device;
   const running = device.data?.state?.running === true;
-  const waterFlowing = (typeof device.data?.waterFlowing === 'number')
-    ? device.data.waterFlowing > 0
+  // HomeKit InUse drives the "Running" vs "Idle" label. By default mirror the
+  // valve running state. The YS4103 flow meter (waterFlowing) only updates on
+  // an explicit getState (poll), not in the real-time MQTT stream, so basing
+  // InUse on it would leave HomeKit stuck at "Idle" while watering. Set config
+  // useWaterFlowing to true to drive InUse from the flow meter instead. This
+  // mirrors the WaterMeterController handling in valveDevice.ts.
+  const waterFlowing = (this.useWaterFlowing)
+    ? (Number(device.data?.waterFlowing) > 0)
     : running;
   switch (devSensor) {
     case 'valve':

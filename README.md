@@ -340,6 +340,14 @@ This plugin expects to receive status updates from YoLink devices when status ch
 
 A Leak Sensor and, if supported, a Temperature Sensor service is added with this device. The name of each has "Leak" and "Temperature" appended to the end. *YS-5006-UC* is known not to report temperature.
 
+### Sprinkler
+
+YoLink sprinkler devices register as irrigation valves in HomeKit. The *YS4103* single-zone timer registers as a HomeKit valve, and the *YS4102* multi-zone controller registers as a HomeKit irrigation system with one valve per zone. As with the water meter controller above, HomeKit separates open/close (the *Active* characteristic) from in-use (the *InUse* characteristic). In-use drives the "Running" or "Idle" label and is meant to indicate that water is actually flowing.
+
+The *YS4103* timer reports a *waterFlowing* value from its flow meter, but, like the water valve, it does not update this in real time. It is only refreshed when the plugin polls the device. Basing in-use on *waterFlowing* would leave Apple Home showing "Idle" while the sprinkler is actually running. Therefore, by default, this plugin reports in-use based on whether the sprinkler is running. You can set the config *useWaterFlowing* setting to use the flow meter status from the device instead. If you do, consider lowering *refreshAfter* for this device only (minimum 60 seconds, not recommended globally) so the flow value updates more frequently.
+
+The *YS4102* multi-zone controller is implemented from the YoLink API documentation only and has not been verified against live hardware. It does not report a flow meter, so in-use always follows whether a zone is watering and the *useWaterFlowing* setting has no effect.
+
 ### Unsupported Devices
 
 If you have a device not supported by the plugin then useful information will be logged as warnings, including callback messages received for any alerts or status changes triggered by the device. Please capture these logs and report to the author by opening a [issue](https://github.com/dkerr64/homebridge-yolink/issues).
