@@ -328,7 +328,24 @@ export async function mqttThermoHydroDevice(this: YoLinkPlatformAccessory, messa
           platform.liteLog(mqttMessage + ' (no records in payload) ' + JSON.stringify(message, null, 2));
           break;
         }
-        const latest = records.reduce((a, b) =>
+        // Some X3 sensors intermittently push a DataRecord whose samples are all
+        // zero and stamped with an epoch-0 timestamp (1970-01-01T00:00:00.000Z).
+        // Applying those would pin CurrentTemperature to 0°C until the next good
+        // report. Drop samples with a missing/invalid/epoch-0 timestamp, and if
+        // none remain, ignore the event and hold the last good value. We key off
+        // the bad timestamp rather than a zero temperature because 0°C is a
+        // legitimate reading for the freezer/outdoor sensors served by this same
+        // code path.
+        const valid = records.filter((r) => {
+          const t = new Date(r.time).getTime();
+          return Number.isFinite(t) && t > 0;
+        });
+        if (valid.length === 0) {
+          platform.log.warn(`${device.deviceMsgName} DataRecord rejected: all ${records.length} ` +
+            'sample(s) have epoch-0/invalid timestamps, holding last value ' + JSON.stringify(message.data));
+          break;
+        }
+        const latest = valid.reduce((a, b) =>
           new Date(b.time).getTime() > new Date(a.time).getTime() ? b : a);
         device.data.online = true;
         device.data.state.temperature = latest.temperature;
