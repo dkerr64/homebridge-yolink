@@ -24,8 +24,8 @@ export async function initCoSmokeDetector(this: YoLinkPlatformAccessory): Promis
   if (String(device.config.hide).toLowerCase() === 'co') {
     platform.log.info(`[${device.deviceMsgName}] Hide Carbon Monoxide service because config.[${device.deviceId}].hide is set to "co"`);
     accessory.removeService(accessory.getService(platform.Service.CarbonMonoxideSensor)!);
-  } else {
-    // Not trying to hide the carbon monoxide service.
+  } else if (device.type === 'COSmokeSensor') {
+    // Not trying to hide the carbon monoxide service, and device type has a CO detector
     this.coService = accessory.getService(platform.Service.CarbonMonoxideSensor)
       || accessory.addService(platform.Service.CarbonMonoxideSensor);
     this.coService.setCharacteristic(platform.Characteristic.Name, device.name + ' CO');
@@ -105,6 +105,59 @@ export async function initCoSmokeDetector(this: YoLinkPlatformAccessory): Promis
  *   "deviceId": "abcdef0123456789",
  *   "reportAt": "2023-12-09T13:32:50.317Z"
  * }
+ * 
+ * Following example oprovided by a user with just a "SmokeAlarm"
+ * 
+ * {
+ *   "online": true,
+ *   "state": {
+ *    "attributes": {
+ *      "alertInterval": 2,
+ *       "muteDuration": 600
+ *     },
+ *     "battery": 4,
+ *     "detectorVersion": 164,
+ *     "devTemperature": 33,
+ *     "loraInfo": {
+ *       "netId": "010203",
+ *       "devNetType": "A",
+ *       "subnetId": null
+ *     },
+ *     "loraP2PHash": 0,
+ *     "schedule": {
+ *       "type": "disable",
+ *       "day": 0,
+ *       "time": "0:0"
+ *     },
+ *     "state": {
+ *       "smokeAlarm": false,
+ *       "localInspect": false,
+ *       "remoteInspect": false,
+ *       "sLowBattery": false,
+ *       "unexpected": false,
+ *       "silence": false,
+ *       "detectorEol": false,
+ *       "denseSmokeAlarm": false
+ *     },
+ *     "stateChangedAt": {
+ *       "gasAlarm": null,
+ *       "smokeAlarm": 1784214201581,
+ *       "unexpected": 1784214201581
+ *     },
+ *     "tz": -4,
+ *     "version": "1205",
+ *     "metadata": {
+ *       "events": [
+ *         "LocalInspectEvent"
+ *       ],
+ *       "reminder": false,
+ *       "detectorError": false,
+ *       "temperatureRiseAlarm": false
+ *     }
+ *   },
+ *   "deviceId": "d88b4c01000fda2a",
+ *   "reportAt": "2026-07-16T15:08:34.109Z"
+ * } 
  */
 async function handleGet(this: YoLinkPlatformAccessory, sensor = 'smoke'): Promise<CharacteristicValue> {
   // wrapping the semaphone blocking function so that we return to Homebridge immediately
@@ -161,7 +214,7 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'smoke'
           rc = device.data.state.state.gasAlarm ? 1 : 0;
           break;
         default:
-          rc = device.data.state.state.smokeAlarm ? 1 : 0;
+          rc = device.data.state.state.smokeAlarm || device.data.state.state?.denseSmokeAlarm ? 1 : 0;
           break;
       }
     } else {
@@ -264,7 +317,8 @@ export async function mqttCoSmokeDetector(this: YoLinkPlatformAccessory, message
         this.logDeviceState(device, `Smoke: ${message.data.state.smokeAlarm}, CO" ${message.data.state.gasAlarm}, ` +
           `${batteryMsg} (MQTT: ${message.event})`);
         this.coService?.updateCharacteristic(platform.Characteristic.CarbonMonoxideDetected, message.data.state.gasAlarm ? 1 : 0);
-        this.smokeService?.updateCharacteristic(platform.Characteristic.SmokeDetected, message.data.state.smokeAlarm ? 1 : 0);
+        this.smokeService?.updateCharacteristic(platform.Characteristic.SmokeDetected,
+          message.data.state.smokeAlarm || message.data.state?.denseSmokeAlarm ? 1 : 0);
         this.thermoService?.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.devTemperature);
         if (message.data.state.sLowBattery) {
           platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);

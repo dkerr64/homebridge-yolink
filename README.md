@@ -34,7 +34,8 @@ Currently supports the following devices:
 * Outlet (single)
 * PowerFailureAlarm
 * Siren (as a switch)
-* Smoke & CO Alarm
+* Smoke & CO Sensor
+* Smoke Alarm
 * Solar Soil Sensor (Temperature, Humidity and Conductivity Sensor)
 * Sprinkler Controller (YS4102, multi-zone)
 * Sprinkler Timer (YS4103, single-zone)
@@ -68,14 +69,17 @@ YoLink status is retrieved over the internet. While the plugin maintains a statu
 ### API URLs
 
 The default YoLink cloud server URLs are:
-* **tokenURL**: "https://api.yosmart.com/open/yolink/token"
-* **apiURL**: "https://api.yosmart.com/open/yolink/v2/api"
+
+* **tokenURL**: "<https://api.yosmart.com/open/yolink/token>"
+* **apiURL**: "<https://api.yosmart.com/open/yolink/v2/api>"
 
 These work for devices shipped in the USA wih model names ending in `-UC`. In other countries you may receive devices with model names ending in `-EC` and you must change the URLs to:
-* **tokenURL**: "https://api-eu.yosmart.com/open/yolink/token"
-* **apiURL**: "https://api-eu.yosmart.com/open/yolink/v2/api"
+
+* **tokenURL**: "<https://api-eu.yosmart.com/open/yolink/token>"
+* **apiURL**: "<https://api-eu.yosmart.com/open/yolink/v2/api>"
 
 If you see an error message in the log similar to the following then you are likely using the wrong server URLs
+
 ```log
 [YS7805-UC (abcdef1234567890) Motion] Device offline or other error
 ```
@@ -163,7 +167,7 @@ If you see an error message in the log similar to the following then you are lik
 * **Devices** is an array of objects that allow settings or overrides on a device-by-device basis. This array is optional but if provided contains the following fields:
   * **deviceId** *(required)*: ID to identify specific device. You can find this from the Homebridge log or in the Homebridge Config UI X by clicking on an accessory settings and copying the Serial Number field.
   * **config** *(optional)*: Object with settings specific for this device:
-    * **hide** *(optional)*: Hide this device from Homebridge/HomeKit. You might want to do this to suppress the "device not supported" warning message in the log. Defaults to false. See Device Notes below for Thermometer / Hydrometer, Carbon Monoxide and Smoke Alarm for settings specific to that device.
+    * **hide** *(optional)*: Hide this device from Homebridge/HomeKit. You might want to do this to suppress the "device not supported" warning message in the log. Defaults to false. See Device Notes below for Thermometer / Hydrometer, Carbon Monoxide and Smoke Sensor for settings specific to that device.
     * **name** *(optional)*: Override the name provided by YoLink for the device, this is what is shown in the Homebridge UI accessories page.
     * **refreshAfter** *(optional)*: Device specific override of global *refreshAfter*, see above. Defaults to global setting.
     * **doublePress** *(optional)*: Device specific override of global *doublePress*, see above. Defaults to global setting.
@@ -186,11 +190,11 @@ Make sure that the plugin is set to use child bridge. If not, do that first, res
 
 In HomeBridge, go to the YoLink plugin, select JSON config from the dot-dot-dot menu.  Again there is a + icon to add an additional config. Copy/paste the existing config into this new one.  You **must** make the following changes...
 
-- Change the `name` to make it different from first home.
-- Replace `userAccessId` and `secretKey` values with the credentials for second home.
-- In the `_bridge` section change `username` to be unique (I just changed one of the hex bytes, modeled on the example).
-- If the bridge section also has a `port` setting, change it to be unique too (I did not, so one is randomly assigned).
-- Optionally, edit the list of `excludeTypes` and `includeTypes` if applicable.
+* Change the `name` to make it different from first home.
+* Replace `userAccessId` and `secretKey` values with the credentials for second home.
+* In the `_bridge` section change `username` to be unique (I just changed one of the hex bytes, modeled on the example).
+* If the bridge section also has a `port` setting, change it to be unique too (I did not, so one is randomly assigned).
+* Optionally, edit the list of `excludeTypes` and `includeTypes` if applicable.
 
 Save that and restart the child bridges.
 
@@ -212,7 +216,7 @@ Many YoLink devices are battery powered and report battery health. This plugin c
 
 ### Carbon Monoxide Alarm
 
-See *Smoke & CO Alarm* section below
+See *Smoke & CO Sensor* section below
 
 ### Dimmer
 
@@ -307,12 +311,19 @@ If you only want to see a subset of the three services you can hide individual o
 * `"hide": "conductivity"` — hides the conductivity (light) service
 * `"hide": "true"` — hides the entire device
 
-### Smoke & CO Alarm
+### Smoke & CO Sensor
 
 >[!IMPORTANT]
 >This plugin is not intended to provide safety or security services.
 
 YoLink smoke and carbon monoxide alarm are supported and the plugin assumes that both sensors are supported in the device.  If your device has only a smoke detector, or only a carbon monoxide detector, then you must hide the missing sensor in your config file. Set the *hide* configuration parameter to *co* or *smoke* to hide the unsupported sensor from HomeKit.
+
+### Smoke Alarm
+
+>[!IMPORTANT]
+>This plugin is not intended to provide safety or security services.
+
+YoLink smoke alarm is supported.  If the device reports as *SmokeAlarm* then it is assumed to be only a smoke alarm and not have a carbon monoxide sensor, so there is no need to hide that sensor in the config file.
 
 ### Switch
 

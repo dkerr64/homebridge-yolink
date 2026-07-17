@@ -168,6 +168,7 @@
             "PowerFailureAlarm",
             "Siren",
             "SmartRemoter",
+            "SmokeAlarm",
             "Sprinkler",
             "SprinklerV2",
             "Switch",
@@ -211,6 +212,7 @@
             "PowerFailureAlarm",
             "Siren",
             "SmartRemoter",
+            "SmokeAlarm",
             "Sprinkler",
             "SprinklerV2",
             "Switch",
@@ -238,7 +240,7 @@
       "deviceTemperatures": {
         "title": "Create temperature service for those devices that report this",
         "type": "boolean",
-        "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Alarms. This will create a temperature sensor for those."
+        "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Sensors. This will create a temperature sensor for those."
       },
       "useWaterFlowing": {
         "title": "Use waterFlowing status from YoLink water valves",
@@ -371,7 +373,7 @@
                 "temperature": {
                   "title": "Create temperature service for this devices",
                   "type": "boolean",
-                  "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Alarms. This will create a temperature sensor for those."
+                  "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Sensor. This will create a temperature sensor for those."
                 },
                 "useWaterFlowing": {
                   "title": "Use waterFlowing status from YoLink water valves",
