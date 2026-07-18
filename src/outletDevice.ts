@@ -365,6 +365,8 @@ export async function mqttOutletDevice(this: YoLinkPlatformAccessory, message): 
           }
         }
         break;
+      case 'setAlarm':
+      // falls through
       case 'setDelay':
       // falls through
       case 'getSchedules':
