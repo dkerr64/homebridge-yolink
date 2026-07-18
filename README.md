@@ -266,7 +266,7 @@ You can optionally use HomeKit contact sensor accessory type instead of leak sen
 
 ### Lock
 
-The YoLink Smart Lock M1 can be locked and unlocked from Homebridge/HomeKit and status of the lock and lock/unlock events triggered by the YoLink app or manually are received by this plugin. The plugin also creates a doorbell service which is triggered when a user presses the doorbell button on the YoLink smart lock keypad. The plugin does not support advanced features like setting user or visitor pass codes.
+The YoLink Smart Lock M1 can be locked and unlocked from Homebridge/HomeKit and status of the lock and lock/unlock events triggered by the YoLink app or manually are received by this plugin. The plugin also creates a doorbell service which is triggered when a user presses the doorbell button on the YoLink smart lock keypad, a mute feature is provided so you can silence the doorbell if desired (Eve app required). The plugin does not support advanced features like setting user or visitor pass codes.
 
 ### Manipulator / Water Valve Controller
 
@@ -278,7 +278,7 @@ Normal status reporting occurs every 4 hours. Alerts will be reported immediatel
 
 Some YoLink Motion sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
 
-If you set the *doorbell* configuration setting to true then a Homebridge/HomeKit doorbell accessory is created and a single-press event generated when motion is detected. A *mute* feature is provided so you can silence the doorbell if desired.
+If you set the *doorbell* configuration setting to true then a Homebridge/HomeKit doorbell accessory is created and a single-press event generated when motion is detected. A mute feature is provided so you can silence the doorbell if desired (Eve app required).
 
 ### Outlet / Smart Plug (single)
 

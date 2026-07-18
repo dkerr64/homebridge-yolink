@@ -54,8 +54,22 @@ export async function initLockDevice(this: YoLinkPlatformAccessory): Promise<voi
   this.doorBellService.setCharacteristic(platform.Characteristic.Name, device.name);
   this.doorBellService.getCharacteristic(platform.Characteristic.ProgrammableSwitchEvent)
     .onGet(() => {
-      platform.verboseLog('Lock door bell onGet called');
+      const device: YoLinkDevice = this.accessory.context.device;
+      this.logDeviceState(device, 'Get doorbell state');
       return (platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+    });
+  // Initialize doorbell mute state to previously cached value
+  device.doorbellMute = this.doorBellService.getCharacteristic(platform.Characteristic.Mute).value ? true : false;
+  this.doorBellService.getCharacteristic(platform.Characteristic.Mute)
+    .onSet((value: CharacteristicValue) => {
+      const device: YoLinkDevice = this.accessory.context.device;
+      this.logDeviceState(device, `Set doorbell mute: ${value ? 'true' : 'false'}`);
+      device.doorbellMute = value ? true : false;
+    })
+    .onGet(() => {
+      const device: YoLinkDevice = this.accessory.context.device;
+      this.logDeviceState(device, `Get doorbell mute: ${device.doorbellMute ? 'true' : 'false'}`);
+      return (device.doorbellMute ? true : false);
     });
 
   // Call get handler to initialize data fields to current state and set
@@ -418,10 +432,9 @@ export async function mqttLockDevice(this: YoLinkPlatformAccessory, message): Pr
           device.data.reportAt = device.reportAtTime.toISOString();
         }
         this.logDeviceState(device, `Lock: ${message.data.state}${alertMsg}${batteryMsg} (MQTT: ${message.event})`);
-        if (message.data.alertType === 'bell') {
-          this.doorBellService
-            .updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
-              platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+        if (!device.doorbellMute && (message.data.alertType === 'bell')) {
+          this.doorBellService.updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
+            platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
         }
         this.lockService
           .updateCharacteristic(platform.Characteristic.LockCurrentState,
