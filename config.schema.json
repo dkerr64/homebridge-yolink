@@ -371,7 +371,7 @@
                   "maximum": 8
                 },
                 "temperature": {
-                  "title": "Create temperature service for this devices",
+                  "title": "Create temperature service for this device",
                   "type": "boolean",
                   "description": "Some YoLink devices report temperature in addition to their main function. Currently these are LeakSensors, Vibration & Motion Sensors, Flex Fob and Smoke & CO Sensor. This will create a temperature sensor for those."
                 },
@@ -384,6 +384,11 @@
                   "title": "Use HomeKit contact instead of leak sensor",
                   "type": "boolean",
                   "description": "Instead of using HomeKit leak sensors, create a conact sensor. This changes how the sensor is shown in Apple Home and the severity of any alerts or notifications."
+                },
+                "doorbell": {
+                  "title": "Create door bell service for this device",
+                  "type": "boolean",
+                  "description": "For motion sensor devices, create a door bell accessory in addition to motion sensor."
                 }
               }
             }
@@ -544,7 +549,8 @@
                     "devices[].config.nOutlets",
                     "devices[].config.temperature",
                     "devices[].config.useWaterFlowing",
-                    "devices[].config.leakAsContact"
+                    "devices[].config.leakAsContact",
+                    "devices[].config.doorbell"
                   ]
                 }
               ]

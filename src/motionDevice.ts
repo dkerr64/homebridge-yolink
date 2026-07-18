@@ -41,6 +41,17 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
     .onGet(handleGet.bind(this));
   this.thermoService?.getCharacteristic(platform.Characteristic.CurrentTemperature)
     .onGet(handleGet.bind(this, 'thermo'));
+  if (device.config.doorbell) {
+    // Add optional door bell service...
+    this.doorBellService = accessory.getService(platform.Service.Doorbell)
+      || accessory.addService(platform.Service.Doorbell);
+    this.doorBellService.setCharacteristic(platform.Characteristic.Name, device.name);
+    this.doorBellService.getCharacteristic(platform.Characteristic.ProgrammableSwitchEvent)
+      .onGet(() => {
+        platform.verboseLog('Motion door bell onGet called');
+        return (platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+      });
+  }
 
 }
 
@@ -231,6 +242,8 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
         this.thermoService?.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.devTemperature);
+        this.doorBellService?.updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
+          platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
         break;
       case 'setOpenRemind':
         // This does not carry either motion state or battery

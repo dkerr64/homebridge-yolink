@@ -125,7 +125,8 @@ If you see an error message in the log similar to the following then you are lik
                         "temperature": false,
                         "useWaterFlowing": false,
                         "leakAsContact": false,
-                        "enableExperimental": false
+                        "enableExperimental": false,
+                        "doorbell": false
                     }
                 }
             ],
@@ -176,6 +177,7 @@ If you see an error message in the log similar to the following then you are lik
     * **useWaterFlowing** *(optional)*: Device specific override of global *useWaterFlowing*, see above.  Defaults to global setting.
     * **leakAsContact** *(optional)*: Device specific override of global *leakAsContact*, see above.  Defaults to global setting.
     * **enableExperimental** *(optional)*: Device specific override of global *enableExperimental*, see above. Defaults to global setting.
+    * **doorbell** *(optional)*: For motion sensor devices, add a door bell accessory that is tiggered when motion is detected. Note that lock devices allways include a door bell.
 
 * **garageDoors** are an array of objects that allow you to pair two devices, either a *GarageDoor* or *Finger* controller with a *DoorSensor* that together represent a single garage door. The garage door inherits properties of the individual devices. The garage door *name* is taken from the controller device. See device notes below.
   * **controller** *(required)*: string representing the *deviceID* of the controlling device (activates door open or close). Must be a *GarageDoor* or *Finger* type device.
@@ -275,6 +277,8 @@ YoLink water valve controllers report as a *Manipulator* device, the plugin regi
 Normal status reporting occurs every 4 hours. Alerts will be reported immediately. If you want to check on device status more frequently then set *refreshAfter* to desired interval.
 
 Some YoLink Motion sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
+
+If you set the *doorbell* configuration setting to true then a Homebridge/HomeKit door bell accessory is created and a single-press event generated when motion is detected.
 
 ### Outlet / Smart Plug (single)
 
