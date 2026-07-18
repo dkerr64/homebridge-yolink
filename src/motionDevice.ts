@@ -48,8 +48,22 @@ export async function initMotionSensor(this: YoLinkPlatformAccessory): Promise<v
     this.doorBellService.setCharacteristic(platform.Characteristic.Name, device.name);
     this.doorBellService.getCharacteristic(platform.Characteristic.ProgrammableSwitchEvent)
       .onGet(() => {
-        platform.verboseLog('Motion door bell onGet called');
+        const device: YoLinkDevice = this.accessory.context.device;
+        this.logDeviceState(device, 'Get doorbell state');
         return (platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+      });
+    // Initialize doorbell mute state to previously cached value
+    device.doorbellMute = this.doorBellService.getCharacteristic(platform.Characteristic.Mute).value ? true : false;
+    this.doorBellService.getCharacteristic(platform.Characteristic.Mute)
+      .onSet((value: CharacteristicValue) => {
+        const device: YoLinkDevice = this.accessory.context.device;
+        this.logDeviceState(device, `Set doorbell mute: ${value ? 'true' : 'false'}`);
+        device.doorbellMute = value ? true : false;
+      })
+      .onGet(() => {
+        const device: YoLinkDevice = this.accessory.context.device;
+        this.logDeviceState(device, `Get doorbell mute: ${device.doorbellMute ? 'true' : 'false'}`);
+        return (device.doorbellMute ? true : false);
       });
   }
 
@@ -242,8 +256,10 @@ export async function mqttMotionSensor(this: YoLinkPlatformAccessory, message): 
           .updateCharacteristic(platform.Characteristic.StatusActive, true)
           .updateCharacteristic(platform.Characteristic.StatusFault, false);
         this.thermoService?.updateCharacteristic(platform.Characteristic.CurrentTemperature, message.data.devTemperature);
-        this.doorBellService?.updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
-          platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+        if (!device.doorbellMute && (message.data.state === 'alert')) {
+          this.doorBellService?.updateCharacteristic(platform.Characteristic.ProgrammableSwitchEvent,
+            platform.Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+        }
         break;
       case 'setOpenRemind':
         // This does not carry either motion state or battery

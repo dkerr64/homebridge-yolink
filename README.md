@@ -177,7 +177,7 @@ If you see an error message in the log similar to the following then you are lik
     * **useWaterFlowing** *(optional)*: Device specific override of global *useWaterFlowing*, see above.  Defaults to global setting.
     * **leakAsContact** *(optional)*: Device specific override of global *leakAsContact*, see above.  Defaults to global setting.
     * **enableExperimental** *(optional)*: Device specific override of global *enableExperimental*, see above. Defaults to global setting.
-    * **doorbell** *(optional)*: For motion sensor devices, add a door bell accessory that is tiggered when motion is detected. Note that lock devices allways include a door bell.
+    * **doorbell** *(optional)*: For motion sensor devices, add a doorbell accessory that is tiggered when motion is detected. Note that lock devices allways include a doorbell.
 
 * **garageDoors** are an array of objects that allow you to pair two devices, either a *GarageDoor* or *Finger* controller with a *DoorSensor* that together represent a single garage door. The garage door inherits properties of the individual devices. The garage door *name* is taken from the controller device. See device notes below.
   * **controller** *(required)*: string representing the *deviceID* of the controlling device (activates door open or close). Must be a *GarageDoor* or *Finger* type device.
@@ -266,7 +266,7 @@ You can optionally use HomeKit contact sensor accessory type instead of leak sen
 
 ### Lock
 
-The YoLink Smart Lock M1 can be locked and unlocked from Homebridge/HomeKit and status of the lock and lock/unlock events triggered by the YoLink app or manually are received by this plugin. The plugin also creates a Door Bell service which is triggered when a user presses the door bell button on the YoLink smart lock keypad. The plugin does not support advanced features like setting user or visitor pass codes.
+The YoLink Smart Lock M1 can be locked and unlocked from Homebridge/HomeKit and status of the lock and lock/unlock events triggered by the YoLink app or manually are received by this plugin. The plugin also creates a doorbell service which is triggered when a user presses the doorbell button on the YoLink smart lock keypad. The plugin does not support advanced features like setting user or visitor pass codes.
 
 ### Manipulator / Water Valve Controller
 
@@ -278,7 +278,7 @@ Normal status reporting occurs every 4 hours. Alerts will be reported immediatel
 
 Some YoLink Motion sensors also report device temperature. If you set the *temperature* configuration setting to true then a Homebridge/HomeKit service is created to make this visible to the app. The name has "Temperature" appended to the end.
 
-If you set the *doorbell* configuration setting to true then a Homebridge/HomeKit door bell accessory is created and a single-press event generated when motion is detected.
+If you set the *doorbell* configuration setting to true then a Homebridge/HomeKit doorbell accessory is created and a single-press event generated when motion is detected. A *mute* feature is provided so you can silence the doorbell if desired.
 
 ### Outlet / Smart Plug (single)
 
