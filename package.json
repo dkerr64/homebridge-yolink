@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "mqtt": "^4.3.7",
-    "node-fetch": "^2.6.6",
+    "node-fetch": "^3.3.2",
     "npm": "^11.0.0",
     "semaphore-promise": "^1.4.2"
   },
