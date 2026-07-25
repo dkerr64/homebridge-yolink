@@ -30,22 +30,21 @@
     "watch": "npm run build && npm link && nodemon"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@types/eslint__js": "^8.42.3",
-    "@types/node": "^24.10.1",
-    "eslint": "^9.39.1",
-    "homebridge": "^2.0.0-beta.55",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.1.1",
+    "eslint": "^10.6.0",
+    "homebridge": "^2.1.0",
     "nodemon": "^3.1.11",
-    "rimraf": "^6.1.0",
+    "rimraf": "^6.1.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.4"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.0"
   },
   "dependencies": {
     "mqtt": "^4.3.7",
     "node-fetch": "^3.3.2",
     "npm": "^11.0.0",
-    "semaphore-promise": "^1.4.2"
+    "semaphore-promise": "^1.4.4"
   },
   "maintainers": [
     "dkerr64"
