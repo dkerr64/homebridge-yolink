@@ -192,7 +192,7 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
       });
       platform.verboseLog(`Response status: ${response.status} ${response.statusText}`);
       checkHttpStatus(response);
-      this.yolinkTokens = await response.json();
+      this.yolinkTokens = await response.json() as yolinkAccessTokens;
       platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(this.yolinkTokens));
       checkBudpStatus(platform, this.yolinkTokens);
       this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp / 1000);
@@ -259,7 +259,7 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
           },
         });
         checkHttpStatus(response);
-        this.yolinkTokens = await response.json();
+        this.yolinkTokens = await response.json() as yolinkAccessTokens;
         platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(this.yolinkTokens));
         checkBudpStatus(platform, this.yolinkTokens);
         this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp / 1000);
@@ -304,7 +304,7 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
           },
         });
       checkHttpStatus(response);
-      const budp: yolinkBUDP = await response.json();
+      const budp: yolinkBUDP = await response.json() as yolinkBUDP;
       platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp));
       checkBudpStatus(platform, budp);
 
@@ -353,7 +353,7 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
           },
         });
       checkHttpStatus(response);
-      budp = await response.json();
+      budp = await response.json() as yolinkBUDP;
       platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp, null, 2));
       checkBudpStatus(platform, budp, device);
     } finally {
@@ -399,7 +399,7 @@ export class YoLinkLocalAPI implements IYoLinkAPI {
           },
         });
       checkHttpStatus(response);
-      budp = await response.json();
+      budp = await response.json() as yolinkBUDP;
       platform.verboseLog('RECEIVED FROM LOCAL HUB:\n' + JSON.stringify(budp, null, 2));
       checkBudpStatus(platform, budp, device);
       platform.log.info(`[${device.deviceMsgName}] Device state set: ${(state) ? JSON.stringify(state) : method}`);

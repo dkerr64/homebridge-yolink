@@ -162,7 +162,7 @@ export class YoLinkAPI implements IYoLinkAPI {
     platform.verboseLog('SENDING:\n' + params);
     let response = await fetch(platform.config.tokenURL, { method: 'POST', body: params });
     checkHttpStatus(response);
-    this.yolinkTokens = await response.json();
+    this.yolinkTokens = await response.json() as yolinkAccessTokens;
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(this.yolinkTokens));
     checkBudpStatus(platform, this.yolinkTokens);
     this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp / 1000);
@@ -183,7 +183,7 @@ export class YoLinkAPI implements IYoLinkAPI {
         },
       });
     checkHttpStatus(response);
-    const budp: yolinkBUDP = await response.json();
+    const budp: yolinkBUDP = await response.json() as yolinkBUDP;
     platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
     checkBudpStatus(platform, budp);
     this.yolinkHomeId = budp.data.id;
@@ -233,7 +233,7 @@ export class YoLinkAPI implements IYoLinkAPI {
         platform.verboseLog('SENDING:\n' + params);
         const response = await fetch(platform.config.tokenURL, { method: 'POST', body: params });
         checkHttpStatus(response);
-        this.yolinkTokens = await response.json();
+        this.yolinkTokens = await response.json() as yolinkAccessTokens;
         platform.verboseLog('RECEIVED:\n' + JSON.stringify(this.yolinkTokens));
         checkBudpStatus(platform, this.yolinkTokens);
         this.accessTokenExpireTime = Math.floor(this.yolinkTokens.expires_in * this.accessTokenRefreshAt) + Math.floor(timestamp / 1000);
@@ -281,7 +281,7 @@ export class YoLinkAPI implements IYoLinkAPI {
           },
         });
       checkHttpStatus(response);
-      budp = await response.json();
+      budp = await response.json() as yolinkBUDP;
       platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp));
       checkBudpStatus(platform, budp);
       platform.liteLog(`YoLinkAPI.getDeviceList found ${budp.data.devices.length} devices`);
@@ -325,7 +325,7 @@ export class YoLinkAPI implements IYoLinkAPI {
           },
         });
       checkHttpStatus(response);
-      budp = await response.json();
+      budp = await response.json() as yolinkBUDP;
       platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
       checkBudpStatus(platform, budp, device);
     } finally {
@@ -391,7 +391,7 @@ export class YoLinkAPI implements IYoLinkAPI {
           },
         });
       checkHttpStatus(response);
-      budp = await response.json();
+      budp = await response.json() as yolinkBUDP;
       platform.verboseLog('RECEIVED:\n' + JSON.stringify(budp, null, 2));
       checkBudpStatus(platform, budp, device);
       platform.log.info(`[${device.deviceMsgName}] Device state set: ${(state) ? JSON.stringify(state) : method}`);
