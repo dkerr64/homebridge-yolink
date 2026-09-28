@@ -127,7 +127,7 @@ async function handleGetBlocking(this: YoLinkPlatformAccessory, sensor = 'thermo
       this.thermoService?.updateCharacteristic(platform.Characteristic.StatusFault, false);
       this.hydroService?.updateCharacteristic(platform.Characteristic.StatusActive, true);
       this.hydroService?.updateCharacteristic(platform.Characteristic.StatusFault, false);
-      if (device.data.state.alarm.lowBattery) {
+      if (device.data.state?.alarm?.lowBattery) {
         platform.log.warn(`Device ${device.deviceMsgName} reports low battery`);
       }
       rc = (sensor === 'hydro') ? device.data.state.humidity : device.data.state.temperature;
